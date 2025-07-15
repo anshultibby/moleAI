@@ -8,6 +8,8 @@ import re
 from typing import Dict, Any, List
 from dataclasses import dataclass
 from pydantic import BaseModel
+from .firecrawl_service import FirecrawlService
+import os
 
 
 @dataclass
@@ -71,7 +73,7 @@ def execute_function_with_context(
 
 
 def _search_product(arguments: Dict[str, Any], context: ShoppingContextVariables) -> str:
-    """Placeholder for product search functionality"""
+    """Search for products using Firecrawl service"""
     query = arguments.get("query", "")
     max_price = arguments.get("max_price", None)
     category = arguments.get("category", None)
@@ -79,8 +81,48 @@ def _search_product(arguments: Dict[str, Any], context: ShoppingContextVariables
     # Add to search history
     context.search_history.append(query)
     
-    # Placeholder response
-    return f"Searching for '{query}' with max price {max_price} in category {category}. This is a placeholder - actual product search would be implemented here."
+    try:
+        # Initialize Firecrawl service
+        firecrawl_service = FirecrawlService()
+        
+        # Search for products (now returns full content from Zara)
+        search_results = firecrawl_service.search_products(query, max_price, category)
+        
+        if search_results:
+            # Add the raw content to context for LLM processing
+            for result in search_results:
+                context.deals_found.append(result)
+            
+            # Return the full content for the LLM to process
+            result_text = f"Found search results for '{query}' from Zara:\n\n"
+            
+            for result in search_results:
+                result_text += f"Source: {result.get('source', 'Unknown')}\n"
+                result_text += f"Search URL: {result.get('url', 'N/A')}\n"
+                result_text += f"Page Title: {result.get('metadata', {}).get('title', 'N/A')}\n\n"
+                
+                # Include the full markdown content for LLM processing
+                markdown_content = result.get('markdown', '')
+                if markdown_content:
+                    result_text += "Page Content:\n"
+                    result_text += markdown_content
+                    result_text += "\n\n"
+                else:
+                    result_text += "No content available\n\n"
+            
+            result_text += f"Please analyze this content and extract relevant product information including names, prices, and availability."
+            
+            return result_text
+        else:
+            return f"No search results found for '{query}' on Zara. Try a different search term or check if the Firecrawl API is properly configured."
+            
+    except ValueError as e:
+        if "Firecrawl API key not configured" in str(e):
+            return "Firecrawl API key not configured. Please set FIRECRAWL_API_KEY environment variable."
+        else:
+            return f"Error searching for products: {str(e)}"
+    except Exception as e:
+        return f"Error searching for products: {str(e)}"
 
 
 def _compare_prices(arguments: Dict[str, Any], context: ShoppingContextVariables) -> str:
