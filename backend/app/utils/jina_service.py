@@ -1,347 +1,236 @@
 """
-Jina AI Reader Service
-Clean web content extraction using Jina AI's reader API
+Jina Reader + LLM Service
+Uses Jina Reader to get clean Markdown from Shopify stores,
+then uses LLM to extract structured product data
 """
 
 import os
 import requests
+import json
 from typing import List, Dict, Any, Optional
 import time
-import concurrent.futures
+from dotenv import load_dotenv
+import google.generativeai as genai
 
+load_dotenv()
 
-class JinaReaderService:
-    """Service for extracting clean content from URLs using Jina AI Reader"""
+class JinaScrapingService:
+    def __init__(self, jina_api_key: str = None, gemini_api_key: str = None):
+        self.jina_api_key = jina_api_key or os.getenv("JINA_API_KEY")
+        self.gemini_api_key = gemini_api_key or os.getenv("GEMINI_API_KEY")
+        
+        # Jina Reader endpoint
+        self.jina_base_url = "https://r.jina.ai/"
+        
+        # Set up Gemini
+        if self.gemini_api_key:
+            genai.configure(api_key=self.gemini_api_key)
+            self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
     
-    def __init__(self, api_key: str = None):
-        self.base_url = "https://r.jina.ai"
-        self.api_key = api_key or os.getenv('JINA_API_KEY')
-        self.session = requests.Session()
-        
-        # Set headers for better reliability
-        headers = {
-            'User-Agent': 'moleAI-shopping-assistant/1.0',
-            'Accept': 'text/plain, application/json',
-        }
-        
-        # Add API key if available for premium features
-        if self.api_key:
-            headers['Authorization'] = f'Bearer {self.api_key}'
-            print(f"✅ Jina AI: Using API key for premium access")
-        else:
-            print("⚠️ Jina AI: Using free tier (rate limited)")
-            
-        self.session.headers.update(headers)
-    
-    def read_url(self, url: str, timeout: int = 30) -> Optional[Dict[str, Any]]:
+    def scrape_products(self, store_url: str, keyword: str, max_products: int = 10) -> List[Dict[str, Any]]:
         """
-        Extract clean content from a single URL using Jina AI Reader
-        
-        Args:
-            url: URL to extract content from
-            timeout: Request timeout in seconds
-            
-        Returns:
-            Dictionary with extracted content or None if failed
+        Main method: scrape products from a Shopify store using Jina Reader + LLM
         """
+        print(f"   📄 Scraping {store_url} with Jina Reader...")
+        
         try:
-            # Jina AI Reader endpoint
-            jina_url = f"{self.base_url}/{url}"
+            # Step 1: Get clean markdown from Jina Reader
+            markdown_content = self._get_jina_content(store_url)
             
-            # Make request to Jina AI
-            response = self.session.get(jina_url, timeout=timeout)
-            response.raise_for_status()
+            if not markdown_content:
+                print("   ❌ No content from Jina Reader")
+                return []
             
-            # Get the clean content
-            clean_content = response.text
+            # Step 2: Extract products using LLM
+            products = self._extract_products_with_llm(markdown_content, keyword, max_products)
             
-            # Parse and structure the response
-            result = {
-                'url': url,
-                'content': clean_content,
-                'content_length': len(clean_content),
-                'success': True,
-                'source': 'jina_reader'
-            }
+            print(f"   ✅ Extracted {len(products)} products")
+            return products
             
-            # Try to extract structured information from the clean content
-            structured_info = self._extract_product_info_from_content(clean_content, url)
-            result.update(structured_info)
-            
-            return result
-            
-        except requests.exceptions.RequestException as e:
-            print(f"Jina Reader error for {url}: {e}")
-            return {
-                'url': url,
-                'content': '',
-                'success': False,
-                'error': str(e),
-                'source': 'jina_reader'
-            }
         except Exception as e:
-            print(f"Unexpected error reading {url}: {e}")
+            print(f"   ❌ Scraping failed: {e}")
+            return []
+    
+    def _get_jina_content(self, url: str) -> str:
+        """Get clean markdown content from Jina Reader"""
+        try:
+            # Jina Reader URL format
+            jina_url = f"{self.jina_base_url}{url}"
+            
+            headers = {}
+            if self.jina_api_key:
+                headers["Authorization"] = f"Bearer {self.jina_api_key}"
+            
+            response = requests.get(jina_url, headers=headers, timeout=30)
+            
+            if response.status_code == 200:
+                return response.text
+            else:
+                print(f"   Jina Reader error {response.status_code}: {response.text}")
+                return ""
+                
+        except Exception as e:
+            print(f"   Jina Reader request failed: {e}")
+            return ""
+    
+    def _extract_products_with_llm(self, markdown_content: str, keyword: str, max_products: int) -> List[Dict[str, Any]]:
+        """Extract structured product data from markdown using LLM"""
+        
+        # Truncate content if too long (LLM context limits)
+        max_content_length = 8000  # Leave room for prompt
+        if len(markdown_content) > max_content_length:
+            markdown_content = markdown_content[:max_content_length] + "..."
+        
+        # Create extraction prompt
+        prompt = self._create_extraction_prompt(markdown_content, keyword, max_products)
+        
+        try:
+            # Use Gemini Flash for fast, cost-effective extraction
+            if not hasattr(self, 'model'):
+                print("   ❌ Gemini not configured")
+                return []
+            
+            response = self.model.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.1,
+                    max_output_tokens=2000,
+                )
+            )
+            
+            # Parse LLM response
+            llm_output = response.text.strip()
+            
+            # Extract JSON from response
+            products = self._parse_llm_response(llm_output)
+            
+            return products
+            
+        except Exception as e:
+            print(f"   LLM extraction failed: {e}")
+            return []
+    
+    def _create_extraction_prompt(self, content: str, keyword: str, max_products: int) -> str:
+        """Create the LLM prompt for product extraction"""
+        
+        prompt = f"""You are a product data extraction expert. Extract structured product information from e-commerce page content. Always return valid JSON.
+
+Extract product information from this e-commerce page content. Focus on products related to "{keyword}".
+
+Return a JSON array of products with this exact structure:
+[
+  {{
+    "title": "Product name",
+    "price": "Display price (e.g., '$29.99')",
+    "price_value": 29.99,
+    "url": "Product URL (if available)",
+    "image_url": "Product image URL (if available)",
+    "description": "Brief product description",
+    "in_stock": true,
+    "sizes": ["S", "M", "L"]
+  }}
+]
+
+Requirements:
+- Extract up to {max_products} products maximum
+- Only include products that match or relate to "{keyword}"
+- Convert prices to numeric values for price_value field
+- Set in_stock to true unless clearly marked as out of stock
+- Include product URLs if they're relative paths (start with /)
+- Return empty array [] if no relevant products found
+- Return ONLY the JSON array, no other text
+
+E-commerce page content:
+{content}
+"""
+        return prompt
+    
+    def _parse_llm_response(self, llm_output: str) -> List[Dict[str, Any]]:
+        """Parse and validate LLM response"""
+        try:
+            # Try to find JSON in the response
+            import re
+            
+            # Look for JSON array pattern
+            json_match = re.search(r'\[.*\]', llm_output, re.DOTALL)
+            
+            if json_match:
+                json_str = json_match.group(0)
+                products = json.loads(json_str)
+                
+                # Validate and clean up products
+                cleaned_products = []
+                for product in products:
+                    if isinstance(product, dict) and 'title' in product:
+                        # Ensure required fields exist
+                        cleaned_product = {
+                            'title': product.get('title', 'Unknown Product'),
+                            'price': product.get('price', 'Price not available'),
+                            'price_value': float(product.get('price_value', 0.0)),
+                            'url': product.get('url', ''),
+                            'image_url': product.get('image_url', ''),
+                            'description': product.get('description', ''),
+                            'in_stock': product.get('in_stock', True),
+                            'sizes': product.get('sizes', [])
+                        }
+                        cleaned_products.append(cleaned_product)
+                
+                return cleaned_products
+            else:
+                print("   No JSON found in LLM response")
+                return []
+                
+        except json.JSONDecodeError as e:
+            print(f"   JSON parsing failed: {e}")
+            return []
+        except Exception as e:
+            print(f"   Response parsing failed: {e}")
+            return []
+    
+    def test_extraction(self, test_url: str = "https://shop.gymshark.com/collections/all") -> Dict[str, Any]:
+        """Test the Jina + LLM extraction pipeline"""
+        print(f"🧪 Testing Jina + LLM extraction on: {test_url}")
+        
+        start_time = time.time()
+        
+        # Step 1: Test Jina Reader
+        print("Step 1: Testing Jina Reader...")
+        markdown = self._get_jina_content(test_url)
+        jina_time = time.time() - start_time
+        
+        if not markdown:
             return {
-                'url': url,
-                'content': '',
                 'success': False,
-                'error': str(e),
-                'source': 'jina_reader'
+                'error': 'Jina Reader failed',
+                'jina_time': jina_time
             }
-    
-    def read_urls_parallel(self, urls: List[str], max_workers: int = 5, delay: float = 0.2) -> List[Dict[str, Any]]:
-        """
-        Extract content from multiple URLs in parallel
         
-        Args:
-            urls: List of URLs to process
-            max_workers: Maximum number of parallel workers
-            delay: Delay between requests (for rate limiting)
-            
-        Returns:
-            List of extraction results
-        """
-        results = []
+        # Step 2: Test LLM extraction
+        print("Step 2: Testing LLM extraction...")
+        llm_start = time.time()
+        products = self._extract_products_with_llm(markdown[:5000], "athletic wear", 5)
+        llm_time = time.time() - llm_start
         
-        def read_with_delay(url: str) -> Dict[str, Any]:
-            """Helper function to add delay between requests"""
-            time.sleep(delay)
-            return self.read_url(url)
+        total_time = time.time() - start_time
         
-        # Use ThreadPoolExecutor for parallel processing
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submit all tasks
-            future_to_url = {executor.submit(read_with_delay, url): url for url in urls}
-            
-            # Collect results as they complete
-            for future in concurrent.futures.as_completed(future_to_url):
-                result = future.result()
-                if result:
-                    results.append(result)
-        
-        return results
-    
-    def _extract_product_info_from_content(self, content: str, url: str) -> Dict[str, Any]:
-        """
-        Extract structured product information from clean content
-        
-        Args:
-            content: Clean content from Jina Reader
-            url: Original URL for context
-            
-        Returns:
-            Dictionary with extracted product information
-        """
-        import re
-        from urllib.parse import urlparse
-        
-        # Initialize result
-        product_info = {
-            'product_name': '',
-            'price': '',
-            'description': '',
-            'brand': '',
-            'availability': 'unknown',
-            'store_name': self._extract_store_name_from_url(url),
-            'images': []
+        return {
+            'success': len(products) > 0,
+            'products_found': len(products),
+            'sample_product': products[0] if products else None,
+            'content_length': len(markdown),
+            'jina_time': jina_time,
+            'llm_time': llm_time,
+            'total_time': total_time,
+            'products': products
         }
-        
-        if not content:
-            return product_info
-        
-        # Split content into lines for easier processing
-        lines = content.split('\n')
-        content_lower = content.lower()
-        
-        # Extract product name (usually in title or first heading)
-        product_info['product_name'] = self._extract_product_name(lines)
-        
-        # Extract price
-        product_info['price'] = self._extract_price_from_content(content)
-        
-        # Extract description (look for longer text blocks)
-        product_info['description'] = self._extract_description(lines)
-        
-        # Extract brand
-        product_info['brand'] = self._extract_brand_from_content(content)
-        
-        # Extract availability
-        product_info['availability'] = self._extract_availability_from_content(content_lower)
-        
-        # Extract image URLs from content
-        product_info['images'] = self._extract_image_urls_from_content(content)
-        
-        return product_info
-    
-    def _extract_product_name(self, lines: List[str]) -> str:
-        """Extract product name from content lines"""
-        # Look for title-like lines (usually first few non-empty lines)
-        for line in lines[:10]:  # Check first 10 lines
-            line = line.strip()
-            if line and len(line) > 10 and len(line) < 200:
-                # Skip lines that look like navigation or metadata
-                skip_patterns = ['home', 'menu', 'cart', 'sign in', 'search', 'categories']
-                if not any(pattern in line.lower() for pattern in skip_patterns):
-                    return line
-        
-        return ""
-    
-    def _extract_price_from_content(self, content: str) -> str:
-        """Extract price from content using regex patterns"""
-        import re
-        
-        # Common price patterns
-        price_patterns = [
-            r'\$\d+\.?\d*',  # $29.99, $29
-            r'£\d+\.?\d*',   # £29.99
-            r'€\d+\.?\d*',   # €29.99
-            r'¥\d+\.?\d*',   # ¥2999
-            r'\d+\.\d{2}\s*(?:USD|CAD|GBP|EUR)',  # 29.99 USD
-            r'Price[:\s]*\$?\d+\.?\d*',  # Price: $29.99
-            r'Sale[:\s]*\$?\d+\.?\d*',   # Sale: $29.99
-        ]
-        
-        for pattern in price_patterns:
-            matches = re.findall(pattern, content, re.IGNORECASE)
-            if matches:
-                return matches[0]
-        
-        return ""
-    
-    def _extract_description(self, lines: List[str]) -> str:
-        """Extract product description from content lines"""
-        # Look for longer text blocks that aren't titles
-        description_candidates = []
-        
-        for line in lines:
-            line = line.strip()
-            # Look for substantial text blocks
-            if 50 <= len(line) <= 500:  # Good description length
-                # Skip obvious non-description content
-                skip_patterns = ['cookie', 'privacy', 'terms', 'shipping', 'return']
-                if not any(pattern in line.lower() for pattern in skip_patterns):
-                    description_candidates.append(line)
-        
-        # Return the first good candidate or first few lines
-        if description_candidates:
-            return description_candidates[0]
-        
-        # Fallback: combine first few substantial lines
-        substantial_lines = [line.strip() for line in lines if 20 <= len(line.strip()) <= 200]
-        if substantial_lines:
-            return ' '.join(substantial_lines[:2])
-        
-        return ""
-    
-    def _extract_brand_from_content(self, content: str) -> str:
-        """Extract brand name from content"""
-        import re
-        
-        # Look for brand patterns
-        brand_patterns = [
-            r'Brand[:\s]+([A-Za-z][A-Za-z\s&]+)',
-            r'by ([A-Z][a-z]+)',
-            r'from ([A-Z][a-z]+)',
-        ]
-        
-        for pattern in brand_patterns:
-            matches = re.findall(pattern, content, re.IGNORECASE)
-            if matches:
-                brand = matches[0].strip()
-                if len(brand) <= 30:  # Reasonable brand name length
-                    return brand
-        
-        return ""
-    
-    def _extract_availability_from_content(self, content_lower: str) -> str:
-        """Extract availability status from content"""
-        if any(phrase in content_lower for phrase in ['in stock', 'available now', 'add to cart', 'buy now']):
-            return 'in stock'
-        elif any(phrase in content_lower for phrase in ['out of stock', 'sold out', 'unavailable']):
-            return 'out of stock'
-        elif any(phrase in content_lower for phrase in ['limited stock', 'only', 'left']):
-            return 'limited'
-        else:
-            return 'unknown'
-    
-    def _extract_image_urls_from_content(self, content: str) -> List[str]:
-        """Extract image URLs from content"""
-        import re
-        
-        # Look for image URLs in the content
-        image_patterns = [
-            r'https?://[^\s]+\.(?:jpg|jpeg|png|webp|gif)',
-            r'https?://[^\s]+/images/[^\s]+',
-        ]
-        
-        images = []
-        for pattern in image_patterns:
-            matches = re.findall(pattern, content, re.IGNORECASE)
-            images.extend(matches)
-        
-        # Remove duplicates and return first 3
-        return list(dict.fromkeys(images))[:3]
-    
-    def _extract_store_name_from_url(self, url: str) -> str:
-        """Extract store name from URL"""
-        from urllib.parse import urlparse
-        
-        domain = urlparse(url).netloc.lower()
-        
-        # Common store mappings
-        store_mappings = {
-            'amazon.com': 'Amazon',
-            'amazon.co.uk': 'Amazon UK',
-            'amazon.ca': 'Amazon Canada',
-            'ebay.com': 'eBay',
-            'target.com': 'Target',
-            'walmart.com': 'Walmart',
-            'bestbuy.com': 'Best Buy',
-            'homedepot.com': 'Home Depot',
-            'lowes.com': "Lowe's",
-            'macys.com': "Macy's",
-            'nordstrom.com': 'Nordstrom',
-            'zappos.com': 'Zappos',
-            'etsy.com': 'Etsy',
-            'wayfair.com': 'Wayfair',
-            'newegg.com': 'Newegg',
-            'costco.com': 'Costco'
-        }
-        
-        for domain_key, store_name in store_mappings.items():
-            if domain_key in domain:
-                return store_name
-        
-        # Fallback: clean domain name
-        clean_domain = domain.replace('www.', '').split('.')[0]
-        return clean_domain.title()
 
 
 # Convenience functions
-def read_urls_with_jina(urls: List[str], max_workers: int = 5) -> List[Dict[str, Any]]:
-    """
-    Convenience function to read multiple URLs with Jina AI Reader
-    
-    Args:
-        urls: List of URLs to read
-        max_workers: Maximum parallel workers
-        
-    Returns:
-        List of extracted content
-    """
-    service = JinaReaderService()
-    return service.read_urls_parallel(urls, max_workers)
-
-
-def read_url_with_jina(url: str) -> Optional[Dict[str, Any]]:
-    """
-    Convenience function to read a single URL with Jina AI Reader
-    
-    Args:
-        url: URL to read
-        
-    Returns:
-        Extracted content or None
-    """
-    service = JinaReaderService()
-    return service.read_url(url) 
+def scrape_store_products(store_url: str, keyword: str) -> List[Dict[str, Any]]:
+    """Convenience function to scrape products from a store"""
+    try:
+        service = JinaScrapingService()
+        return service.scrape_products(store_url, keyword)
+    except Exception as e:
+        print(f"Scraping failed: {e}")
+        return [] 

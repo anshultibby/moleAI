@@ -137,10 +137,10 @@ async def process_shopping_query_with_tools_async(query: str, api_key: str) -> t
     """
     Async wrapper for the shopping query processing with tools
     """
-    # In a real implementation, you might want to run this in a thread pool
-    # to avoid blocking the async event loop
     try:
-        deals_found, messages, final_chat_response = process_shopping_query_with_tools(query, api_key)
+        # Import the async version of the shopping pipeline
+        from ..utils.shopping_pipeline import process_shopping_query_with_tools_async as pipeline_async
+        deals_found, messages, final_chat_response = await pipeline_async(query, api_key)
         return deals_found, messages, final_chat_response
     except Exception as e:
         # Return empty results on error

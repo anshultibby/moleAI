@@ -5,26 +5,31 @@ Adapted from openai_tools_converter.py for shopping functionality
 
 import json
 import re
-from typing import Dict, Any, List
-from dataclasses import dataclass
+from typing import Dict, Any, List, Optional
+from dataclasses import dataclass, field
 from pydantic import BaseModel
-from .hybrid_search_service import search_products_hybrid
-import os
+import asyncio
+
+# Import our new simplified search services
+from .hybrid_search_service import shopify_search, hybrid_search
+from .google_discovery_service import GoogleDiscoveryService
 
 
 @dataclass
 class ShoppingContextVariables:
-    """Context variables for shopping deals processing"""
-    deals_found: List[Dict[str, Any]]
-    search_history: List[str]
-    user_preferences: Dict[str, Any]
-    final_chat_message: str
+    """Context variables for shopping functions"""
+    deals_found: List[Dict[str, Any]] = field(default_factory=list)
+    search_results: List[Dict[str, Any]] = field(default_factory=list)
+    final_chat_message: str = ""
+    total_searches: int = 0
     
-    def __init__(self):
-        self.deals_found = []
-        self.search_history = []
-        self.user_preferences = {}
-        self.final_chat_message = ""
+    def add_deal(self, deal: Dict[str, Any]):
+        """Add a deal to the context"""
+        self.deals_found.append(deal)
+    
+    def add_search_result(self, result: Dict[str, Any]):
+        """Add a search result to the context"""
+        self.search_results.append(result)
 
 
 def extract_tool_call_from_response(response_text: str) -> Dict[str, Any]:
@@ -93,42 +98,84 @@ def extract_tool_call_from_response(response_text: str) -> Dict[str, Any]:
     return None
 
 
+async def execute_function_with_context_async(
+    function_name: str, 
+    arguments: Dict[str, Any], 
+    context: ShoppingContextVariables
+) -> str:
+    """
+    Async version of execute_function_with_context
+    Execute a function with context variables asynchronously
+    """
+    try:
+        if function_name == "search_product":
+            return await search_product(arguments, context)
+        elif function_name == "show_products":
+            return _show_products(arguments, context)
+        elif function_name == "share_reasoning":
+            return _share_reasoning(arguments, context)
+        elif function_name == "chat_message":
+            return _chat_message(arguments, context)
+        elif function_name == "show_search_links":
+            return _show_search_links(arguments, context)
+        else:
+            return f"Unknown function: {function_name}"
+    except Exception as e:
+        error_msg = f"Error executing {function_name}: {str(e)}"
+        print(error_msg)
+        return error_msg
+
+
+def search_product_sync(args: Dict[str, Any], context: ShoppingContextVariables) -> str:
+    """
+    Sync version of search_product for use in sync execution contexts
+    """
+    import asyncio
+    import concurrent.futures
+    
+    try:
+        # Try to get the current event loop
+        loop = asyncio.get_event_loop()
+        
+        if loop.is_running():
+            # If there's already a running loop, use a thread pool to run the async function
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, search_product(args, context))
+                return future.result()
+        else:
+            # No running loop, safe to use run_until_complete
+            return loop.run_until_complete(search_product(args, context))
+            
+    except RuntimeError:
+        # No event loop exists, create a new one
+        return asyncio.run(search_product(args, context))
+
+
 def execute_function_with_context(
     function_name: str, 
     arguments: Dict[str, Any], 
     context: ShoppingContextVariables
 ) -> str:
     """
-    Execute a function call with the given context
-    This is where actual tool implementations would go
+    Execute a function with context variables - sync version
     """
-    
-    if function_name == "search_product":
-        return _search_product(arguments, context)
-    elif function_name == "show_products":
-        return _show_products(arguments, context)
-    elif function_name == "chat_message":
-        return _chat_message(arguments, context)
-    elif function_name == "display_products":
-        return _display_products(arguments, context)
-    elif function_name == "show_products":
-        return _show_products(arguments, context)
-    elif function_name == "share_reasoning":
-        return _share_reasoning(arguments, context)
-    elif function_name == "chat_message":
-        return _chat_message(arguments, context)
-    elif function_name == "compare_prices":
-        return _compare_prices(arguments, context)
-    elif function_name == "add_deal":
-        return _add_deal(arguments, context)
-    elif function_name == "get_user_preferences":
-        return _get_user_preferences(arguments, context)
-    elif function_name == "update_preferences":
-        return _update_preferences(arguments, context)
-    elif function_name == "show_search_links":
-        return _show_search_links(arguments, context)
-    else:
-        return f"Unknown function: {function_name}"
+    try:
+        if function_name == "search_product":
+            return search_product_sync(arguments, context)
+        elif function_name == "show_products":
+            return _show_products(arguments, context)
+        elif function_name == "share_reasoning":
+            return _share_reasoning(arguments, context)
+        elif function_name == "chat_message":
+            return _chat_message(arguments, context)
+        elif function_name == "show_search_links":
+            return _show_search_links(arguments, context)
+        else:
+            return f"Unknown function: {function_name}"
+    except Exception as e:
+        error_msg = f"Error executing {function_name}: {str(e)}"
+        print(error_msg)
+        return error_msg
 
 
 def _add_structured_products(arguments: Dict[str, Any], context: ShoppingContextVariables) -> str:
@@ -172,7 +219,8 @@ def _add_structured_products(arguments: Dict[str, Any], context: ShoppingContext
                             domain = parsed.netloc
                             image_url = f"https://{domain}" + image_url
                         except:
-                            image_url = "https://example.com" + image_url  # Fallback
+                            # If we can't parse the URL, leave image_url as relative or empty
+                            pass  # Don't create fake URLs
             elif not image_url.startswith("http"):
                 # Handle relative URLs without leading slash
                 if "zara" in store_name.lower():
@@ -220,148 +268,117 @@ def _add_structured_products(arguments: Dict[str, Any], context: ShoppingContext
     return f"Added {len(products)} structured products for display"
 
 
-def _search_product(arguments: Dict[str, Any], context: ShoppingContextVariables) -> str:
+async def search_product(args: Dict[str, Any], context: ShoppingContextVariables) -> str:
     """
-    Rye API Product Search:
-    Uses Rye's GraphQL API to search for products from Amazon and Shopify
+    Enhanced search using our fast Shopify JSON approach
     """
     import time
-    search_start = time.time()
     
-    query = arguments.get("query", "")
-    max_price = arguments.get("max_price", None)
-    category = arguments.get("category", None)
-    marketplaces = arguments.get("marketplaces", ["AMAZON", "SHOPIFY"])
-    limit = arguments.get("limit", 20)  # Increased for better variety
+    query = args.get("query", "")
+    max_price = args.get("max_price")
+    category = args.get("category")
+    marketplaces = args.get("marketplaces", ["SHOPIFY"])
+    limit = args.get("limit", 20)
     
-    # Add to search history
-    context.search_history.append(query)
+    print(f"🔍 Searching for: '{query}' (limit: {limit})")
+    
+    if not query:
+        return "Error: No search query provided"
     
     try:
-        print(f"🛍️ Starting Rye API search for: '{query}'")
-        print(f"🕐 TIMING: Search started at {time.strftime('%H:%M:%S')}")
+        start_time = time.time()
         
-        # Import Rye service
-        from .rye_service import search_products_with_rye, search_products_by_domain_with_rye
+        # Use our fast Shopify JSON search
+        if "AMAZON" in marketplaces and "SHOPIFY" in marketplaces:
+            # Use hybrid search (Shopify + Amazon if available)
+            products = await hybrid_search(query, max_results=limit)
+            search_source = "Shopify stores + Amazon Business"
+        else:
+            # Use pure Shopify search (fastest)
+            products = await shopify_search(query, max_results=limit)
+            search_source = "Shopify stores"
         
-        # Get RYE API key from environment
-        import os
-        rye_api_key = os.getenv("RYE_API_KEY")
-        rye_shopper_ip = os.getenv("RYE_SHOPPER_IP", "127.0.0.1")
-        
-        if not rye_api_key:
-            return "❌ RYE_API_KEY not configured. Please set the RYE_API_KEY environment variable."
-        
-        print("Step 1: Searching Rye API for products...")
-        
-        # Search using Rye API
-        api_start = time.time()
-        products = search_products_with_rye(
-            query=query,
-            api_key=rye_api_key,
-            shopper_ip=rye_shopper_ip,
-            limit=limit,
-            marketplaces=marketplaces
-        )
-        api_end = time.time()
-        print(f"🕐 TIMING: Rye API search took {api_end - api_start:.2f}s")
+        search_time = time.time() - start_time
         
         if not products:
-            # Try searching popular domains if direct search didn't work
-            print("Step 2: Trying domain-specific searches...")
-            popular_domains = ["amazon.com", "shop.gymshark.com", "us.allbirds.com"]
-            
-            for domain in popular_domains:
-                domain_products = search_products_by_domain_with_rye(
-                    domain=domain,
-                    api_key=rye_api_key,
-                    shopper_ip=rye_shopper_ip,
-                    limit=5
-                )
-                # Filter products that match our query
-                filtered_products = [
-                    p for p in domain_products 
-                    if query.lower() in p.get('product_name', '').lower() or 
-                       query.lower() in p.get('description', '').lower()
-                ]
-                products.extend(filtered_products)
-                
-                if len(products) >= 10:  # Stop if we have enough products
-                    break
+            return f"No products found for '{query}' in {search_source}"
         
-        if not products:
-            return f"No products found for '{query}' using Rye API. The query might be too specific or the products might not be available in Rye's catalog."
-        
-        print(f"Found {len(products)} products via Rye API")
-        
-        # Add products to context for LLM processing
-        for product in products:
-            # Apply price filter if specified
-            if max_price:
+        # Apply price filter if specified
+        if max_price:
+            print(f"🔍 Filtering {len(products)} products with max_price: ${max_price}")
+            filtered_products = []
+            for product in products:
                 try:
-                    # Extract numeric price from price string
-                    price_str = product.get('price', '0')
-                    price_value = float(''.join(filter(str.isdigit, price_str.split()[0])))
-                    if price_value > max_price:
-                        continue
-                except (ValueError, IndexError):
-                    # If we can't parse the price, include the product
-                    pass
+                    price_value = product.get('price_value', 0)
+                    price_str = product.get('price', 'No price')
+                    product_name = product.get('product_name', 'Unknown')[:30]
+                    
+                    # Include products if: price_value is 0 (parsing failed) OR price_value <= max_price
+                    if price_value == 0 or price_value <= max_price:
+                        filtered_products.append(product)
+                        print(f"   ✅ Include: {product_name} - {price_str} (value: {price_value})")
+                    else:
+                        print(f"   ❌ Exclude: {product_name} - {price_str} (value: {price_value}) > ${max_price}")
+                except Exception as e:
+                    # If price parsing fails, include the product
+                    filtered_products.append(product)
+                    print(f"   ⚠️  Price error for {product.get('product_name', 'Unknown')[:30]}: {e}")
             
-            # Enhance product data with Rye-specific information
-            enhanced_product = {
-                **product,
-                "source": "rye_api",
-                "search_query": query,
-                "timestamp": time.strftime('%H:%M:%S')
-            }
-            context.deals_found.append(enhanced_product)
+            print(f"🔍 Price filtering: {len(products)} → {len(filtered_products)} products")
+            products = filtered_products
         
-        # Filter products in context by price if specified
+        # Add products to context
+        for product in products:
+            context.add_deal({
+                'type': 'product',
+                'product_name': product.get('product_name', 'Unknown Product'),
+                'price': product.get('price', 'Price not available'),
+                'price_value': product.get('price_value', 0),
+                'image_url': product.get('image_url', ''),
+                'product_url': product.get('product_url', ''),
+                'store_name': product.get('store_name', 'Unknown Store'),
+                'description': product.get('description', ''),
+                'source': product.get('source', 'shopify_json'),
+                'marketplace': product.get('marketplace', 'SHOPIFY'),
+                'is_available': product.get('is_available', True)
+            })
+        
+        context.total_searches += 1
+        
+        # Create search links for display (using store discovery)
+        try:
+            discovery = GoogleDiscoveryService()
+            stores = discovery.discover_shopify_stores(query, max_results=50)  # INCREASED: More stores for better coverage
+            
+            search_links = []
+            for store in stores[:12]:  # Still show top 12 links to users (UI limit)
+                search_links.append({
+                    'title': f"{store.replace('.myshopify.com', '').replace('-', ' ').title()} Store",
+                    'url': f"https://{store}",
+                    'description': f"Browse {store.replace('.myshopify.com', '').replace('-', ' ')} for {query}",
+                    'domain': store,
+                    'score': 0.9
+                })
+            
+            if search_links:
+                context.add_deal({
+                    'type': 'search_links',
+                    'links': search_links,
+                    'search_query': query,
+                    'total_results': len(stores)
+                })
+        except Exception as e:
+            print(f"Warning: Could not generate search links: {e}")
+        
+        result_summary = f"Found {len(products)} products from {search_source} in {search_time:.2f}s"
         if max_price:
-            original_count = len(context.deals_found)
-            context.deals_found = [
-                deal for deal in context.deals_found 
-                if _product_under_price_limit(deal, max_price)
-            ]
-            filtered_count = len(context.deals_found)
-            if filtered_count < original_count:
-                print(f"Filtered {original_count - filtered_count} products over ${max_price}")
-        
-        # Create result summary
-        search_end = time.time()
-        total_time = search_end - search_start
-        
-        result_summary = f"🎯 RYE API SEARCH RESULTS for '{query}'\n"
-        result_summary += f"Found {len(products)} products in {total_time:.2f}s\n\n"
-        
-        # Group by marketplace
-        amazon_products = [p for p in products if p.get('marketplace') == 'AMAZON']
-        shopify_products = [p for p in products if p.get('marketplace') == 'SHOPIFY']
-        
-        if amazon_products:
-            result_summary += f"AMAZON PRODUCTS ({len(amazon_products)}):\n"
-            for i, product in enumerate(amazon_products[:3], 1):
-                result_summary += f"  {i}. {product.get('product_name', 'N/A')} - {product.get('price', 'N/A')}\n"
-        
-        if shopify_products:
-            result_summary += f"\nSHOPIFY PRODUCTS ({len(shopify_products)}):\n"
-            for i, product in enumerate(shopify_products[:3], 1):
-                result_summary += f"  {i}. {product.get('product_name', 'N/A')} - {product.get('price', 'N/A')}\n"
-        
-        result_summary += f"\n✅ All products loaded into context for AI analysis and curation."
-        result_summary += f"\n🛒 Products are ready for purchase through Rye's integrated checkout system."
-        
-        if max_price:
-            result_summary += f"\n💰 Price filter: Under ${max_price}"
-        
-        print(f"🕐 TIMING: Total search time: {total_time:.2f}s")
+            result_summary += f" (filtered to under ${max_price})"
         
         return result_summary
         
     except Exception as e:
-        error_msg = f"Error in Rye API search: {str(e)}"
-        print(f"❌ {error_msg}")
+        error_msg = f"Search error: {str(e)}"
+        print(error_msg)
         return error_msg
 
 

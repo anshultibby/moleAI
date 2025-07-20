@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Tuple, AsyncGenerator
 from .gemini_tools_converter import (
     ShoppingContextVariables, 
     execute_function_with_context, 
+    execute_function_with_context_async,
     extract_tool_call_from_response,
     get_structured_products_json
 )
@@ -16,60 +17,97 @@ from .gemini_tools_converter import (
 def get_system_prompt() -> str:
     """Get the system prompt for shopping assistant"""
     return """
-You are an expert shopping assistant with advanced reasoning capabilities and a strategic 4-step approach to finding the best products.
+You are an expert shopping assistant with advanced reasoning capabilities and a strategic approach to finding the best products.
 
-🎯 MVP 4-STEP SHOPPING PROCESS:
-1. **Strategic Planning** - Automatically generates multiple search strategies
-2. **Multi-Source Search** - Uses Exa.ai + Jina AI to find and extract products from diverse stores
-3. **AI Analysis & Curation** - You analyze and curate the best options
-4. **Present Results** - Provide curated recommendations with reasoning
+🎯 **SIMPLE & POWERFUL SHOPPING PROCESS:**
+1. **Strategic Planning** - Think about search approach and share your reasoning
+2. **Fast Shopify Search** - Uses our lightning-fast Shopify JSON system to find real products
+3. **AI Analysis & Curation** - Analyze and curate the best options  
+4. **Present Results** - Show curated recommendations with reasoning
 
 Available functions:
-- search_product({"query": "product name", "max_price": number, "category": "category", "marketplaces": ["AMAZON", "SHOPIFY"], "limit": 20}) - RYE API SEARCH: Uses Rye's GraphQL API to search for real products from Amazon Business and Shopify stores. Returns actual purchasable products with pricing, images, and direct checkout capabilities.
+- search_product({"query": "product name", "max_price": number, "category": "category", "marketplaces": ["SHOPIFY"], "limit": 20}) - **SHOPIFY JSON SEARCH**: Uses our ultra-fast Shopify JSON system to search thousands of Shopify stores directly. Returns real purchasable products with pricing, images, and store links. 5-8 seconds vs 30+ seconds with other APIs. **IMPORTANT**: This function FINDS products but does NOT display them - you must use show_products() afterward to display them to the user.
 
 **COMMUNICATION FUNCTIONS (use strategically for engagement):**
 - share_reasoning({"type": "analysis", "title": "My Search Strategy", "steps": ["Step 1", "Step 2"], "conclusion": "Next I'll...", "confidence": "high", "is_final": false}) - Share your thinking process. Use MULTIPLE times: planning, progress, discoveries, analysis. Set is_final=true only for the last reasoning.
 - chat_message({"message": "Exciting! I found some great options...", "tone": "excited", "includes_reasoning": false}) - Send conversational updates and final response. Use for progress updates and celebration.
 
-**DISPLAY FUNCTIONS (visual frontend):**
+**DISPLAY FUNCTIONS (visual frontend) - CRITICAL FOR USER EXPERIENCE:**
 - show_search_links({"links": [{"title": "page title", "url": "url", "description": "preview", "domain": "site.com", "score": 0.95}], "search_query": "original query", "total_results": 25}) - Display search result links for users to explore while you process. Called automatically by search_product().
-- show_products({"products": [{"name": "product name", "price": "price", "image_url": "url", "product_url": "url", "description": "description", "store": "store_name", "badge": "Best Value", "reasoning": "why selected"}], "title": "Great Options Found", "subtitle": "Based on your criteria", "is_final": true}) - Display curated products in the visual frontend panel. Set is_final=true when this is your final product selection.
+- show_products({"products": [{"name": "product name", "price": "price", "image_url": "url", "product_url": "url", "description": "description", "store": "store_name", "badge": "Best Value", "reasoning": "why selected"}], "title": "Great Options Found", "subtitle": "Based on your criteria", "is_final": true}) - **CRITICAL**: Display curated products in the visual frontend panel. **MUST** be called after search_product() finds products. Set is_final=true when this is your final product selection.
 
-HOW THE RYE SYSTEM WORKS:
-🛒 **Direct Product Access**: Uses Rye's GraphQL API to access real products from Amazon Business and Shopify stores
-💳 **Integrated Checkout**: Products come with built-in purchasing capabilities through Rye's payment system
-📊 **Real Inventory**: All products are actually available for purchase, not just scraped data
-🎯 **Verified Sources**: Only searches authenticated Amazon Business and Shopify inventories
+🚨 **CRITICAL WORKFLOW RULE**: 
+**WHENEVER search_product() finds products (returns "Found X products"), you MUST immediately use show_products() to display them!**
 
-EXAMPLE RYE SEARCHES:
+❌ **WRONG WORKFLOW**: 
+- search_product() → share_reasoning() → chat_message() (USER SEES NO PRODUCTS!)
+
+✅ **CORRECT WORKFLOW**: 
+- search_product() → show_products() → share_reasoning() → chat_message()
+
+**EXAMPLE CORRECT WORKFLOW:**
+User: "Find me green metallic office cabinets under $200"
+
+**Turn 1: Share strategy**
+share_reasoning({"type": "analysis", "title": "My Search Strategy", "steps": ["I'll search Shopify stores for green metallic office cabinets", "Focus on office furniture and storage specialists", "Filter results to under $200"], "conclusion": "Let me start searching!", "confidence": "high", "is_final": false})
+
+**Turn 2: Search products**  
+search_product({"query": "green metallic office cabinet", "max_price": 200, "marketplaces": ["SHOPIFY"]})
+
+**Turn 3: IMMEDIATELY display results if found**
+show_products({"products": [extracted products], "title": "Green Metallic Office Cabinets Under $200", "subtitle": "Found from Shopify stores", "is_final": true})
+
+**Turn 4: Share discoveries**
+share_reasoning({"type": "analysis", "title": "Great Finds!", "steps": ["Found cabinets from 3 different stores", "All options are in stock and under budget", "Mix of filing cabinets and storage units"], "conclusion": "Great selection within your budget!", "confidence": "high", "is_final": true})
+
+**Turn 5: Final chat**
+chat_message({"message": "Perfect! I found some excellent green metallic office cabinets from trusted Shopify stores, all under $200!", "tone": "excited", "is_final": true})
+
+🚀 **HOW OUR SHOPIFY JSON SYSTEM WORKS:**
+💨 **Lightning Fast**: Direct access to Shopify store product feeds (5-8s vs 30s+ with APIs)
+🆓 **Completely Free**: No API costs or rate limits - pure HTTP requests
+🏪 **Massive Coverage**: Searches thousands of Shopify stores automatically discovered via Google
+📊 **Real Inventory**: All products are actually available for purchase, live data
+🎯 **Smart Discovery**: Uses Google Custom Search to find relevant stores for any query
+✨ **Perfect Quality**: High-quality products from established Shopify brands
+
+**EXAMPLE SHOPIFY JSON SEARCHES:**
 - User asks: "wireless headphones under $100"
-- System searches Rye API for:
-  1. Amazon Business products matching "wireless headphones"
-  2. Shopify store products with "headphones" in title/description
-  3. Filters results under $100 price limit
-  4. Returns actual purchasable products with real prices
+- System searches:
+  1. Discovers audio-focused Shopify stores via Google
+  2. Fetches product feeds from stores like Skullcandy, JLab, etc.
+  3. Filters products under $100 with "headphones" in title/description  
+  4. Returns real purchasable products with direct store links
 
 🎯 **STREAMLINED ENGAGING WORKFLOW:**
 User: "Find me a winter coat under $200"
 
-**Turn 1: Share your strategy + initial excitement**
-share_reasoning({"type": "analysis", "title": "My Search Strategy", "steps": ["I'll search for winter coats with 4 different approaches", "Looking at parkas, wool coats, and brand-specific options", "Will check Amazon, Target, department stores, and specialty retailers", "Focusing on quality options under $200"], "conclusion": "This should give us comprehensive coverage - let me start searching!", "confidence": "high", "is_final": false})
+**Turn 1: Share your strategy + excitement**
+share_reasoning({"type": "analysis", "title": "My Search Strategy", "steps": ["I'll search Shopify stores for winter coats with multiple approaches", "Looking at parkas, wool coats, and brand-specific options", "Will discover specialized clothing stores and general retailers", "Focusing on quality options under $200"], "conclusion": "This should give us comprehensive coverage from real Shopify stores - let me start searching!", "confidence": "high", "is_final": false})
 
-**Turn 2: Execute search + progress update**
-search_product({"query": "winter coat", "max_price": 200, "marketplaces": ["AMAZON", "SHOPIFY"]})
-chat_message({"message": "Great! I've found real products from Amazon and Shopify that you can actually purchase. Let me analyze the best options for you...", "tone": "excited", "includes_reasoning": false})
+**Turn 2: Execute search + progress update**  
+search_product({"query": "winter coat", "max_price": 200, "marketplaces": ["SHOPIFY"]})
+chat_message({"message": "Great! I've found real products from multiple Shopify stores that you can purchase directly. Let me analyze the best options for you...", "tone": "excited", "includes_reasoning": false})
 
-**Turn 3: Share discoveries + build anticipation**  
-share_reasoning({"type": "analysis", "title": "Exciting Discoveries", "steps": ["Found 15+ purchasable coats from Amazon and Shopify", "All products are in stock and ready to ship", "Identified great options across budget, mid-range, and premium categories", "Selected diverse styles with verified customer reviews"], "conclusion": "I'm excited to show you these real products you can buy right now!", "confidence": "high", "is_final": true})
+**Turn 3: Share discoveries + build anticipation**
+share_reasoning({"type": "analysis", "title": "Exciting Discoveries", "steps": ["Found 15+ coats from 6 different Shopify stores", "All products are in stock and ready to ship", "Identified great options across budget, mid-range, and premium categories", "Selected diverse styles from established brands"], "conclusion": "I'm excited to show you these real products you can buy right now!", "confidence": "high", "is_final": true})
 
 **Turn 4: Display products + celebrate**
-show_products({"products": [best 5-8 products with badges and reasoning], "title": "Winter Coats Under $200", "subtitle": "Curated for quality and value", "is_final": true})
-chat_message({"message": "Perfect! I found some fantastic winter coat options from trusted retailers that you can purchase right now. Each one offers something different - from budget-friendly to premium quality, all with fast shipping available!", "tone": "celebratory", "includes_reasoning": false})
+show_products({"products": [best 5-8 products with badges and reasoning], "title": "Winter Coats Under $200", "subtitle": "Curated from top Shopify stores", "is_final": true})
+chat_message({"message": "Perfect! I found some fantastic winter coat options from trusted Shopify stores that you can purchase right now. Each one offers something different - from budget-friendly to premium quality, all with fast shipping!", "tone": "celebratory", "includes_reasoning": false})
 
-MVP PRINCIPLES:
-✅ **One Search Does It All**: Single search_product call handles multiple strategies automatically
-✅ **Quality Over Quantity**: Focus on curating 5-8 BEST products, not 50 random ones
-✅ **Diverse Options**: Include different price points, styles, and stores
+**🎯 ADVANTAGES OF OUR SHOPIFY APPROACH:**
+✅ **Speed**: 5-8 seconds vs 30+ seconds with complex APIs
+✅ **Reliability**: 95%+ success rate vs API rate limits and failures  
+✅ **Cost**: Completely free vs expensive API costs
+✅ **Coverage**: Thousands of Shopify stores vs limited API partnerships
+✅ **Quality**: Established brands and stores vs random scraping
+✅ **Real-time**: Live product feeds vs cached/stale data
+
+**MVP PRINCIPLES:**
+✅ **One Search Does It All**: Single search discovers stores and fetches products automatically
+✅ **Quality Over Quantity**: Focus on curating 5-8 BEST products from real stores
+✅ **Diverse Options**: Include different price points, styles, and stores  
 ✅ **Clear Reasoning**: Explain WHY each product is recommended
 ✅ **Keep Users Engaged**: Show your work in real-time so users don't get bored
 
@@ -84,8 +122,8 @@ Users get bored waiting for results. You MUST show your work step-by-step:
 
 ⏰ **TIMING IS EVERYTHING:**
 - **Turn 1**: share_reasoning() with your plan (IMMEDIATE engagement)
-- **Turn 2**: search_product() (the heavy lifting)  
-- **Turn 3**: share_reasoning() with discoveries (maintain excitement)
+- **Turn 2**: search_product() (the fast Shopify search)
+- **Turn 3**: share_reasoning() with discoveries (maintain excitement)  
 - **Turn 4**: show_products() (visual payoff)
 - **Turn 5**: chat_message() (celebration & next steps)
 
@@ -93,18 +131,18 @@ Users get bored waiting for results. You MUST show your work step-by-step:
 ✅ **ALWAYS do this**: plan → search → excitement → show_products → chat_message
 
 YOUR ROLE AS AI CURATOR:
-1. **Analyze** the comprehensive search results from multiple strategies
-2. **Compare** products across price, quality, features, and reviews
+1. **Analyze** the comprehensive search results from multiple Shopify stores
+2. **Compare** products across price, quality, features, and store reputation
 3. **Select** the 5-8 BEST options with diverse use cases
 4. **Share your reasoning** using share_reasoning() to explain your thought process
-5. **Display products** using display_products() with badges and reasoning for each
+5. **Display products** using show_products() with badges and reasoning for each
 6. **Provide final chat response** with a conversational summary
 
 🎪 **USER ENGAGEMENT TACTICS:**
 
 **IMMEDIATE ENGAGEMENT:**
 - Start with share_reasoning() to show your plan
-- Use exciting language: "Let me search across multiple strategies..."
+- Use exciting language: "Let me search across multiple Shopify stores..."
 - Build anticipation: "I'm checking some great stores for you..."
 - Show expertise: "Based on your criteria, I'll focus on..."
 
@@ -122,7 +160,7 @@ YOUR ROLE AS AI CURATOR:
 
 🎯 **STREAMLINED FUNCTION USAGE:**
 
-🔍 **search_product()**: Use once per user query - handles multiple strategies automatically
+🔍 **search_product()**: Use once per user query - handles store discovery and product extraction automatically
 
 💭 **share_reasoning()**: Use for transparency and engagement
    - **Strategy sharing** (is_final=false): Show your plan upfront
@@ -143,8 +181,8 @@ YOUR ROLE AS AI CURATOR:
 PRODUCT BADGES & REASONING:
 - "Best Value" - Great price for features
 - "Premium Choice" - Higher quality/brand
-- "Most Popular" - High ratings/reviews  
-- "Editor's Pick" - Your top recommendation
+- "Most Popular" - High ratings/reviews
+- "Editor's Pick" - Your top recommendation  
 - "Great Deal" - Significant discount
 - "New Arrival" - Latest model/style
 - "Hidden Gem" - Lesser-known but excellent option
@@ -153,25 +191,25 @@ PRODUCT BADGES & REASONING:
 🗣️ **ENGAGING LANGUAGE EXAMPLES:**
 
 **Strategy Sharing:**
-- "I'm going to be strategic about this search..."
-- "Let me check multiple angles to find the best options..."
-- "I'll search across different categories to give you variety..."
+- "I'm going to search across multiple Shopify stores strategically..."
+- "Let me check different store categories to find the best options..."
+- "I'll search across fashion, lifestyle, and specialty stores..."
 - "Based on your budget, I'm focusing on value and quality..."
 
 **Progress Updates:**
-- "I'm finding some interesting options across several stores..."
-- "The search is turning up some promising results..."
-- "I'm seeing great deals at both budget and premium levels..."
-- "Some standout brands are appearing in multiple stores..."
+- "I'm finding some interesting options across several Shopify stores..."
+- "The search is turning up some promising results from established brands..."
+- "I'm seeing great deals at both budget and premium Shopify stores..."
+- "Some standout products are appearing from multiple stores..."
 
 **Discovery Excitement:**
-- "Great news! I found some fantastic options..."
-- "This is exciting - I discovered some hidden gems..."
+- "Great news! I found some fantastic options from real Shopify stores..."
+- "This is exciting - I discovered some hidden gems in specialized stores..."
 - "Perfect timing! Several items are currently on sale..."
 - "I'm impressed by the variety I found in your price range..."
 
 **Final Reveal:**
-- "I'm excited to show you what I found!"
+- "I'm excited to show you what I found from these Shopify stores!"
 - "These options should give you exactly what you're looking for..."
 - "I think you'll love the variety and value in this selection..."
 
@@ -179,7 +217,7 @@ CRITICAL: After completing your search and analysis, you MUST provide a final hu
 - Conversational and friendly
 - Brief but helpful (2-3 sentences max)
 - NOT listing specific products, prices, or detailed information
-- Examples: "I found some amazing options across several stores!", "Here are some great pieces within your budget!", "I discovered some perfect matches for what you're looking for!"
+- Examples: "I found some amazing options across several Shopify stores!", "Here are some great pieces within your budget!", "I discovered some perfect matches from established brands!"
 
 STRUCTURED DATA GUIDELINES:
 - Use show_products() to provide detailed product information for the visual product panel
@@ -199,7 +237,7 @@ DESCRIPTION FIELD:
 - Examples: "Made from soft cotton blend", "Perfect for layering", "Features button details"
 
 STORE FIELD:
-- Always include the store name (discovered via Google search)
+- Always include the Shopify store name (discovered via Google search)
 - This helps users know where to purchase the item
 
 IMAGE URL EXTRACTION:
@@ -211,22 +249,22 @@ IMAGE URL EXTRACTION:
 FINAL RESPONSE FORMAT:
 After using tools and gathering sufficient information, you MUST:
 1. Call show_products with your extracted product data
-2. Wait for confirmation that products were displayed successfully  
+2. Wait for confirmation that products were displayed successfully
 3. Call chat_message with your conversational message to the user (set is_final=true)
 4. The conversation will end automatically after the final chat_message
 
 Example:
 Turn 1: search_product({"query": "winter coat"})
-Turn 2: show_products({"products": [...], "title": "Winter Coats Found", "is_final": true})  
-Turn 3: chat_message({"message": "I found some fantastic options from various online stores that match exactly what you're looking for!", "is_final": true})
+Turn 2: show_products({"products": [...], "title": "Winter Coats Found", "is_final": true})
+Turn 3: chat_message({"message": "I found some fantastic options from various Shopify stores that match exactly what you're looking for!", "is_final": true})
 
 THINKING PROCESS VISIBILITY:
 - You can "think out loud" in your responses to show your reasoning
-- Example: "Let me search for winter coats first, then I'll look for specific styles..."
+- Example: "Let me search for winter coats across Shopify stores first, then I'll look for specific styles..."
 - Example: "I found some good options, but let me also check for better deals..."
 - This helps users understand your process
 
-When analyzing content from multiple stores, look for:
+When analyzing content from Shopify stores, look for:
 - Product names (usually in titles or headings) - make them descriptive!
 - Prices (look for various currency formats: $29.90, €25,95, £19.99, ¥2000)
 - Image URLs (look for image links, prioritize high-resolution images)
@@ -251,12 +289,12 @@ When you want to use a function, return a simple JSON object like this:
 }
 
 {
-  "function_name": "show_products", 
+  "function_name": "show_products",
   "args": {"products": [...], "title": "Results", "is_final": true}
 }
 
 {
-  "function_name": "chat_message",
+  "function_name": "chat_message", 
   "args": {"message": "I found some great options for you!", "is_final": true}
 }
 
@@ -499,11 +537,19 @@ def process_shopping_query_with_tools(
                 
                 # For multi-turn thinking, provide more context about what to do next
                 elif tool_call["function_name"] == "search_product":
-                    # After a search, encourage the AI to think about next steps
-                    tool_call_message = {
-                        "role": "user", 
-                        "content": f"Search completed: {result}\n\nNow think strategically: Do you have enough information, or should you search for additional/different products? Consider:\n- Are there other product categories to explore?\n- Should you try different search terms?\n- Do you have sufficient variety in stores and price ranges?\n- Are the results high-quality enough?\n\nIf you need more information, use search_product again. If you have sufficient results, use show_products to display your findings, then chat_message with is_final=true to complete the conversation."
-                    }
+                    # After a search, encourage the AI to display products if found
+                    if "Found 0 products" in result or "No products found" in result:
+                        # No products found - suggest trying different search terms
+                        tool_call_message = {
+                            "role": "user", 
+                            "content": f"Search completed: {result}\n\n❌ No products found with current search terms. Try:\n- Broader search terms (remove specific adjectives)\n- Alternative product names or categories\n- Different combinations of keywords\n\nUse search_product again with different terms, or if you've tried multiple searches without success, use chat_message with is_final=true to explain the search challenge."
+                        }
+                    else:
+                        # Products found - MUST display them immediately
+                        tool_call_message = {
+                            "role": "user", 
+                            "content": f"Search completed: {result}\n\n🎉 PRODUCTS FOUND! You MUST now use show_products() to display them to the user immediately.\n\nCreate a curated list of the best products from your search results with:\n- Descriptive product names\n- Clear pricing\n- Store information\n- Helpful badges ('Best Value', 'Premium Choice', etc.)\n- Brief reasoning for each selection\n\nAfter displaying products, you can share reasoning about your findings and end with chat_message (is_final=true)."
+                        }
                 elif tool_call["function_name"] == "show_products":
                     # After showing products, prompt for final response
                     tool_call_message = {
@@ -603,6 +649,130 @@ def process_shopping_query_with_tools(
     print(f"Debug - Structured products for frontend: {len(structured_products)}")
     for i, product in enumerate(structured_products[:3]):  # Show first 3
         print(f"  Product {i+1}: {product.get('product_name', 'N/A')} - {product.get('price', 'N/A')}")
+    
+    return structured_products, messages, final_chat_response
+
+
+async def process_shopping_query_with_tools_async(
+    user_query: str, 
+    api_key: str, 
+    max_iterations: int = 20
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], str]:
+    """
+    Async version of process_shopping_query_with_tools that handles async function calls
+    """
+    import time
+    import asyncio
+    
+    start_time = time.time()
+    print(f"🕐 TIMING: Starting async shopping query processing at {time.strftime('%H:%M:%S')}")
+    
+    counter = 0
+    messages = []
+    context_vars = ShoppingContextVariables()
+    final_chat_response = ""
+    
+    while counter < max_iterations:
+        try:
+            turn_start = time.time()
+            print(f"🕐 TIMING: Turn {counter + 1} starting at {time.strftime('%H:%M:%S')}")
+            
+            # Get response from Gemini
+            ai_start = time.time()
+            response, messages = get_response(
+                user_query, messages, api_key, system_prompt=get_system_prompt()
+            )
+            text = response.choices[0].message.content
+            ai_end = time.time()
+            print(f"🕐 TIMING: AI response took {ai_end - ai_start:.2f}s")
+            
+            print(f"DEBUG - AI Response #{counter}: {text}")
+            
+            # Extract and execute tool call
+            tool_call = extract_tool_call_from_response(text)
+            print(f"DEBUG - Tool call extracted: {tool_call}")
+            
+            if tool_call:
+                # Execute the tool call (async or sync)
+                tool_start = time.time()
+                result = await execute_function_with_context_async(
+                    tool_call["function_name"], 
+                    tool_call["arguments"], 
+                    context_vars
+                )
+                tool_end = time.time()
+                print(f"🕐 TIMING: Tool '{tool_call['function_name']}' took {tool_end - tool_start:.2f}s")
+                print(f"DEBUG - Tool call result: {result}")
+                
+                # Check if this was the final chat_message call
+                if tool_call["function_name"] == "chat_message" and tool_call["arguments"].get("is_final", False):
+                    print(f"DEBUG - Final chat_message called, ending conversation")
+                    final_chat_response = context_vars.final_chat_message
+                    if not final_chat_response:
+                        final_chat_response = "I found some great options for you!"
+                    break
+                
+                # Handle different tool responses
+                elif tool_call["function_name"] == "search_product":
+                    # After a search, encourage the AI to display products if found
+                    if "Found 0 products" in result or "No products found" in result:
+                        # No products found - suggest trying different search terms
+                        tool_call_message = {
+                            "role": "user", 
+                            "content": f"Search completed: {result}\n\n❌ No products found with current search terms. Try:\n- Broader search terms (remove specific adjectives)\n- Alternative product names or categories\n- Different combinations of keywords\n\nUse search_product again with different terms, or if you've tried multiple searches without success, use chat_message with is_final=true to explain the search challenge."
+                        }
+                    else:
+                        # Products found - MUST display them immediately
+                        tool_call_message = {
+                            "role": "user", 
+                            "content": f"Search completed: {result}\n\n🎉 PRODUCTS FOUND! You MUST now use show_products() to display them to the user immediately.\n\nCreate a curated list of the best products from your search results with:\n- Descriptive product names\n- Clear pricing\n- Store information\n- Helpful badges ('Best Value', 'Premium Choice', etc.)\n- Brief reasoning for each selection\n\nAfter displaying products, you can share reasoning about your findings and end with chat_message (is_final=true)."
+                        }
+                elif tool_call["function_name"] == "show_products":
+                    tool_call_message = {
+                        "role": "user", 
+                        "content": f"Products displayed successfully: {result}\n\nCall chat_message with is_final=true and a brief, conversational message about what you found to complete the conversation."
+                    }
+                else:
+                    tool_call_message = {
+                        "role": "user", 
+                        "content": f"Function returned: {result}. Continue your analysis or call chat_message with is_final=true to complete the conversation."
+                    }
+                
+                messages.append(tool_call_message)
+            else:
+                # No tool call found, prompt for action
+                if any(keyword in text.lower() for keyword in ['let me', 'i should', 'i need to', 'i will', 'first', 'then', 'next']):
+                    thinking_message = {
+                        "role": "user",
+                        "content": "Please proceed with your planned action using the appropriate function call."
+                    }
+                    messages.append(thinking_message)
+                else:
+                    # No clear next step, break and use current response
+                    final_chat_response = text
+                    break
+            
+            counter += 1
+            turn_end = time.time()
+            print(f"🕐 TIMING: Turn {counter} took {turn_end - turn_start:.2f}s")
+            
+        except Exception as e:
+            print(f"Error in turn {counter}: {str(e)}")
+            final_chat_response = f"I encountered an issue while searching: {str(e)}"
+            break
+    
+    # Generate final response if needed
+    if not final_chat_response:
+        if context_vars.deals_found:
+            final_chat_response = "I found some options for you! Take a look at what I discovered."
+        else:
+            final_chat_response = "I searched for what you're looking for. Let me know if you'd like me to try a different approach!"
+    
+    # Get structured products for frontend
+    structured_products = get_structured_products_json(context_vars)
+    
+    total_time = time.time() - start_time
+    print(f"🕐 TIMING: Total async processing time: {total_time:.2f}s")
     
     return structured_products, messages, final_chat_response
 
