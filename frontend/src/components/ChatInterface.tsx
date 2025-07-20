@@ -1,33 +1,43 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import axios from 'axios'
-
-interface Message {
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: string
-}
-
-interface ChatResponse {
-  response: string
-  timestamp: string
-  deals_found?: any[]
-}
+import ChatPanel from './ChatPanel'
+import ProductPanel from './ProductPanel'
+import SearchLinksPanel from './SearchLinksPanel'
+import ReasoningDisplay from './ReasoningDisplay'
+import { Message, Product, ChatResponse, SearchLinksData } from '../types'
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [allProducts, setAllProducts] = useState<Product[]>([])
+  const [searchLinksData, setSearchLinksData] = useState<SearchLinksData[]>([])
+  const [reasoningData, setReasoningData] = useState<any[]>([])
+  const [selectedPriceBucket, setSelectedPriceBucket] = useState('')
+  const [selectedBrand, setSelectedBrand] = useState('')
+  const [isProductViewExpanded, setIsProductViewExpanded] = useState(false)
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  const removeProduct = (productId: string) => {
+    setAllProducts(prev => prev.filter(p => p.id !== productId))
   }
 
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+  const removeSearchLinks = (searchLinksId: string) => {
+    setSearchLinksData(prev => prev.filter(s => s.id !== searchLinksId))
+  }
+
+  const clearAllProducts = () => {
+    setAllProducts([])
+    setSearchLinksData([])
+    setReasoningData([])
+    setSelectedPriceBucket('')
+    setSelectedBrand('')
+  }
+
+  const toggleProductView = () => {
+    setIsProductViewExpanded(prev => !prev)
+  }
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return
@@ -43,128 +53,239 @@ export default function ChatInterface() {
     setIsLoading(true)
 
     try {
-      const response = await axios.post<ChatResponse>('http://localhost:8005/api/chat', {
-        message: input
+      // Use streaming endpoint for real-time updates
+      const response = await fetch('http://localhost:8005/api/chat/stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: input
+        })
       })
 
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: response.data.response,
-        timestamp: response.data.timestamp
+      if (!response.body) {
+        throw new Error('No response body')
       }
 
-      setMessages(prev => [...prev, assistantMessage])
-    } catch (error) {
-      console.error('Error sending message:', error)
-      const errorMessage: Message = {
-        role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
-        timestamp: new Date().toISOString()
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+
+      while (true) {
+        const { done, value } = await reader.read()
+        
+        if (done) break
+
+        const chunk = decoder.decode(value)
+        const lines = chunk.split('\n')
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              console.log('Streaming update:', data)
+              
+              // Handle different types of streaming updates
+              if (data.type === 'reasoning') {
+                // Add reasoning as chat message immediately
+                const reasoningMessage: Message = {
+                  role: 'assistant',
+                  content: data.data.formatted_text || data.data.title,
+                  timestamp: new Date().toISOString(),
+                  type: 'reasoning'
+                }
+                setMessages(prev => [...prev, reasoningMessage])
+                setReasoningData(prev => [...prev, data.data])
+              }
+              
+              else if (data.type === 'search_links') {
+                // Add search links as chat message immediately
+                const searchMessage: Message = {
+                  role: 'assistant',
+                  content: `Found ${data.data.links?.length || 0} shopping sites for "${data.data.search_query}"`,
+                  timestamp: new Date().toISOString(),
+                  type: 'search_links'
+                }
+                setMessages(prev => [...prev, searchMessage])
+                
+                // Remove duplicates by URL
+                const uniqueLinks = {
+                  ...data.data,
+                  links: data.data.links?.filter((link: any, index: number, self: any[]) => 
+                    index === self.findIndex((l: any) => l.url === link.url)
+                  ) || []
+                }
+                
+                setSearchLinksData(prev => [...prev, {
+                  ...uniqueLinks,
+                  id: `search-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+                }])
+              }
+              
+              else if (data.type === 'product') {
+                // Add product immediately
+                const product = {
+                  ...data.data,
+                  id: data.data.id || `product-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+                }
+                setAllProducts(prev => [...prev, product])
+              }
+              
+              else if (data.type === 'chat_response') {
+                // Add final chat response
+                const finalMessage: Message = {
+                  role: 'assistant',
+                  content: data.message,
+                  timestamp: new Date().toISOString()
+                }
+                setMessages(prev => [...prev, finalMessage])
+              }
+              
+              else if (data.type === 'error') {
+                const errorMessage: Message = {
+                  role: 'assistant',
+                  content: `Sorry, I encountered an error: ${data.message}`,
+                  timestamp: new Date().toISOString()
+                }
+                setMessages(prev => [...prev, errorMessage])
+              }
+              
+              else if (data.type === 'start') {
+                const startMessage: Message = {
+                  role: 'assistant', 
+                  content: data.message,
+                  timestamp: new Date().toISOString()
+                }
+                setMessages(prev => [...prev, startMessage])
+              }
+              
+            } catch (e) {
+              console.error('Error parsing streaming data:', e)
+            }
+          }
+        }
       }
-      setMessages(prev => [...prev, errorMessage])
+
+    } catch (error) {
+      console.error('Error with streaming:', error)
+      
+      // Fallback to regular endpoint
+      try {
+        const response = await axios.post<ChatResponse>('http://localhost:8005/api/chat', {
+          message: input
+        })
+
+        const assistantMessage: Message = {
+          role: 'assistant',
+          content: response.data.response,
+          timestamp: response.data.timestamp
+        }
+
+        setMessages(prev => [...prev, assistantMessage])
+        
+        // Process deals_found as before (fallback)
+        if (response.data.deals_found && response.data.deals_found.length > 0) {
+          const newProducts: Product[] = []
+          const newSearchLinks: SearchLinksData[] = []
+          const newReasoning: any[] = []
+          
+          response.data.deals_found.forEach(item => {
+            console.log('Processing item:', item.type, item)
+            
+            if (item.type === 'search_links') {
+              const searchLinksItem = item as SearchLinksData
+              newSearchLinks.push({
+                ...searchLinksItem,
+                id: searchLinksItem.id || `search-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+              })
+            } else if (item.type === 'reasoning') {
+              newReasoning.push({
+                ...item,
+                id: item.id || `reasoning-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+              })
+            } else {
+              const productItem = item as Product
+              newProducts.push({
+                ...productItem,
+                id: productItem.id || `product-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+              })
+            }
+          })
+          
+          if (newProducts.length > 0) {
+            setAllProducts(prev => [...prev, ...newProducts])
+          }
+          
+          if (newSearchLinks.length > 0) {
+            const uniqueLinks = newSearchLinks.map(linkData => ({
+              ...linkData,
+              links: linkData.links.filter((link, index, self) => 
+                index === self.findIndex(l => l.url === link.url)
+              )
+            }))
+            setSearchLinksData(prev => [...prev, ...uniqueLinks])
+          }
+          
+          if (newReasoning.length > 0) {
+            setReasoningData(prev => [...prev, ...newReasoning])
+            newReasoning.forEach(reasoning => {
+              const reasoningMessage: Message = {
+                role: 'assistant',
+                content: reasoning.formatted_text || reasoning.title,
+                timestamp: new Date().toISOString(),
+                type: 'reasoning'
+              }
+              setMessages(prev => [...prev, reasoningMessage])
+            })
+          }
+        }
+      } catch (fallbackError) {
+        console.error('Error with fallback request:', fallbackError)
+        const errorMessage: Message = {
+          role: 'assistant',
+          content: 'Sorry, I encountered an error. Please try again.',
+          timestamp: new Date().toISOString()
+        }
+        setMessages(prev => [...prev, errorMessage])
+      }
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
-    }
-  }
-
   return (
-    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 p-4">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            🛒 Shopping Deals Chat Agent
-          </h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-1">
-            Ask me to find the best deals on anything you want to buy!
-          </p>
+    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      {/* Left Panel - Chat (40% width or hidden when expanded) */}
+      {!isProductViewExpanded && (
+        <div className="w-[40%] min-w-[380px] flex flex-col shadow-elegant-lg">
+          <ChatPanel
+            messages={messages}
+            input={input}
+            isLoading={isLoading}
+            searchLinksData={searchLinksData}
+            onInputChange={setInput}
+            onSendMessage={sendMessage}
+          />
         </div>
-      </div>
+      )}
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
-        <div className="max-w-4xl mx-auto space-y-4">
-          {messages.length === 0 && (
-            <div className="text-center text-gray-500 dark:text-gray-400 mt-8">
-              <div className="text-6xl mb-4">🛍️</div>
-              <h3 className="text-lg font-medium mb-2">Welcome to your Shopping Assistant!</h3>
-              <p>Ask me to find deals on any product you're looking for.</p>
-              <div className="mt-4 text-sm">
-                <p className="mb-2">Try asking:</p>
-                <ul className="space-y-1">
-                  <li>"Find me the best deals on wireless headphones"</li>
-                  <li>"What are the cheapest laptops under $500?"</li>
-                  <li>"Show me deals on running shoes"</li>
-                </ul>
-              </div>
-            </div>
-          )}
-
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                  message.role === 'user'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm border border-gray-200 dark:border-gray-700'
-                }`}
-              >
-                <p className="whitespace-pre-wrap">{message.content}</p>
-                <p className={`text-xs mt-1 ${
-                  message.role === 'user' ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
-                }`}>
-                  {new Date(message.timestamp).toLocaleTimeString()}
-                </p>
-              </div>
-            </div>
-          ))}
-
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm border border-gray-200 dark:border-gray-700 max-w-xs lg:max-w-md px-4 py-2 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                  <span>Searching for deals...</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-      </div>
-
-      {/* Input */}
-      <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex space-x-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Ask me to find deals on any product..."
-              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              disabled={isLoading}
-            />
-            <button
-              onClick={sendMessage}
-              disabled={!input.trim() || isLoading}
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {isLoading ? 'Sending...' : 'Send'}
-            </button>
-          </div>
+      {/* Right Panel - Products, Search Links, and Reasoning (60% width or full width when expanded) */}
+      <div className={`${isProductViewExpanded ? "w-full" : "w-[60%] min-w-0"} flex flex-col`}>
+        
+          
+        {/* Products Panel */}
+        <div className="flex-1 min-h-0">
+          <ProductPanel
+            products={allProducts}
+            selectedPriceBucket={selectedPriceBucket}
+            selectedBrand={selectedBrand}
+            onPriceBucketChange={setSelectedPriceBucket}
+            onBrandChange={setSelectedBrand}
+            onClearAll={clearAllProducts}
+            onRemoveProduct={removeProduct}
+            isExpanded={isProductViewExpanded}
+            onToggleExpand={toggleProductView}
+          />
         </div>
       </div>
     </div>

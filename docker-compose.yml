@@ -9,7 +9,8 @@ services:
       - "8005:8005"
     environment:
       - PYTHONPATH=/app
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    env_file:
+      - ./backend/.env
     volumes:
       - ./backend:/app
       - /app/__pycache__
