@@ -19,7 +19,7 @@ load_dotenv()
 
 # Domain validation cache - shared across all instances
 _DOMAIN_CACHE = {}
-_CACHE_FILE = os.path.join("backend", "domain_validation_cache.json")  # Save in backend directory
+_CACHE_FILE = "domain_validation_cache.json"  # Save in current working directory
 _CACHE_DURATION_HOURS = 24  # Cache valid domains for 24 hours
 
 def _load_domain_cache():
@@ -92,8 +92,27 @@ def _cache_domain_result(domain: str, is_valid: bool, status_code: int = None, e
         'error': error
     }
 
+def _cleanup_expired_cache():
+    """Remove expired cache entries to keep cache file manageable"""
+    global _DOMAIN_CACHE
+    current_time = datetime.now()
+    expired_domains = []
+    
+    for domain, data in _DOMAIN_CACHE.items():
+        if 'validated_at' in data:
+            cache_age = current_time - data['validated_at']
+            if cache_age >= timedelta(hours=_CACHE_DURATION_HOURS):
+                expired_domains.append(domain)
+    
+    for domain in expired_domains:
+        del _DOMAIN_CACHE[domain]
+    
+    if expired_domains:
+        print(f"🧹 Cleaned up {len(expired_domains)} expired cache entries")
+
 # Load cache on module import
 _load_domain_cache()
+_cleanup_expired_cache()  # Clean up expired entries on startup
 
 
 class GoogleDiscoveryService:

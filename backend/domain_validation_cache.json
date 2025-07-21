@@ -1,0 +1,62 @@
+{
+  "davidaugustinc.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-20T22:30:12.362143",
+    "status_code": 200,
+    "error": null
+  },
+  "moniquelhuillier.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-20T22:30:12.601022",
+    "status_code": 200,
+    "error": null
+  },
+  "sclarandis-com.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-20T22:30:13.033051",
+    "status_code": 200,
+    "error": null
+  },
+  "crank-brothers.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-20T22:30:13.371579",
+    "status_code": 200,
+    "error": null
+  },
+  "sarah-flint.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-20T22:30:13.851878",
+    "status_code": 200,
+    "error": null
+  },
+  "leolo-shoes.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-20T22:30:14.364244",
+    "status_code": 200,
+    "error": null
+  },
+  "kswiss-us.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-20T22:30:14.665595",
+    "status_code": 200,
+    "error": null
+  },
+  "pearlizumi.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-20T22:30:15.024968",
+    "status_code": 200,
+    "error": null
+  },
+  "therafit-shoe.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-20T22:30:16.786719",
+    "status_code": 200,
+    "error": null
+  },
+  "phoebe-philo-us.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-20T22:30:17.115896",
+    "status_code": 200,
+    "error": null
+  }
+}
