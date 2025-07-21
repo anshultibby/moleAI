@@ -39,7 +39,7 @@ class HybridSearchService:
             self.rye_service = None
             self.has_rye = False
     
-    async def search(self, query: str, max_results: int = 100, include_amazon: bool = True, product_callback=None) -> SearchResult:
+    async def search(self, query: str, max_results: int = 200, include_amazon: bool = True, product_callback=None) -> SearchResult:
         """
         Simplified multi-source search
         
@@ -122,8 +122,8 @@ class HybridSearchService:
         
         # Products were already streamed during batch LLM filtering, no need to stream again
         
-        # Only limit if we have way more than needed
-        if len(final_products) > max_results * 1.5:
+        # Only limit if we have way more than needed (increased threshold)
+        if len(final_products) > max_results * 2:
             final_products = final_products[:max_results]
         
         search_time = time.time() - start_time
@@ -136,7 +136,7 @@ class HybridSearchService:
             search_time=search_time
         )
     
-    async def search_shopify_only(self, query: str, max_results: int = 100, product_callback=None) -> SearchResult:
+    async def search_shopify_only(self, query: str, max_results: int = 200, product_callback=None) -> SearchResult:
         """
         Pure Shopify search - fastest and most reliable
         """
@@ -246,7 +246,7 @@ async def hybrid_search(query: str, max_results: int = 20, product_callback=None
 
 
 # Pure Shopify search function
-async def shopify_search(query: str, max_results: int = 100, product_callback=None) -> List[Dict[str, Any]]:
+async def shopify_search(query: str, max_results: int = 200, product_callback=None) -> List[Dict[str, Any]]:
     """
     Pure Shopify search - fastest option
     

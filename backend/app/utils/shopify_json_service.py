@@ -255,7 +255,7 @@ class ShopifyJSONService:
         return True
 
 
-def search_multiple_stores(store_domains: List[str], query: str, max_results: int = 200, product_callback=None) -> List[Dict[str, Any]]:
+def search_multiple_stores(store_domains: List[str], query: str, max_results: int = 300, product_callback=None) -> List[Dict[str, Any]]:
     """
     Search multiple Shopify stores and return aggregated results - SIMPLIFIED ONE STORE AT A TIME
     

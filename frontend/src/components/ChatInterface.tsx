@@ -153,6 +153,8 @@ export default function ChatInterface() {
                   const combined = [...prev, product]
                   return getUniqueProducts(combined)
                 })
+                // Switch to products tab on mobile when we get the first product
+                setActiveView('products')
               }
               
               else if (data.type === 'chat_response') {
@@ -162,6 +164,13 @@ export default function ChatInterface() {
                   timestamp: new Date().toISOString()
                 }
                 setMessages(prev => [...prev, finalMessage])
+                // Switch to products tab when search is complete if we have products
+                setAllProducts(prev => {
+                  if (prev.length > 0) {
+                    setActiveView('products')
+                  }
+                  return prev
+                })
               }
               
               else if (data.type === 'error') {
@@ -249,6 +258,8 @@ export default function ChatInterface() {
           
           if (newProducts.length > 0) {
             setAllProducts(prev => getUniqueProducts([...prev, ...newProducts]))
+            // Switch to products tab when we get products
+            setActiveView('products')
           }
           
           if (newSearchLinks.length > 0) {
