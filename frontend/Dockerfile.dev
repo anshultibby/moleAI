@@ -12,8 +12,8 @@ RUN npm install
 # Copy application code
 COPY . .
 
-# Use PORT environment variable
-EXPOSE $PORT
+# Expose port 3000 (internal container port)
+EXPOSE 3000
 
 # Command to run the development application
-CMD ["sh", "-c", "npm run dev -- --port ${PORT:-3000}"] 
+CMD ["npm", "run", "dev"] 

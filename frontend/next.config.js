@@ -90,6 +90,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: '**.shopifycdn.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'cdn.shopify.com',
+      },
       // CDN services
       {
         protocol: 'https',

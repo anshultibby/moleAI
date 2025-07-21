@@ -353,22 +353,6 @@ export default function ChatInterface() {
             <div className="flex lg:hidden">
               <div className="flex bg-slate-100 dark:bg-slate-700 rounded p-0.5">
                 <button
-                  onClick={() => setActiveView('products')}
-                  className={`px-2 py-1 rounded text-xs font-medium transition-all flex items-center space-x-1 ${
-                    activeView === 'products'
-                      ? 'bg-white dark:bg-slate-600 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400'
-                  }`}
-                >
-                  <span>Products</span>
-                  {uniqueProducts.length > 0 && (
-                    <span className="bg-indigo-500 text-white text-xs px-1 py-0.5 rounded-full min-w-[1rem] h-4 flex items-center justify-center">
-                      {uniqueProducts.length}
-                    </span>
-                  )}
-                </button>
-                
-                <button
                   onClick={() => setActiveView('chat')}
                   className={`px-2 py-1 rounded text-xs font-medium transition-all flex items-center space-x-1 ${
                     activeView === 'chat'
@@ -380,6 +364,22 @@ export default function ChatInterface() {
                   {messages.length > 0 && (
                     <span className="bg-green-500 text-white text-xs px-1 py-0.5 rounded-full min-w-[1rem] h-4 flex items-center justify-center">
                       {messages.filter(m => m.role === 'assistant').length}
+                    </span>
+                  )}
+                </button>
+                
+                <button
+                  onClick={() => setActiveView('products')}
+                  className={`px-2 py-1 rounded text-xs font-medium transition-all flex items-center space-x-1 ${
+                    activeView === 'products'
+                      ? 'bg-white dark:bg-slate-600 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  <span>Products</span>
+                  {uniqueProducts.length > 0 && (
+                    <span className="bg-indigo-500 text-white text-xs px-1 py-0.5 rounded-full min-w-[1rem] h-4 flex items-center justify-center">
+                      {uniqueProducts.length}
                     </span>
                   )}
                 </button>
@@ -421,6 +421,10 @@ export default function ChatInterface() {
               onRemoveProduct={removeProduct}
               isExpanded={!isChatExpanded}
               onToggleExpand={() => setIsChatExpanded(!isChatExpanded)}
+              input={input}
+              isLoading={isLoading}
+              onInputChange={setInput}
+              onSendMessage={sendMessage}
             />
           </div>
         </div>
@@ -439,6 +443,10 @@ export default function ChatInterface() {
                 onRemoveProduct={removeProduct}
                 isExpanded={true}
                 onToggleExpand={() => {}}
+                input={input}
+                isLoading={isLoading}
+                onInputChange={setInput}
+                onSendMessage={sendMessage}
               />
             </div>
           ) : (
