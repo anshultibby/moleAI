@@ -96,7 +96,14 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
       return null
     }
     
-    return url
+    // Validate URL format
+    try {
+      new URL(url)
+      return url
+    } catch (e) {
+      console.warn('Invalid image URL:', url)
+      return null
+    }
   }
 
   const getProductDisplayName = () => {
@@ -169,6 +176,8 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
               className={`object-cover transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
               onError={handleImageError}
               onLoad={handleImageLoad}
+              unoptimized={true}
+              priority={false}
             />
             {imageLoading && !imageError && (
               <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-600">

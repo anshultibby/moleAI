@@ -310,5 +310,275 @@
     "validated_at": "2025-07-21T05:35:45.520246",
     "status_code": 200,
     "error": null
+  },
+  "shop-jessakae.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:24:53.357394",
+    "status_code": 200,
+    "error": null
+  },
+  "edeandravenscroft.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:24:53.860725",
+    "status_code": 200,
+    "error": null
+  },
+  "mydressbox-australia.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:24:54.174184",
+    "status_code": 200,
+    "error": null
+  },
+  "san-marko-ny.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:24:54.467617",
+    "status_code": 200,
+    "error": null
+  },
+  "muglershop.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:24:54.937718",
+    "status_code": 200,
+    "error": null
+  },
+  "bottegaolivia.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:24:55.307208",
+    "status_code": 200,
+    "error": null
+  },
+  "shapingnewtomorrow.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:24:55.718523",
+    "status_code": 200,
+    "error": null
+  },
+  "shannonformalwear-com.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:24:56.120273",
+    "status_code": 200,
+    "error": null
+  },
+  "shopbridalsense.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:24:56.408106",
+    "status_code": 200,
+    "error": null
+  },
+  "f9da5c-58.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:24:56.678441",
+    "status_code": 200,
+    "error": null
+  },
+  "formal-society-9479.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:24:57.041551",
+    "status_code": 200,
+    "error": null
+  },
+  "the-world-of-hsy.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:24:57.341110",
+    "status_code": 200,
+    "error": null
+  },
+  "sentani-boutique.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:24:57.677089",
+    "status_code": 200,
+    "error": null
+  },
+  "brixtonllc.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:24:58.006191",
+    "status_code": 200,
+    "error": null
+  },
+  "altuzarra-llc.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:24:58.412664",
+    "status_code": 200,
+    "error": null
+  },
+  "ratandboaus.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:24:58.720524",
+    "status_code": 200,
+    "error": null
+  },
+  "thedressoutlet.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:24:59.105087",
+    "status_code": 200,
+    "error": null
+  },
+  "norasbridalboutiqueny.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:24:59.690776",
+    "status_code": 200,
+    "error": null
+  },
+  "ullajohnson.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:00.007178",
+    "status_code": 200,
+    "error": null
+  },
+  "bella-jules-fashion-boutique.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:00.347158",
+    "status_code": 200,
+    "error": null
+  },
+  "sherrihill-com.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:00.620870",
+    "status_code": 200,
+    "error": null
+  },
+  "akbaraslam.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:01.068549",
+    "status_code": 200,
+    "error": null
+  },
+  "blackberrys-clothing.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:01.407974",
+    "status_code": 200,
+    "error": null
+  },
+  "showmeyourmumu.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:01.743827",
+    "status_code": 200,
+    "error": null
+  },
+  "moniquelhuillier.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:02.099548",
+    "status_code": 200,
+    "error": null
+  },
+  "retrofete.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:02.465364",
+    "status_code": 200,
+    "error": null
+  },
+  "ultimate-formals.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:02.961881",
+    "status_code": 200,
+    "error": null
+  },
+  "glassslipperformals.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:03.345210",
+    "status_code": 200,
+    "error": null
+  },
+  "islamabad12.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:03.728965",
+    "status_code": 200,
+    "error": null
+  },
+  "vows-bridal-and-prom.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:03.969184",
+    "status_code": 200,
+    "error": null
+  },
+  "bella-bridesmaids-shop.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:04.333557",
+    "status_code": 200,
+    "error": null
+  },
+  "6667f3-ae.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:04.633385",
+    "status_code": 200,
+    "error": null
+  },
+  "morilee-llc.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:04.932040",
+    "status_code": 200,
+    "error": null
+  },
+  "izac-shop.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:05.507743",
+    "status_code": 200,
+    "error": null
+  },
+  "bella-and-bloom-boutique.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:05.791902",
+    "status_code": 200,
+    "error": null
+  },
+  "brittanys-boutique-apparel-and-concierge.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:06.075334",
+    "status_code": 200,
+    "error": null
+  },
+  "sydneysretail.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:06.551705",
+    "status_code": 200,
+    "error": null
+  },
+  "emma-kaits.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:06.897852",
+    "status_code": 200,
+    "error": null
+  },
+  "mia-bella-couture.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:07.241110",
+    "status_code": 200,
+    "error": null
+  },
+  "amsale-com.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:07.634610",
+    "status_code": 200,
+    "error": null
+  },
+  "alexevenings-com.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:07.974607",
+    "status_code": 200,
+    "error": null
+  },
+  "coperni-eu-shop.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:08.413504",
+    "status_code": 200,
+    "error": null
+  },
+  "couture-candy.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:08.992223",
+    "status_code": 200,
+    "error": null
+  },
+  "elliatt-collective.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:09.328590",
+    "status_code": 200,
+    "error": null
+  },
+  "vestiqueboutique.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T06:25:09.630502",
+    "status_code": 200,
+    "error": null
   }
 }
