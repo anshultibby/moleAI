@@ -40,7 +40,7 @@ function MessageContent({ message, searchLinksData }: { message: Message, search
         </div>
         <div 
           className="text-slate-700 dark:text-slate-300"
-          dangerouslySetInnerHTML={{ __html: message.content }}
+          dangerouslySetInnerHTML={{ __html: message.content || '' }}
         />
       </div>
     )

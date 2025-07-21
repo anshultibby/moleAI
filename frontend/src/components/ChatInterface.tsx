@@ -66,7 +66,8 @@ export default function ChatInterface() {
 
     try {
       // Use streaming endpoint for real-time updates
-      const response = await fetch('http://localhost:8005/api/chat/stream', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    const response = await fetch(`${apiUrl}/api/chat/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -192,7 +193,8 @@ export default function ChatInterface() {
       
       // Fallback to regular endpoint
       try {
-        const response = await axios.post<ChatResponse>('http://localhost:8005/api/chat', {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const response = await axios.post<ChatResponse>(`${apiUrl}/api/chat`, {
           message: input
         })
 
