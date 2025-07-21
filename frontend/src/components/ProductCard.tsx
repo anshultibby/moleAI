@@ -10,6 +10,7 @@ interface ProductCardProps {
 export default function ProductCard({ product, onRemove }: ProductCardProps) {
   const [imageLoading, setImageLoading] = useState(true)
   const [imageError, setImageError] = useState(false)
+  const [imageFitMode, setImageFitMode] = useState<'cover' | 'contain'>('contain')
 
   const handleImageLoad = () => {
     setImageLoading(false)
@@ -66,7 +67,7 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
       // Ensure proper dimensions for Zara images
       if (!url.includes('w=') && !url.includes('width=')) {
         const separator = url.includes('?') ? '&' : '?'
-        return url + separator + 'w=300&h=400&f=auto&q=80'
+        return url + separator + 'w=400&h=500&f=auto&q=80'
       }
     }
     
@@ -74,7 +75,7 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
     if (url.includes('hm.com') || url.includes('h&m')) {
       if (!url.includes('$')) {
         const separator = url.includes('?') ? '&' : '?'
-        return url + separator + '$quality$=80&wid=300&hei=400'
+        return url + separator + '$quality$=80&wid=400&hei=500'
       }
     }
     
@@ -151,9 +152,12 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
     }
   }
 
-  const handleRemoveClick = (e: React.MouseEvent) => {
+
+
+  // Handle image fit mode toggle on double-click
+  const handleImageDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
-    onRemove(product.id || '')
+    setImageFitMode(prev => prev === 'contain' ? 'cover' : 'contain')
   }
 
   const imageUrl = getImageUrl(product.image_url)
@@ -162,27 +166,36 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
 
   return (
     <div 
-      className="group bg-white dark:bg-slate-800 rounded-xl shadow-sm hover:shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-200 cursor-pointer w-full flex flex-col relative active:scale-95 sm:active:scale-100"
+      className="group bg-white dark:bg-slate-800 rounded-xl shadow-sm hover:shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-200 cursor-pointer w-full flex flex-col relative active:scale-95 sm:active:scale-100 product-card"
       onClick={handleCardClick}
     >
-      {/* Image section */}
-      <div className="relative bg-gray-50 dark:bg-slate-700 h-32 sm:h-40 flex-shrink-0">
+      {/* Image section - Fixed height */}
+      <div className="relative bg-gray-50 dark:bg-slate-700 product-card-image flex-shrink-0">
         {imageUrl ? (
           <>
             <Image
               src={imageUrl}
               alt={displayName}
               fill
-              className={`object-cover transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+              className={`product-image transition-all duration-300 ${
+                imageLoading ? 'opacity-0' : 'opacity-100'
+              } ${
+                imageFitMode === 'contain' 
+                  ? 'image-contain' 
+                  : 'image-cover'
+              }`}
               onError={handleImageError}
               onLoad={handleImageLoad}
+              onDoubleClick={handleImageDoubleClick}
               unoptimized={true}
               priority={false}
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             />
             {imageLoading && !imageError && (
               <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-600">
                 <div className="text-center">
-                  <span className="text-gray-400 text-xl sm:text-2xl block">👗</span>
+                  <div className="w-8 h-8 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin mb-2"></div>
+                  <span className="text-gray-400 text-xs">Loading...</span>
                 </div>
               </div>
             )}
@@ -190,42 +203,47 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
               <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-600">
                 <div className="text-center">
                   <span className="text-gray-400 text-xl sm:text-2xl block">👗</span>
+                  <span className="text-gray-400 text-xs mt-1">Image unavailable</span>
                 </div>
               </div>
             )}
+
           </>
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-600">
             <div className="text-center">
               <span className="text-gray-400 text-xl sm:text-2xl block">👗</span>
+              <span className="text-gray-400 text-xs mt-1">No image</span>
             </div>
           </div>
         )}
       </div>
 
-      {/* Content section with guaranteed space */}
-      <div className="p-3 sm:p-4 flex flex-col justify-between min-h-[80px] sm:min-h-[90px]">
+      {/* Content section - Fixed height with flex layout */}
+      <div className="p-3 sm:p-4 flex flex-col justify-between product-card-content">
         {/* Store name */}
-        <div>
+        <div className="flex-shrink-0">
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate font-medium">
             {storeName}
           </p>
         </div>
         
-        {/* Product name */}
-        <div className="flex-1 min-h-0 py-1">
+        {/* Product name - Takes up available space with consistent height */}
+        <div className="flex-1 flex items-start py-1 min-h-[40px] sm:min-h-[48px]">
           <h3 className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base line-clamp-2 leading-tight">
             {displayName}
           </h3>
         </div>
         
-        {/* Price */}
-        <div className="mt-1">
+        {/* Price - Fixed at bottom */}
+        <div className="flex-shrink-0">
           <p className="text-sm sm:text-base font-bold text-indigo-600 dark:text-indigo-400 truncate">
             {product.price || 'Price on request'}
           </p>
         </div>
       </div>
+
+
     </div>
   )
 } 
