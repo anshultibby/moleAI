@@ -2,7 +2,7 @@
 LLM-based Product Filter
 Handles intelligent filtering of products using language models
 
-BALANCED CRITERIA-MATCHING PIPELINE:
+ENHANCED CRITERIA-MATCHING PIPELINE:
 ┌─────────────────────────────────────────────────────────────────┐
 │ RAW DATA: limit * 10 per store (e.g. 30 * 10 = 300 products)   │
 │          ↓                                                      │
@@ -10,15 +10,15 @@ BALANCED CRITERIA-MATCHING PIPELINE:
 │          ↓                                                      │
 │ RANDOMIZATION: Shuffle for diversity                            │
 │          ↓                                                      │
-│ SMART PREFILTER: 200 max → Score-based selection               │
+│ SMART PREFILTER: 100 max → Score-based selection               │
 │          ↓                                                      │
 │ FINAL RANDOMIZATION: Shuffle again                              │
 │          ↓                                                      │
-│ LLM INPUT: 150 max products                                     │
+│ LLM INPUT: Up to 100 products                                   │
 │          ↓                                                      │
-│ BALANCED LLM FILTERING: Core requirements + flexible criteria  │
+│ ENHANCED LLM FILTERING: Accurate gender + criteria matching    │
 │          ↓                                                      │
-│ GOOD MATCHES: 8-20 products meeting core + some criteria       │
+│ PRECISE MATCHES: 5-15 products with accurate criteria          │
 └─────────────────────────────────────────────────────────────────┘
 
 BALANCED MATCHING APPROACH:
@@ -101,21 +101,40 @@ class LLMProductFilter:
             # Create compact product list for LLM
             product_list = self._create_llm_product_list(products)
             
-            # BALANCED FILTERING: Core requirements + reasonable matching
+            # ENHANCED FILTERING: Core requirements + accurate matching for specific criteria
             prompt = f"""SMART FILTER for: "{query}"
 
 {chr(10).join(product_list)}
 
-SMART RULES - Select products that are RELEVANT:
-1. Product type should match general category (dress, top, jacket, shoes, etc.)
-2. If specific color mentioned, prefer that color but allow similar shades
-3. If material mentioned, prefer that material but allow reasonable alternatives
-4. Consider style, occasion, and overall relevance to the query
-5. Include products that would satisfy the user's intent
+CRITICAL MATCHING RULES - Be ACCURATE on these specific criteria:
+1. **GENDER**: If query mentions "men's", "women's", "boys", "girls", "kids" - match EXACTLY
+   - "men's shoes" = only men's shoes, NOT women's or unisex
+   - "women's jacket" = only women's jacket, NOT men's or unisex  
+   - "kids clothes" = only children's items, NOT adult items
 
-Be SELECTIVE but not overly restrictive. Focus on products a user would actually want.
+2. **PRODUCT TYPE**: Must match the core category (dress, top, jacket, shoes, etc.)
+   - "jacket" should not include "pants" or "shoes"
+   - "dress" should not include "skirt" or "top"
 
-Return numbers of the BEST products that match the user's intent (aim for 5-15 products):"""
+3. **COLOR**: If specific color mentioned, prefer exact matches but allow similar shades
+   - "black" = black, dark gray, charcoal (similar)
+   - "red" = red, burgundy, crimson (similar)
+
+4. **MATERIAL**: If material mentioned, prefer exact but allow reasonable alternatives
+   - "leather" = genuine leather preferred, faux leather acceptable
+   - "cotton" = 100% cotton preferred, cotton blends acceptable
+
+5. **SIZE**: If size mentioned, only include products that have that size available
+   - "large" = only products with size L/Large available
+   - "size 8" = only products with size 8 available
+
+6. **STYLE & OCCASION**: Consider the context and intended use
+   - "formal" vs "casual" distinction matters
+   - "workout" vs "everyday" distinction matters
+
+Be PRECISE and ACCURATE on gender, size, and core product type. Focus on products a user would actually want and that match their specific requirements.
+
+Return numbers of the BEST products that accurately match the user's intent (aim for 5-15 products):"""
 
             response = model.generate_content(prompt)
             
@@ -167,7 +186,7 @@ Return numbers of the BEST products that match the user's intent (aim for 5-15 p
         
         return product_list
     
-    def _smart_prefilter_products(self, products: List[Dict], query: str, max_products: int = 200) -> List[Dict]:
+    def _smart_prefilter_products(self, products: List[Dict], query: str, max_products: int = 100) -> List[Dict]:
         """Smart but GENEROUS pre-filtering to get diverse candidates for LLM processing"""
         query_words = [word.lower() for word in query.split() if len(word) >= 2]
         if not query_words:

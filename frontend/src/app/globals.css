@@ -200,34 +200,34 @@ body {
               0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
-/* Product card specific styles */
+/* Product card specific styles - More squarish design */
 .product-card {
-  height: 280px;
+  height: 220px; /* Reduced from 280px for more squarish */
 }
 
 @media (min-width: 640px) {
   .product-card {
-    height: 320px;
+    height: 260px; /* Reduced from 320px for better proportions */
   }
 }
 
 .product-card-image {
-  height: 180px;
+  height: 125px; /* Reduced from 140px to give text more space */
 }
 
 @media (min-width: 640px) {
   .product-card-image {
-    height: 200px;
+    height: 145px; /* Reduced from 160px */
   }
 }
 
 .product-card-content {
-  height: 100px;
+  height: 95px; /* Increased from 80px for better text breathing room */
 }
 
 @media (min-width: 640px) {
   .product-card-content {
-    height: 120px;
+    height: 115px; /* Increased from 100px */
   }
 }
 

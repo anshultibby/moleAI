@@ -220,24 +220,24 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
       </div>
 
       {/* Content section - Fixed height with flex layout */}
-      <div className="p-3 sm:p-4 flex flex-col justify-between product-card-content">
+      <div className="p-3 sm:p-3.5 flex flex-col justify-between product-card-content">
         {/* Store name */}
         <div className="flex-shrink-0">
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate font-medium">
+          <p className="text-xs text-slate-500 dark:text-slate-400 truncate font-medium">
             {storeName}
           </p>
         </div>
         
         {/* Product name - Takes up available space with consistent height */}
-        <div className="flex-1 flex items-start py-1 min-h-[40px] sm:min-h-[48px]">
-          <h3 className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base line-clamp-2 leading-tight">
+        <div className="flex-1 flex items-start py-1 min-h-[36px] sm:min-h-[40px]">
+          <h3 className="font-semibold text-slate-900 dark:text-white text-sm line-clamp-2 leading-tight">
             {displayName}
           </h3>
         </div>
         
         {/* Price - Fixed at bottom */}
         <div className="flex-shrink-0">
-          <p className="text-sm sm:text-base font-bold text-indigo-600 dark:text-indigo-400 truncate">
+          <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400 truncate">
             {product.price || 'Price on request'}
           </p>
         </div>
