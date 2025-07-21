@@ -1,0 +1,19 @@
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files first for better caching
+COPY package*.json ./
+
+# Install dependencies (including dev dependencies for development)
+RUN npm install
+
+# Copy application code
+COPY . .
+
+# Use PORT environment variable
+EXPOSE $PORT
+
+# Command to run the development application
+CMD ["sh", "-c", "npm run dev -- --port ${PORT:-3000}"] 
