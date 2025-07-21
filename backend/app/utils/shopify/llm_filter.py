@@ -1,12 +1,55 @@
 """
 LLM-based Product Filter
 Handles intelligent filtering of products using language models
+
+BALANCED CRITERIA-MATCHING PIPELINE:
+┌─────────────────────────────────────────────────────────────────┐
+│ RAW DATA: limit * 10 per store (e.g. 30 * 10 = 300 products)   │
+│          ↓                                                      │
+│ REASONABLE CATEGORY: Remove obvious mismatches only             │
+│          ↓                                                      │
+│ RANDOMIZATION: Shuffle for diversity                            │
+│          ↓                                                      │
+│ SMART PREFILTER: 200 max → Score-based selection               │
+│          ↓                                                      │
+│ FINAL RANDOMIZATION: Shuffle again                              │
+│          ↓                                                      │
+│ LLM INPUT: 150 max products                                     │
+│          ↓                                                      │
+│ BALANCED LLM FILTERING: Core requirements + flexible criteria  │
+│          ↓                                                      │
+│ GOOD MATCHES: 8-20 products meeting core + some criteria       │
+└─────────────────────────────────────────────────────────────────┘
+
+BALANCED MATCHING APPROACH:
+🎯 CORE REQUIREMENTS (Must have):
+- Product Type/Category (jacket, jeans, shoes)
+- Basic relevance to query
+
+✅ EXPLICIT CRITERIA (Strongly preferred):
+- Color Requirements (black, red, blue)  
+- Material Requirements (cotton, leather, denim)
+- Size Requirements (large, XL, size 8)
+- Brand Requirements (Nike, Apple, etc.)
+
+⚖️ FLEXIBLE CRITERIA (Nice to have):
+- Style/Fit Requirements (skinny, oversized)
+- Price Preferences (cheap, premium)
+- Function/Use Hints (running, work, casual)
+- Gender/Age Hints (men's, women's)
+
+BALANCED RULE:
+- Core requirements: MUST match
+- Explicit criteria: STRONGLY preferred (high score bonus)
+- Flexible criteria: Nice to have (small score bonus)
+- Result: 15-30 good matches from multiple domains instead of 8-20 products
 """
 
 import os
 from typing import List, Dict, Any
 import random
 from ..debug_tracker import get_debug_tracker
+from ..funnel_visualizer import get_funnel_visualizer
 
 
 class LLMProductFilter:
@@ -16,7 +59,7 @@ class LLMProductFilter:
         self.api_key = os.getenv("GEMINI_API_KEY")
         
     def filter_products(self, products: List[Dict], query: str) -> List[Dict]:
-        """Use LLM to filter products for relevance - EXTREMELY AGGRESSIVE about category matching"""
+        """Use LLM to filter products for relevance - OPTIMIZED for diversity and volume"""
         if not products or not query.strip():
             return products
         
@@ -26,37 +69,25 @@ class LLMProductFilter:
         if debug_tracker:
             debug_tracker.start_timing_phase("llm_filter")
         
-        # STEP 1: Pre-filter with strict category validation to catch obvious mismatches
-        products = self._strict_category_prefilter(products, query)
+        # STEP 1: REMOVED STRICT CATEGORY PREFILTERING - let LLM handle it
+        print(f"   🚀 Skipping strict prefiltering - sending all {len(products)} products to LLM")
         
-        if len(products) != original_count:
-            print(f"   🚫 Strict category filter: {original_count} → {len(products)} products (rejected obvious mismatches)")
-            # Track prefiltering decisions
-            if debug_tracker:
-                rejected_count = original_count - len(products)
-                for i in range(rejected_count):
-                    debug_tracker.track_prefilter_decision(
-                        {"title": "Category Mismatch Product", "variants": [{"price": "Unknown"}]},
-                        "Failed strict category validation",
-                        "removed"
-                    )
+        # STEP 2: RANDOMIZE EARLY - before any scoring/prefiltering to avoid order bias
+        random.shuffle(products)
         
-        # STEP 2: Continue with existing logic for remaining products
-        if len(products) > 100:
-            products = self._smart_prefilter_products(products, query, max_products=100)
+        # STEP 3: REMOVED prefiltering limit - let more products through
+        # Keep the smart prefiltering for relevance scoring but don't limit count
+        if len(products) > 300:  # Only prefilter if we have a very large number
+            products = self._smart_prefilter_products(products, query, max_products=len(products))  # No limit
             print(f"   🎯 Pre-filtered: kept most relevant {len(products)} products")
         
-        # Shuffle products to ensure variety and avoid bias toward first products
-        if len(products) > 75:
-            shuffled_products = products.copy()
-            random.shuffle(shuffled_products)
-            products = shuffled_products[:75]
-            print(f"   🔀 Shuffled and selected 75 products for LLM processing")
-        elif len(products) > 10:
-            shuffled_products = products.copy()
-            random.shuffle(shuffled_products)
-            products = shuffled_products
-            print(f"   🔀 Shuffled {len(products)} products for variety")
+        # STEP 4: FINAL RANDOMIZE - critical for LLM diversity
+        shuffled_products = products.copy()
+        random.shuffle(shuffled_products)
+        
+        # STEP 5: REMOVED INPUT LIMIT - let LLM see all filtered products
+        products = shuffled_products
+        print(f"   🔀 Using all {len(products)} products for LLM processing")
         
         if not self.api_key:
             print("   ⚠️  No Gemini API key, using basic filtering")
@@ -70,42 +101,21 @@ class LLMProductFilter:
             # Create compact product list for LLM
             product_list = self._create_llm_product_list(products)
             
-            # ENHANCED: Much more aggressive prompt for category matching
-            prompt = f"""ULTRA-STRICT Product Filter for: "{query}"
+            # STRICT & PRECISE: Only exact matches to user query
+            prompt = f"""STRICT FILTER for: "{query}"
 
-Products to evaluate:
 {chr(10).join(product_list)}
 
-🚨 ZERO TOLERANCE RULES - REJECT if ANY rule is violated:
+STRICT RULES - REJECT if ANY of these fail:
+1. Product type must EXACTLY match (shirt≠jacket, shoes≠boots, jeans≠pants)
+2. If color specified, product MUST have that color
+3. If material specified, product MUST be that material  
+4. If brand specified, product MUST be that brand
+5. If gender specified, product MUST match (men's≠unisex)
 
-1. CATEGORY MATCHING (CRITICAL):
-   • "jacket" query → ONLY jackets, blazers, coats (NEVER jeans, pants, shirts, dresses)
-   • "jeans" query → ONLY jeans, denim pants (NEVER jackets, shirts, dresses, leggings)  
-   • "dress" query → ONLY dresses (NEVER tops, pants, skirts, jackets)
-   • "shoes" query → ONLY shoes, boots, sneakers (NEVER clothing, accessories)
-   • "bag" query → ONLY bags, purses, backpacks (NEVER clothing, shoes)
+BE VERY STRICT. Only select products that PRECISELY match "{query}".
 
-2. SPECIFIC ATTRIBUTES (if specified):
-   • COLOR: Must have exact color (black ≠ dark blue ≠ charcoal)
-   • MATERIAL: Must have exact material (cotton ≠ polyester ≠ blend)
-   • STYLE: Must match style exactly (skinny ≠ regular ≠ wide)
-   • FIT: Must match fit exactly (high-waisted ≠ low-rise)
-
-3. FUNCTION/USE CASE:
-   • Different product categories serve different functions
-   • A jacket cannot substitute for jeans, ever
-   • A dress cannot substitute for pants, ever
-
-EXAMPLES OF STRICT FILTERING:
-• "black jacket" → REJECT all jeans, even black jeans (wrong category)
-• "winter coat" → REJECT all sweaters, hoodies (wrong function) 
-• "running shoes" → REJECT all boots, sandals (wrong use case)
-• "evening dress" → REJECT all tops, skirts (wrong category)
-
-BE RUTHLESS: When in doubt, REJECT. Better to show 3 perfect matches than 10 wrong items.
-Trust is everything - one wrong category match destroys user confidence.
-
-Return ONLY the numbers of products that are PERFECT CATEGORY MATCHES (e.g., "2, 7, 15"):"""
+Return ONLY numbers of products that match ALL requirements:"""
 
             response = model.generate_content(prompt)
             
@@ -118,7 +128,7 @@ Return ONLY the numbers of products that are PERFECT CATEGORY MATCHES (e.g., "2,
                     
                     filtered_products = [products[i] for i in relevant_indices]
                     
-                    print(f"   🤖 AGGRESSIVE LLM: {len(products)} → {len(filtered_products)} PERFECT matches")
+                    print(f"   🤖 LLM: {len(products)} → {len(filtered_products)} selected")
                     
                     # Add relevance scores based on LLM order
                     for idx, product in enumerate(filtered_products):
@@ -138,271 +148,196 @@ Return ONLY the numbers of products that are PERFECT CATEGORY MATCHES (e.g., "2,
             return self._basic_filter_by_query(products, query)
     
     def _create_llm_product_list(self, products: List[Dict]) -> List[str]:
-        """Create simplified product list for LLM processing"""
+        """Create simplified product list for LLM processing - LEAN & FAST"""
         product_list = []
         
         for i, product in enumerate(products):
-            # Only include the MOST RELEVANT fields for LLM filtering
+            # MINIMAL: Just name and type - no complex processing
             name = product.get('product_name', '').strip()
             product_type = product.get('product_type', '').strip()
-            tags = product.get('tags', [])[:4]  # Top 4 tags only
             
-            # NEW: Get variant information
-            available_sizes = product.get('available_sizes', [])
-            available_colors = product.get('available_colors', [])
-            
-            # Create a SIMPLE, focused description for the LLM
+            # Simple format: number and name
             product_summary = f"{i+1}. {name}"
             
-            # Add type if it's different from name and adds value
+            # Add type only if different from name and useful
             if product_type and product_type.lower() not in name.lower():
                 product_summary += f" ({product_type})"
-            
-            # Add sizes if available and relevant (clothing items)
-            if available_sizes and len(available_sizes) <= 6:  # Don't overwhelm with too many sizes
-                product_summary += f" [Sizes: {', '.join(available_sizes)}]"
-            
-            # Add colors if available and not already in name
-            if available_colors and len(available_colors) <= 4:  # Limit colors shown
-                name_lower = name.lower()
-                relevant_colors = [color for color in available_colors 
-                                 if color.lower() not in name_lower]
-                if relevant_colors:
-                    product_summary += f" [Colors: {', '.join(relevant_colors)}]"
-            
-            # Add key tags that aren't already in name/type/variants
-            relevant_tags = []
-            name_lower = name.lower()
-            type_lower = product_type.lower()
-            variant_text = ' '.join(available_sizes + available_colors).lower()
-            
-            for tag in tags:
-                tag_clean = tag.strip().lower()
-                if (tag_clean and 
-                    len(tag_clean) > 2 and 
-                    tag_clean not in name_lower and 
-                    tag_clean not in type_lower and
-                    tag_clean not in variant_text and
-                    len(relevant_tags) < 2):  # Reduced to 2 tags max
-                    relevant_tags.append(tag.strip())
-            
-            if relevant_tags:
-                product_summary += f" [Tags: {', '.join(relevant_tags)}]"
             
             product_list.append(product_summary)
         
         return product_list
     
-    def _smart_prefilter_products(self, products: List[Dict], query: str, max_products: int = 100) -> List[Dict]:
-        """Smart but GENEROUS pre-filtering to get good candidates for LLM processing"""
-        query_words = [word.lower() for word in query.split() if len(word) >= 2]  # Reduced minimum length
+    def _smart_prefilter_products(self, products: List[Dict], query: str, max_products: int = 200) -> List[Dict]:
+        """Smart but GENEROUS pre-filtering to get diverse candidates for LLM processing"""
+        query_words = [word.lower() for word in query.split() if len(word) >= 2]
         if not query_words:
-            return products[:max_products]
+            # If no query words, randomize for diversity
+            random.shuffle(products)
+            return products[:max_products] if max_products < len(products) else products
+        
+        # If max_products is same as input length, just score and return all
+        if max_products >= len(products):
+            # Score all products but return them all
+            scored_products = []
+            for product in products:
+                score = self._score_product_relevance(product, query_words)
+                scored_products.append((score, product))
+            
+            # Sort by score but return all
+            scored_products.sort(key=lambda x: x[0], reverse=True)
+            result = [product for score, product in scored_products]
+            print(f"   📊 Scored all {len(result)} products by relevance (no filtering needed)")
+            return result
         
         # Score products based on query relevance - MORE GENEROUS SCORING
         scored_products = []
         
         for product in products:
-            score = 0
-            
-            # Get searchable text
-            name = product.get('product_name', '').lower()
-            product_type = product.get('product_type', '').lower()
-            tags = ' '.join(product.get('tags', [])).lower()
-            vendor = product.get('vendor', '').lower()
-            description = product.get('description', '').lower()
-            
-            searchable_text = f"{name} {product_type} {tags} {vendor} {description}"
-            
-            # GENEROUS scoring - give points for any matches
-            for word in query_words:
-                # Higher score for matches in product name
-                if word in name:
-                    score += 10
-                # Medium score for matches in type or tags
-                if word in product_type:
-                    score += 6
-                if word in tags:
-                    score += 5
-                # Lower score for matches in description or vendor
-                if word in description:
-                    score += 3
-                if word in vendor:
-                    score += 2
-                
-                # GENEROUS: Also give partial credit for substring matches
-                if len(word) >= 4:  # Only for longer words to avoid too much noise
-                    if any(word in token for token in searchable_text.split()):
-                        score += 1
-            
-            # Bonus for having multiple query words - MORE GENEROUS
-            matched_words = sum(1 for word in query_words if word in searchable_text)
-            if matched_words >= 2:
-                score += matched_words * 4  # Increased bonus
-            elif matched_words == 1:
-                score += 2  # Still give some bonus for one match
-            
-            # REDUCED penalty for short names (was -2, now -1)
-            if len(name) < 8:  # Reduced threshold and penalty
-                score -= 1
-            
-            # NEW: Bonus for products with detailed info
-            if len(description) > 50:
-                score += 1
-            if len(tags) > 3:
-                score += 1
-            
+            score = self._score_product_relevance(product, query_words)
             scored_products.append((score, product))
         
         # Sort by score and return candidates - MUCH MORE GENEROUS
         scored_products.sort(key=lambda x: x[0], reverse=True)
         
-        # GENEROUS: Include products with even minimal relevance (score > 0)
-        # Instead of requiring high scores, let LLM decide
+        # DIVERSITY-FIRST: Include products with minimal relevance AND randomize within score tiers
         filtered_products = []
-        for score, product in scored_products:
-            if score > 0:  # Very low threshold - let LLM decide quality
-                filtered_products.append(product)
-            elif len(filtered_products) < max_products // 2:  # Fill at least half quota
-                filtered_products.append(product)  # Include even low-scoring ones if we need more
         
-        # If we still don't have enough, add more regardless of score
+        # Tier 1: High relevance (score > 8) - take most but not all
+        high_score = [product for score, product in scored_products if score > 8]
+        if high_score:
+            random.shuffle(high_score)  # Randomize within tier
+            filtered_products.extend(high_score[:max_products // 2])  # Take half from high scores
+        
+        # Tier 2: Medium relevance (score 3-8) - take some
+        medium_score = [product for score, product in scored_products if 3 <= score <= 8]
+        if medium_score:
+            random.shuffle(medium_score)  # Randomize within tier
+            remaining_slots = max_products - len(filtered_products)
+            filtered_products.extend(medium_score[:remaining_slots // 2])
+        
+        # Tier 3: Low relevance (score 1-2) - take a few for serendipity
+        low_score = [product for score, product in scored_products if 1 <= score <= 2]
+        if low_score and len(filtered_products) < max_products:
+            random.shuffle(low_score)  # Randomize
+            remaining_slots = max_products - len(filtered_products)
+            filtered_products.extend(low_score[:min(remaining_slots, max_products // 10)])  # Take 10% from low scores
+        
+        # Fill remaining slots with any products if we're short
         if len(filtered_products) < max_products:
-            remaining_products = [product for score, product in scored_products[len(filtered_products):]]
-            filtered_products.extend(remaining_products[:max_products - len(filtered_products)])
+            used_products = set(id(p) for p in filtered_products)
+            remaining_products = [product for score, product in scored_products if id(product) not in used_products]
+            random.shuffle(remaining_products)
+            remaining_slots = max_products - len(filtered_products)
+            filtered_products.extend(remaining_products[:remaining_slots])
         
-        print(f"   📊 Generous pre-filtering: {len(products)} → {len(filtered_products)} candidates (score range: {scored_products[0][0] if scored_products else 0} to {scored_products[-1][0] if scored_products else 0})")
+        print(f"   📊 Generous + Diverse pre-filtering: {len(products)} → {len(filtered_products)} candidates")
+        print(f"   🎲 Randomized within score tiers for maximum diversity")
         
         return filtered_products[:max_products]
     
-    def _strict_category_prefilter(self, products: List[Dict], query: str) -> List[Dict]:
-        """STEP 1: Extremely strict category validation to catch obvious mismatches"""
-        query_lower = query.lower().strip()
+    def _score_product_relevance(self, product: Dict, query_words: List[str]) -> int:
+        """Score a single product's relevance to query words"""
+        score = 0
         
-        # Define strict category rules
-        category_rules = {
-            # Outerwear categories
-            'jacket': ['jacket', 'blazer', 'coat', 'windbreaker', 'bomber', 'denim jacket', 'leather jacket'],
-            'coat': ['coat', 'jacket', 'parka', 'trench', 'overcoat', 'peacoat', 'windbreaker'],
-            'blazer': ['blazer', 'jacket', 'suit jacket', 'sport coat'],
-            
-            # Bottom categories  
-            'jeans': ['jeans', 'denim', 'jean', 'denim pants'],
-            'pants': ['pants', 'trousers', 'slacks', 'chinos', 'joggers'],
-            'leggings': ['leggings', 'tights', 'yoga pants'],
-            'shorts': ['shorts', 'bermuda', 'cargo shorts'],
-            'skirt': ['skirt', 'mini skirt', 'maxi skirt', 'pencil skirt'],
-            
-            # Top categories
-            'dress': ['dress', 'gown', 'midi dress', 'maxi dress', 'mini dress'],
-            'shirt': ['shirt', 'blouse', 'button up', 'button down', 'dress shirt'],
-            'top': ['top', 'blouse', 'tank', 'camisole', 'tee', 't-shirt'],
-            'sweater': ['sweater', 'pullover', 'jumper', 'cardigan', 'knitwear'],
-            'hoodie': ['hoodie', 'sweatshirt', 'pullover hoodie'],
-            
-            # Footwear
-            'shoes': ['shoes', 'sneakers', 'boots', 'heels', 'flats', 'sandals'],
-            'boots': ['boots', 'ankle boots', 'knee boots', 'combat boots'],
-            'sneakers': ['sneakers', 'trainers', 'athletic shoes', 'running shoes'],
-            
-            # Accessories
-            'bag': ['bag', 'purse', 'handbag', 'backpack', 'tote', 'crossbody'],
-            'belt': ['belt', 'waist belt', 'leather belt'],
-            'hat': ['hat', 'cap', 'beanie', 'baseball cap', 'fedora'],
-        }
+        # Get searchable text
+        name = product.get('product_name', '').lower()
+        product_type = product.get('product_type', '').lower()
+        tags = ' '.join(product.get('tags', [])).lower()
+        vendor = product.get('vendor', '').lower()
+        description = product.get('description', '').lower()
         
-        # Find the main category from query
-        main_category = None
-        for category, keywords in category_rules.items():
-            if any(keyword in query_lower for keyword in keywords):
-                main_category = category
-                break
+        searchable_text = f"{name} {product_type} {tags} {vendor} {description}"
         
-        if not main_category:
-            print(f"   ⚠️  No specific category detected in '{query}', skipping strict filter")
-            return products
-        
-        allowed_keywords = category_rules[main_category]
-        print(f"   🎯 Strict category filter for '{main_category}': allowing only {allowed_keywords}")
-        
-        # Define category conflicts (these should NEVER match)
-        category_conflicts = {
-            'jacket': ['jeans', 'dress', 'skirt', 'pants', 'shorts', 'leggings', 'shoes', 'boots', 'bag'],
-            'coat': ['jeans', 'dress', 'skirt', 'pants', 'shorts', 'leggings', 'shoes', 'boots', 'bag'],
-            'jeans': ['jacket', 'coat', 'dress', 'skirt', 'shoes', 'boots', 'bag', 'hat'],
-            'dress': ['jeans', 'pants', 'shorts', 'jacket', 'coat', 'shoes', 'boots', 'bag'],
-            'pants': ['dress', 'skirt', 'jacket', 'coat', 'shoes', 'boots', 'bag'],
-            'shoes': ['jeans', 'pants', 'dress', 'jacket', 'coat', 'shirt', 'top'],
-            'bag': ['jeans', 'pants', 'dress', 'jacket', 'coat', 'shirt', 'shoes'],
-        }
-        
-        conflict_keywords = category_conflicts.get(main_category, [])
-        
-        filtered_products = []
-        rejected_count = 0
-        
-        for product in products:
-            # Get searchable text
-            name = product.get('product_name', '').lower()
-            product_type = product.get('product_type', '').lower()
-            tags = ' '.join(product.get('tags', [])).lower()
-            description = product.get('description', '').lower()
+        # GENEROUS scoring - give points for any matches
+        for word in query_words:
+            # Higher score for matches in product name
+            if word in name:
+                score += 10
+            # Medium score for matches in type or tags
+            if word in product_type:
+                score += 6
+            if word in tags:
+                score += 5
+            # Lower score for matches in description or vendor
+            if word in description:
+                score += 3
+            if word in vendor:
+                score += 2
             
-            searchable_text = f"{name} {product_type} {tags} {description}"
-            
-            # Check for category conflicts first (immediate rejection)
-            has_conflict = any(conflict in searchable_text for conflict in conflict_keywords)
-            
-            if has_conflict:
-                conflicting_terms = [conflict for conflict in conflict_keywords if conflict in searchable_text]
-                print(f"   🚫 REJECT: {name[:40]}... (conflicts: {conflicting_terms})")
-                rejected_count += 1
-                continue
-            
-            # Check if it matches the required category
-            has_category_match = any(keyword in searchable_text for keyword in allowed_keywords)
-            
-            if has_category_match:
-                print(f"   ✅ KEEP: {name[:40]}... (category match)")
-                filtered_products.append(product)
-            else:
-                print(f"   ❌ REJECT: {name[:40]}... (no category match)")
-                rejected_count += 1
+            # GENEROUS: Also give partial credit for substring matches
+            if len(word) >= 4:  # Only for longer words to avoid too much noise
+                if any(word in token for token in searchable_text.split()):
+                    score += 1
         
-        print(f"   📊 Strict filter: {len(products)} → {len(filtered_products)} products ({rejected_count} rejected for category mismatch)")
-        return filtered_products
+        # Bonus for having multiple query words - MORE GENEROUS
+        matched_words = sum(1 for word in query_words if word in searchable_text)
+        if matched_words >= 2:
+            score += matched_words * 4  # Increased bonus
+        elif matched_words == 1:
+            score += 2  # Still give some bonus for one match
+        
+        # REDUCED penalty for short names (was -2, now -1)
+        if len(name) < 8:  # Reduced threshold and penalty
+            score -= 1
+        
+        # NEW: Bonus for products with detailed info
+        if len(description) > 50:
+            score += 1
+        if len(tags) > 3:
+            score += 1
+        
+        return score
     
     def _basic_filter_by_query(self, products: List[Dict], query: str) -> List[Dict]:
-        """Enhanced basic keyword-based filtering with ULTRA-STRICT category matching"""
+        """BASIC filtering - let LLM handle complex matching"""
         if not query.strip():
             return products
         
-        # Parse query for specific attributes
+        # Parse query for requirements
         query_lower = query.lower()
         query_words = [word.strip() for word in query_lower.split() if len(word.strip()) >= 2]
         
-        # STEP 1: Apply same strict category filtering as LLM version
-        products = self._strict_category_prefilter(products, query)
+        # STEP 1: REMOVED strict category filtering - let LLM handle it
+        print(f"   🚀 Basic filter: sending all {len(products)} products (no prefiltering)")
         
-        if not products:
-            print(f"   ⚠️  No products survived strict category filtering")
-            return []
-        
-        # STEP 2: Extract specific attributes from query
+        # STEP 2: Extract REQUIRED criteria from query - BE MORE PRECISE
         colors = ['black', 'white', 'red', 'blue', 'navy', 'green', 'yellow', 'pink', 'purple', 'brown', 'gray', 'grey', 'beige', 'tan', 'orange']
-        materials = ['cotton', 'wool', 'silk', 'denim', 'leather', 'polyester', 'nylon', 'spandex', 'cashmere', 'linen', 'velvet', 'suede']
-        styles = ['dress', 'shirt', 'pants', 'jeans', 'leggings', 'shorts', 'skirt', 'jacket', 'coat', 'sweater', 'hoodie', 'tank', 'blouse', 'cardigan']
-        fits = ['skinny', 'slim', 'regular', 'loose', 'oversized', 'fitted', 'relaxed', 'straight', 'wide', 'cropped', 'high-waisted', 'low-rise']
+        materials = ['cotton', 'wool', 'silk', 'denim', 'leather', 'polyester', 'linen', 'cashmere']
+        sizes = ['xs', 'small', 'medium', 'large', 'xl', 'extra large', 'xxl']  # Removed 's', 'm', 'l' to avoid false matches
+        brands = ['nike', 'adidas', 'apple', 'samsung', 'sony', 'zara', 'h&m']
+        genders = ['men', 'mens', "men's", 'women', 'womens', "women's", 'kids', 'baby']
         
-        # Find required attributes in query
+        # Find REQUIRED criteria in query - use word boundaries for sizes
         required_colors = [color for color in colors if color in query_lower]
         required_materials = [material for material in materials if material in query_lower]
-        required_styles = [style for style in styles if style in query_lower]
-        required_fits = [fit for fit in fits if fit.replace('-', ' ') in query_lower or fit.replace('-', '') in query_lower]
+        # For sizes, check for whole words or common patterns like 'size l', 'size m'
+        required_sizes = []
+        for size in sizes:
+            if f' {size} ' in f' {query_lower} ' or f'size {size}' in query_lower or query_lower.endswith(f' {size}'):
+                required_sizes.append(size)
+        required_brands = [brand for brand in brands if brand in query_lower]
+        required_genders = [gender for gender in genders if gender in query_lower]
         
-        print(f"   🔍 Attribute filtering - Colors: {required_colors}, Materials: {required_materials}, Styles: {required_styles}, Fits: {required_fits}")
+        print(f"   🔍 Basic filtering - REQUIRED criteria:")
+        print(f"      Colors: {required_colors}")
+        print(f"      Materials: {required_materials}")
+        print(f"      Sizes: {required_sizes}")
+        print(f"      Brands: {required_brands}")
+        print(f"      Genders: {required_genders}")
         
-        filtered_products = []
+        # If no specific requirements, return all products (let LLM handle it)
+        if not any([required_colors, required_materials, required_sizes, required_brands, required_genders]):
+            print(f"   ✅ No specific requirements found - returning all {len(products)} products for LLM filtering")
+            return products
+        
+        # Even if we found some requirements, be more lenient for complex queries
+        if len(query_words) > 2 and len(required_colors + required_materials + required_sizes + required_brands + required_genders) <= 2:
+            print(f"   ✅ Complex query with minimal requirements - returning all {len(products)} products for LLM filtering")
+            return products
+        
+        # Only apply strict filtering for very specific queries
+        print(f"   🔍 Found multiple specific requirements - applying strict filtering")
+        strict_products = []
         
         for product in products:
             # Get searchable text
@@ -414,59 +349,59 @@ Return ONLY the numbers of products that are PERFECT CATEGORY MATCHES (e.g., "2,
             
             searchable_text = f"{name} {product_type} {tags} {description} {vendor}"
             
-            # Check if ALL required attributes are present - ULTRA STRICT
-            matches_all_attributes = True
+            # STRICT REQUIREMENTS - ALL must be satisfied
+            meets_requirements = True
+            rejection_reason = ""
             
-            # Check required colors
-            for required_color in required_colors:
-                if required_color not in searchable_text:
-                    matches_all_attributes = False
-                    print(f"   ❌ {product.get('product_name', 'Unknown')[:30]}... - Missing color: {required_color}")
-                    break
+            # Check colors - MUST have if specified
+            if required_colors:
+                has_required_color = any(color in searchable_text for color in required_colors)
+                if not has_required_color:
+                    meets_requirements = False
+                    rejection_reason = f"missing required colors: {required_colors}"
             
-            if not matches_all_attributes:
-                continue
-                
-            # Check required materials
-            for required_material in required_materials:
-                if required_material not in searchable_text:
-                    matches_all_attributes = False
-                    print(f"   ❌ {product.get('product_name', 'Unknown')[:30]}... - Missing material: {required_material}")
-                    break
+            # Check materials - MUST have if specified
+            if required_materials and meets_requirements:
+                has_required_material = any(material in searchable_text for material in required_materials)
+                if not has_required_material:
+                    meets_requirements = False
+                    rejection_reason = f"missing required materials: {required_materials}"
             
-            if not matches_all_attributes:
-                continue
-                
-            # Check required styles
-            for required_style in required_styles:
-                if required_style not in searchable_text:
-                    matches_all_attributes = False
-                    print(f"   ❌ {product.get('product_name', 'Unknown')[:30]}... - Missing style: {required_style}")
-                    break
+            # Check sizes - MUST have if specified
+            if required_sizes and meets_requirements:
+                has_required_size = any(size in searchable_text for size in required_sizes)
+                if not has_required_size:
+                    meets_requirements = False
+                    rejection_reason = f"missing required sizes: {required_sizes}"
             
-            if not matches_all_attributes:
-                continue
-                
-            # Check required fits  
-            for required_fit in required_fits:
-                fit_variants = [required_fit, required_fit.replace('-', ' '), required_fit.replace('-', '')]
-                if not any(variant in searchable_text for variant in fit_variants):
-                    matches_all_attributes = False
-                    print(f"   ❌ {product.get('product_name', 'Unknown')[:30]}... - Missing fit: {required_fit}")
-                    break
+            # Check brands - MUST have if specified
+            if required_brands and meets_requirements:
+                has_required_brand = any(brand in searchable_text for brand in required_brands)
+                if not has_required_brand:
+                    meets_requirements = False
+                    rejection_reason = f"missing required brands: {required_brands}"
             
-            if matches_all_attributes:
-                # Additional basic keyword matching for other terms
-                basic_match_score = 0
-                for word in query_words:
-                    if word not in colors + materials + styles + [fit.replace('-', '') for fit in fits]:
-                        if word in searchable_text:
-                            basic_match_score += 1
-                
-                # Only include if it has good basic keyword matching too
-                if basic_match_score > 0 or len(required_colors + required_materials + required_styles + required_fits) > 0:
-                    print(f"   ✅ {product.get('product_name', 'Unknown')[:50]}... - Matches all attributes")
-                    filtered_products.append(product)
+            # Check genders - MUST have if specified
+            if required_genders and meets_requirements:
+                has_required_gender = any(gender in searchable_text for gender in required_genders)
+                if not has_required_gender:
+                    meets_requirements = False
+                    rejection_reason = f"missing required genders: {required_genders}"
+            
+            # Core relevance: must match main query words - BE MORE LENIENT
+            if meets_requirements:
+                matched_words = sum(1 for word in query_words if word in searchable_text)
+                # Much more lenient - only require 1 word match for long queries, or any partial relevance
+                min_matches = 1 if len(query_words) > 2 else max(1, len(query_words) // 2)
+                if matched_words < min_matches:
+                    meets_requirements = False
+                    rejection_reason = f"insufficient keyword matches: {matched_words}/{len(query_words)} (need {min_matches})"
+            
+            if meets_requirements:
+                strict_products.append(product)
+                print(f"   ✅ ACCEPT: {product.get('product_name', 'Unknown')[:40]}...")
+            else:
+                print(f"   ❌ REJECT: {product.get('product_name', 'Unknown')[:40]}... ({rejection_reason})")
         
-        print(f"   📊 ULTRA-STRICT basic filtering: {len(products)} → {len(filtered_products)} products")
-        return filtered_products 
+        print(f"   📊 STRICT basic filtering: {len(products)} → {len(strict_products)} products (only exact matches)")
+        return strict_products 

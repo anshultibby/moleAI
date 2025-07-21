@@ -14,32 +14,8 @@ import asyncio
 from .hybrid_search_service import shopify_search, hybrid_search
 from .google_discovery_service import GoogleDiscoveryService
 from .debug_tracker import init_debug_session, get_debug_tracker, finalize_debug_session
-
-# Global variable to store streaming callback
-_streaming_callback = None
-
-def set_streaming_callback(callback):
-    """Set the callback function for streaming updates"""
-    global _streaming_callback
-    _streaming_callback = callback
-
-def stream_progress_update(message: str):
-    """Stream a progress update to the frontend chat"""
-    global _streaming_callback
-    # Add to global progress messages for streaming
-    try:
-        from .shopping_pipeline import add_progress_message
-        add_progress_message(message)
-    except ImportError:
-        pass
-    
-    if _streaming_callback:
-        try:
-            _streaming_callback("progress", {"message": message})
-        except Exception as e:
-            print(f"Error streaming progress: {e}")
-    # Always print to console as well
-    print(message)
+from .progress_utils import stream_progress_update, set_streaming_callback
+from .funnel_visualizer import init_funnel_tracking, get_funnel_visualizer, finalize_funnel_tracking
 
 
 @dataclass
@@ -214,7 +190,7 @@ async def search_product(args: Dict[str, Any], context: ShoppingContextVariables
     max_price = args.get("max_price")
     category = args.get("category")
     marketplaces = args.get("marketplaces", ["SHOPIFY"])
-    limit = args.get("limit", 20)
+    limit = args.get("limit", 50)  # INCREASED default for more domain diversity
     
     print(f"🔍 Searching for: '{query}' (limit: {limit})")
     
@@ -222,6 +198,9 @@ async def search_product(args: Dict[str, Any], context: ShoppingContextVariables
     debug_tracker = init_debug_session(query)
     if debug_tracker:
         debug_tracker.start_timing_phase("total_search")
+    
+    # Initialize funnel tracking
+    funnel_visualizer = init_funnel_tracking(query)
     
     if not query:
         if debug_tracker:
@@ -231,14 +210,56 @@ async def search_product(args: Dict[str, Any], context: ShoppingContextVariables
     try:
         start_time = time.time()
         
-        # Use our fast Shopify JSON search
+        # Create streaming callback to send products to frontend immediately
+        def stream_product_callback(product):
+            """Stream individual products to frontend as they're found"""
+            try:
+                # Add product to context immediately
+                context.add_deal({
+                    'type': 'product',
+                    'product_name': product.get('product_name', 'Unknown Product'),
+                    'price': product.get('price', 'Price not available'),
+                    'price_value': product.get('price_value', 0),
+                    'image_url': product.get('image_url', ''),
+                    'product_url': product.get('product_url', ''),
+                    'store_name': product.get('store_name', 'Unknown Store'),
+                    'description': product.get('description', ''),
+                    'source': product.get('source', 'shopify_json'),
+                    'marketplace': product.get('marketplace', 'SHOPIFY'),
+                    'is_available': product.get('is_available', True)
+                })
+                
+                # Stream to frontend via global callback if available
+                try:
+                    from .progress_utils import get_streaming_callback
+                    global_callback = get_streaming_callback()
+                    if global_callback:
+                        global_callback("product", {
+                            'type': 'product',
+                            'product_name': product.get('product_name', 'Unknown Product'),
+                            'price': product.get('price', 'Price not available'),
+                            'price_value': product.get('price_value', 0),
+                            'image_url': product.get('image_url', ''),
+                            'product_url': product.get('product_url', ''),
+                            'store_name': product.get('store_name', 'Unknown Store'),
+                            'description': product.get('description', ''),
+                            'source': product.get('source', 'shopify_json'),
+                            'marketplace': product.get('marketplace', 'SHOPIFY'),
+                            'is_available': product.get('is_available', True)
+                        })
+                except Exception as e:
+                    print(f"   ⚠️  Streaming callback error: {e}")
+            except Exception as e:
+                print(f"   ⚠️  Product callback error: {e}")
+        
+        # Use our fast Shopify JSON search with streaming
         if "AMAZON" in marketplaces and "SHOPIFY" in marketplaces:
-            # Use hybrid search (Shopify + Amazon if available)
-            products = await hybrid_search(query, max_results=limit)
+            # Use hybrid search (Shopify + Amazon if available) with streaming
+            products = await hybrid_search(query, max_results=limit, product_callback=stream_product_callback)
             search_source = "Shopify stores + Amazon Business"
         else:
-            # Use pure Shopify search (fastest)
-            products = await shopify_search(query, max_results=limit)
+            # Use pure Shopify search (fastest) with streaming
+            products = await shopify_search(query, max_results=limit, product_callback=stream_product_callback)
             search_source = "Shopify stores"
         
         search_time = time.time() - start_time
@@ -285,6 +306,63 @@ async def search_product(args: Dict[str, Any], context: ShoppingContextVariables
                 'marketplace': product.get('marketplace', 'SHOPIFY'),
                 'is_available': product.get('is_available', True)
             })
+
+        # 🎯 AUTOMATIC PRODUCT DISPLAY - Don't rely on LLM to call show_products!
+        if products and len(products) > 0:
+            print(f"   🎨 Auto-displaying {len(products)} products to ensure user sees results...")
+            
+            # Format products for display with enhanced information
+            display_products = []
+            for i, product in enumerate(products):
+                # Add diversity badges based on product characteristics
+                badge = ""
+                price_val = product.get('price_value', 0)
+                store = product.get('store_name', 'Unknown Store')
+                
+                if i == 0:  # First product gets top pick
+                    badge = "🏆 Top Pick"
+                elif price_val > 0 and price_val < 50:
+                    badge = "💰 Great Value"
+                elif price_val > 150:
+                    badge = "⭐ Premium Choice"
+                elif 'sale' in product.get('product_name', '').lower() or 'discount' in product.get('description', '').lower():
+                    badge = "🔥 Sale Price"
+                elif len(products) > 5 and i == len(products) - 1:
+                    badge = "💎 Hidden Gem"
+                
+                # Create reasoning based on selection
+                reasoning = ""
+                if price_val > 0:
+                    if price_val < 50:
+                        reasoning = f"Excellent value at ${price_val:.0f} from {store}"
+                    elif price_val > 150:
+                        reasoning = f"Premium quality option from {store}"
+                    else:
+                        reasoning = f"Well-priced at ${price_val:.0f} from {store}"
+                else:
+                    reasoning = f"Quality option from {store}"
+                
+                display_products.append({
+                    "name": product.get('product_name', 'Unknown Product'),
+                    "price": product.get('price', 'Price not available'),
+                    "image_url": product.get('image_url', ''),
+                    "product_url": product.get('product_url', ''),
+                    "description": product.get('description', ''),
+                    "store": product.get('store_name', 'Unknown Store'),
+                    "badge": badge,
+                    "reasoning": reasoning
+                })
+            
+            # Auto-call show_products to ensure display
+            display_args = {
+                "products": display_products,
+                "title": f"Found {len(products)} Options for '{query}'",
+                "subtitle": f"Curated from {search_source}",
+                "is_final": True
+            }
+            
+            _show_products(display_args, context)
+            print(f"   ✅ Products automatically displayed to user")
         
         context.total_searches += 1
         
@@ -337,6 +415,10 @@ async def search_product(args: Dict[str, Any], context: ShoppingContextVariables
             debug_tracker.end_timing_phase("total_search")
         products_shown = len(products)
         links_shown = len(search_links) if 'search_links' in locals() else 0
+        
+        # Finalize funnel tracking
+        if funnel_visualizer:
+            finalize_funnel_tracking()
         
         # Don't finalize yet - wait for LLM selections to be tracked
         

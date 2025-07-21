@@ -1,6 +1,6 @@
 export interface Message {
   role: 'user' | 'assistant'
-  content: string
+  content?: string  // Made optional to handle streaming edge cases
   timestamp: string
   type?: 'reasoning' | 'normal' | 'search_links' | 'progress'
 }

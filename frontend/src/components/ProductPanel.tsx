@@ -60,13 +60,12 @@ export default function ProductPanel({
   })
 
   return (
-    <div className="flex-1 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm flex flex-col">
+    <div className="h-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm flex flex-col">
 
-
-      {/* Enhanced Products Display */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin bg-gradient-to-b from-slate-50/30 to-white dark:from-slate-800/30 dark:to-slate-900">
+      {/* Enhanced Products Display with independent scrolling */}
+      <div className="flex-1 overflow-y-auto scrollbar-thin mobile-scroll bg-gradient-to-b from-slate-50/30 to-white dark:from-slate-800/30 dark:to-slate-900 min-h-0">
         {products.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center p-8">
+          <div className="h-full flex items-center justify-center p-8">
             <div className="text-center max-w-md">
               {/* Enhanced empty state */}
               <div className="mb-8 relative">
@@ -93,7 +92,7 @@ export default function ProductPanel({
             </div>
           </div>
         ) : filteredProducts.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center p-8">
+          <div className="h-full flex items-center justify-center p-8">
             <div className="text-center max-w-md">
               {/* Enhanced no results state */}
               <div className="mb-6">
@@ -119,24 +118,14 @@ export default function ProductPanel({
           </div>
         ) : (
           <div className="p-4 sm:p-6">
-            {/* Simple product grid/carousel - no buckets */}
+            {/* Responsive product grid - vertical scrolling on all devices */}
             <div className="relative">
-              {/* Mobile: Horizontal scroll */}
-              <div className="sm:hidden">
-                <div className="flex space-x-3 overflow-x-auto pb-4 px-1 snap-x snap-mandatory mobile-scroll-hidden">
-                  {sortedProducts.map(product => (
-                    <div key={product.id} className="flex-shrink-0 snap-start">
-                      <ProductCard
-                        product={product}
-                        onRemove={onRemoveProduct}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Desktop: Responsive grid */}
-              <div className="hidden sm:grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+              {/* Unified responsive grid for all screen sizes */}
+              <div className={`grid gap-4 sm:gap-6 ${
+                isExpanded 
+                  ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6'
+                  : 'grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+              }`}>
                 {sortedProducts.map(product => (
                   <div key={product.id} className="transform transition-all duration-300 hover:scale-105">
                     <ProductCard
@@ -146,15 +135,6 @@ export default function ProductPanel({
                   </div>
                 ))}
               </div>
-              
-              {/* Scroll hint for mobile large collections */}
-              {sortedProducts.length > 2 && (
-                <div className="sm:hidden absolute right-0 top-1/2 transform -translate-y-1/2 bg-gradient-to-l from-slate-50/90 to-transparent dark:from-slate-800/90 w-8 h-full flex items-center justify-end pr-2 pointer-events-none">
-                  <svg className="w-3 h-3 text-slate-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              )}
             </div>
           </div>
         )}

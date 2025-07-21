@@ -164,4 +164,7 @@ pids
 .dynamodb/
 
 # Debug artifacts
-debug/ 
+debug/
+
+# Funnel visualization reports
+funnel_reports/ 

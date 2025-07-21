@@ -146,7 +146,7 @@ export default function ChatInterface() {
               else if (data.type === 'chat_response') {
                 const finalMessage: Message = {
                   role: 'assistant',
-                  content: data.message,
+                  content: data.message || 'Search completed.',
                   timestamp: new Date().toISOString()
                 }
                 setMessages(prev => [...prev, finalMessage])
@@ -155,7 +155,7 @@ export default function ChatInterface() {
               else if (data.type === 'error') {
                 const errorMessage: Message = {
                   role: 'assistant',
-                  content: `Sorry, I encountered an error: ${data.message}`,
+                  content: `Sorry, I encountered an error: ${data.message || 'Unknown error'}`,
                   timestamp: new Date().toISOString()
                 }
                 setMessages(prev => [...prev, errorMessage])
@@ -164,7 +164,7 @@ export default function ChatInterface() {
               else if (data.type === 'start') {
                 const startMessage: Message = {
                   role: 'assistant', 
-                  content: data.message,
+                  content: data.message || 'Starting search...',
                   timestamp: new Date().toISOString()
                 }
                 setMessages(prev => [...prev, startMessage])
@@ -173,7 +173,7 @@ export default function ChatInterface() {
               else if (data.type === 'progress') {
                 const progressMessage: Message = {
                   role: 'assistant',
-                  content: data.message,
+                  content: data.message || 'Processing...',
                   timestamp: new Date().toISOString(),
                   type: 'progress'
                 }
@@ -351,14 +351,14 @@ export default function ChatInterface() {
         </div>
       </div>
 
-      {/* Main content area */}
-      <div className="flex-1 flex min-h-0">
+      {/* Main content area - Fixed height container */}
+      <div className="flex-1 flex min-h-0 h-full overflow-hidden">
         
         {/* Desktop layout */}
-        <div className="hidden lg:flex w-full">
-          {/* Chat Panel - Collapsible */}
+        <div className="hidden lg:flex w-full h-full">
+          {/* Chat Panel - Collapsible with independent scrolling */}
           {isChatExpanded && (
-            <div className="w-[380px] flex-shrink-0 border-r border-slate-200 dark:border-slate-700">
+            <div className="w-[380px] flex-shrink-0 border-r border-slate-200 dark:border-slate-700 h-full">
               <ChatPanel
                 messages={messages}
                 input={input}
@@ -370,8 +370,8 @@ export default function ChatInterface() {
             </div>
           )}
 
-          {/* Products Panel */}
-          <div className="flex-1 min-w-0">
+          {/* Products Panel with independent scrolling */}
+          <div className="flex-1 min-w-0 h-full">
             <ProductPanel
               products={uniqueProducts}
               selectedPriceBucket={selectedPriceBucket}
@@ -386,10 +386,10 @@ export default function ChatInterface() {
           </div>
         </div>
 
-        {/* Mobile layout */}
-        <div className="flex lg:hidden w-full">
+        {/* Mobile layout with independent scrolling */}
+        <div className="flex lg:hidden w-full h-full">
           {activeView === 'products' ? (
-            <div className="w-full">
+            <div className="w-full h-full">
               <ProductPanel
                 products={uniqueProducts}
                 selectedPriceBucket={selectedPriceBucket}
@@ -403,7 +403,7 @@ export default function ChatInterface() {
               />
             </div>
           ) : (
-            <div className="w-full">
+            <div className="w-full h-full">
               <ChatPanel
                 messages={messages}
                 input={input}

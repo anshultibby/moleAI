@@ -57,6 +57,19 @@ body {
     font-size: 16px; /* Prevent zoom on iOS */
   }
   
+  /* Smooth vertical scroll for mobile */
+  .mobile-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Improved textarea styling for mobile */
+  textarea {
+    -webkit-appearance: none;
+    border-radius: 8px;
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+  
   /* Smooth scroll for horizontal product lists */
   .snap-x {
     scroll-snap-type: x mandatory;
@@ -75,6 +88,11 @@ body {
   
   .mobile-scroll-hidden::-webkit-scrollbar {
     display: none;
+  }
+  
+  /* Better grid gaps on mobile */
+  .mobile-grid-gap {
+    gap: 0.75rem;
   }
 }
 

@@ -25,35 +25,27 @@ You are an expert shopping assistant with advanced reasoning capabilities and a 
 3. **Present Results** - Show curated recommendations with reasoning
 
 Available functions:
-- search_product({"query": "product name", "max_price": number, "category": "category", "marketplaces": ["SHOPIFY"], "limit": 20}) - **SHOPIFY JSON SEARCH**: Uses our ultra-fast Shopify JSON system to search thousands of Shopify stores directly. Returns real purchasable products with pricing, images, and store links. 5-8 seconds vs 30+ seconds with other APIs. **IMPORTANT**: This function FINDS products but does NOT display them - you must use show_products() afterward to display them to the user.
+- search_product({"query": "product name", "max_price": number, "category": "category", "marketplaces": ["SHOPIFY"], "limit": 50}) - 
+**SHOPIFY JSON SEARCH**: Uses our ultra-fast Shopify JSON system to search thousands of Shopify stores directly. Returns real purchasable products with pricing, images, and store links. 5-8 seconds vs 30+ seconds with other APIs. 
+**AUTOMATIC DISPLAY**: Products are automatically displayed to users after filtering - no need to call show_products manually!
 
 **COMMUNICATION FUNCTIONS:**
-- chat_message({"message": "Exciting! I found some great options...", "tone": "excited", "includes_reasoning": false}) - Send conversational updates and final response. Use for progress updates and celebration.
+- chat_message({"message": "Great! I found some excellent options...", "tone": "excited", "is_final": true}) - Send final conversational response after search completes. Products are already displayed automatically.
 
-**DISPLAY FUNCTIONS (visual frontend) - CRITICAL FOR USER EXPERIENCE:**
-- show_search_links({"links": [{"title": "page title", "url": "url", "description": "preview", "domain": "site.com", "score": 0.95}], "search_query": "original query", "total_results": 25}) - Display search result links for users to explore while you process. Called automatically by search_product().
-- show_products({"products": [{"name": "product name", "price": "price", "image_url": "url", "product_url": "url", "description": "description", "store": "store_name", "badge": "Best Value", "reasoning": "why selected"}], "title": "Great Options Found", "subtitle": "Based on your criteria", "is_final": true}) - **CRITICAL**: Display curated products in the visual frontend panel. **MUST** be called after search_product() finds products. Set is_final=true when this is your final product selection.
+🚨 **SIMPLIFIED WORKFLOW**: 
+**Products are now AUTOMATICALLY DISPLAYED after search_product() - you only need to provide final commentary!**
 
-🚨 **CRITICAL WORKFLOW RULE**: 
-**WHENEVER search_product() finds products (returns "Found X products"), you MUST immediately use show_products() to display them!**
+✅ **NEW WORKFLOW**: 
+- search_product() → (products auto-displayed) → chat_message(is_final=true)
 
-❌ **WRONG WORKFLOW**: 
-- search_product() → chat_message() (USER SEES NO PRODUCTS!)
-
-✅ **CORRECT WORKFLOW**: 
-- search_product() → show_products() → chat_message()
-
-**EXAMPLE CORRECT WORKFLOW:**
+**EXAMPLE STREAMLINED WORKFLOW:**
 User: "Find me green metallic office cabinets under $200"
 
-**Turn 1: Search products**  
+**Turn 1: Search products (auto-displays results)**  
 search_product({"query": "green metallic office cabinet", "max_price": 200, "marketplaces": ["SHOPIFY"]})
 
-**Turn 2: IMMEDIATELY display results if found**
-show_products({"products": [extracted products], "title": "Green Metallic Office Cabinets Under $200", "subtitle": "Found from Shopify stores", "is_final": true})
-
-**Turn 3: Final chat**
-chat_message({"message": "Perfect! I found some excellent green metallic office cabinets from trusted Shopify stores, all under $200!", "tone": "excited", "is_final": true})
+**Turn 2: Final commentary**
+chat_message({"message": "Perfect! I found some excellent green metallic office cabinets from trusted Shopify stores, all under $200. Each option offers something different - from budget-friendly to premium quality!", "tone": "excited", "is_final": true})
 
 🚀 **HOW OUR SHOPIFY JSON SYSTEM WORKS:**
 💨 **Lightning Fast**: Direct access to Shopify store product feeds (5-8s vs 30s+ with APIs)
@@ -74,14 +66,42 @@ chat_message({"message": "Perfect! I found some excellent green metallic office 
 🎯 **STREAMLINED ENGAGING WORKFLOW:**
 User: "Find me a winter coat under $200"
 
-**Turn 1: Execute search**  
+**Turn 1: Execute search (auto-displays products)**  
 search_product({"query": "winter coat", "max_price": 200, "marketplaces": ["SHOPIFY"]})
 
-**Turn 2: Display products**
-show_products({"products": [best 5-8 products with badges and reasoning], "title": "Winter Coats Under $200", "subtitle": "Curated from top Shopify stores", "is_final": true})
+**Turn 2: Continue searching if needed**
+If initial search finds < 8 products: search_product({"query": "coat", "max_price": 300, "marketplaces": ["SHOPIFY"]})
 
-**Turn 3: Final chat**
-chat_message({"message": "Perfect! I found some fantastic winter coat options from trusted Shopify stores that you can purchase right now. Each one offers something different - from budget-friendly to premium quality, all with fast shipping!", "tone": "celebratory", "includes_reasoning": false})
+**Turn 3: Final commentary**
+chat_message({"message": "Perfect! I found some fantastic winter coat options from trusted Shopify stores that you can purchase right now. Each one offers something different - from budget-friendly to premium quality!", "tone": "celebratory", "is_final": true})
+
+🔄 **CRITICAL: PERSISTENCE IN SEARCHING**
+❌ **NEVER give up after one search!** Always try multiple approaches:
+1. **First search**: Try the exact user request
+2. **If < 8 products found**: Try broader terms (remove adjectives, increase price)
+3. **If still < 8 products**: Try alternative keywords and synonyms
+4. **If still < 8 products**: Try related product categories
+5. **Only then**: Present what you found or explain the challenge
+
+🎯 **TARGET: 8-15+ DIFFERENT WEBSITES/DOMAINS**
+✅ **SUCCESS CRITERIA:**
+- Find products from at least 8-15 different websites/domains
+- Show variety across multiple stores for user choice
+- Include different price points and styles
+- Ensure users see comprehensive market coverage
+
+🎯 **SEARCH PROGRESSION EXAMPLES:**
+User: "black leather jacket under $100"
+1. search_product({"query": "black leather jacket", "max_price": 100})
+2. If few results → search_product({"query": "leather jacket", "max_price": 150})  
+3. If still few → search_product({"query": "jacket", "max_price": 200})
+4. If still few → search_product({"query": "outerwear"})
+
+🔍 **DOMAIN DIVERSITY FOCUS:**
+- Better to show 15 products from 10 different websites 
+- Than 15 products all from 2-3 websites
+- Users want to compare across multiple stores
+- More domains = more competitive pricing options
 
 **🎯 ADVANTAGES OF OUR SHOPIFY APPROACH:**
 ✅ **Speed**: 5-8 seconds vs 30+ seconds with complex APIs
@@ -92,49 +112,45 @@ chat_message({"message": "Perfect! I found some fantastic winter coat options fr
 ✅ **Real-time**: Live product feeds vs cached/stale data
 
 **MVP PRINCIPLES:**
-✅ **One Search Does It All**: Single search discovers stores and fetches products automatically
-✅ **Quality Over Quantity**: Focus on curating 5-8 BEST products from real stores
+✅ **One Search Does It All**: Single search discovers stores, fetches products, and displays automatically
+✅ **Quality Over Quantity**: Focus on finding 8-15 BEST products from real stores
 ✅ **Diverse Options**: Include different price points, styles, and stores  
-✅ **Clear Reasoning**: Explain WHY each product is recommended in the show_products call
+✅ **Automatic Display**: Products appear immediately after filtering
 
 ⏰ **TIMING IS EVERYTHING:**
-- **Turn 1**: search_product() (the fast Shopify search)
-- **Turn 2**: show_products() (visual payoff)
-- **Turn 3**: chat_message() (celebration & next steps)
+- **Turn 1**: search_product() (fast Shopify search + auto-display)
+- **Turn 2**: chat_message() (celebration & insights)
 
-❌ **NEVER do this**: search → long silence → dump results
-✅ **ALWAYS do this**: search → show_products → chat_message
+❌ **NEVER do this**: search → long silence → manual product display
+✅ **ALWAYS do this**: search → (auto-display) → chat_message
 
 YOUR ROLE AS AI CURATOR:
-1. **Analyze** the comprehensive search results from multiple Shopify stores
-2. **Compare** products across price, quality, features, and store reputation
-3. **Select** the 5-8 BEST options with diverse use cases
-4. **Display products** using show_products() with badges and reasoning for each
-5. **Provide final chat response** with a conversational summary
+1. **Search** using the optimized Shopify JSON system  
+2. **Analyze** the comprehensive search results (happens automatically during filtering)
+3. **Comment** on the findings with insights and recommendations via chat_message
+4. **Complete** the conversation with is_final=true
 
 🎯 **STREAMLINED FUNCTION USAGE:**
 
-🔍 **search_product()**: Use once per user query - handles store discovery and product extraction automatically
+🔍 **search_product()**: Use once per user query - handles everything automatically:
+   - Store discovery via Google  
+   - Raw product extraction (300+ per store)
+   - Smart filtering for relevance
+   - LLM-based diversity selection
+   - Automatic product display with badges and reasoning
 
-💬 **chat_message()**: Use for conversational flow
-   - **Progress updates**: "Great! I'm finding some promising options..."
-   - **Final celebration**: "Perfect! Check out what I discovered..."
-   - **Use for final response** with is_final=true
+💬 **chat_message()**: Use for final response only
+   - **Celebratory tone**: "Perfect! Check out what I discovered..."
+   - **Insights**: Comment on variety, pricing, quality
+   - **Always set is_final=true** to complete conversation
 
-📱 **show_products()**: Visual product display (use once with is_final=true)
-   - **Enhanced metadata**: badges, reasoning, highlights
-   - **Professional presentation**: titles, subtitles, organization
-   - **Ready for frontend consumption**
-
-PRODUCT BADGES & REASONING:
-- "Best Value" - Great price for features
-- "Premium Choice" - Higher quality/brand
-- "Most Popular" - High ratings/reviews
-- "Editor's Pick" - Your top recommendation  
-- "Great Deal" - Significant discount
-- "New Arrival" - Latest model/style
-- "Hidden Gem" - Lesser-known but excellent option
-- "Staff Favorite" - Personally recommended
+PRODUCT BADGES & REASONING (AUTOMATIC):
+The system automatically adds these badges based on product characteristics:
+- "🏆 Top Pick" - First/best result
+- "💰 Great Value" - Under $50
+- "⭐ Premium Choice" - Over $150  
+- "🔥 Sale Price" - Contains sale/discount terms
+- "💎 Hidden Gem" - Last product in diverse selection
 
 CRITICAL: After completing your search and analysis, you MUST provide a final human-readable response for the chat window. This should be:
 - Conversational and friendly
@@ -310,7 +326,7 @@ async def process_shopping_query_with_tools_streaming(
     Process shopping query with tool calling capability and stream updates in real-time
     """
     import time
-    from .gemini_tools_converter import set_streaming_callback
+    from .progress_utils import set_streaming_callback
     
     start_time = time.time()
     print(f"🕐 TIMING: Starting streaming shopping query processing at {time.strftime('%H:%M:%S')}")
@@ -320,21 +336,54 @@ async def process_shopping_query_with_tools_streaming(
     context_vars = ShoppingContextVariables()
     final_chat_response = ""
     
-    # Set up streaming callback to yield progress updates
-    def stream_update(update_type: str, data: Any):
-        # This will be called by tool functions to send real-time updates
-        return {"type": update_type, "data": data}
+    # CRITICAL: Set up actual streaming callback that yields to frontend
+    def create_streaming_callback():
+        """Create a callback that yields products to the frontend"""
+        yielded_products = set()  # Track what we've already yielded to avoid duplicates
+        
+        def stream_callback(update_type: str, data: Any):
+            """Stream individual products to frontend immediately"""
+            nonlocal yielded_products
+            try:
+                if update_type == "product" and isinstance(data, dict):
+                    # Create unique key for this product
+                    product_key = f"{data.get('product_name', '')}_{data.get('store_name', '')}_{data.get('price', '')}"
+                    
+                    if product_key not in yielded_products:
+                        yielded_products.add(product_key)
+                        # This will be captured by the async generator
+                        return {"type": "product", "data": data}
+                return None
+            except Exception as e:
+                print(f"   ⚠️  Streaming callback error: {e}")
+                return None
+        
+        return stream_callback
     
-    # Set the callback to yield updates
-    async def async_stream_callback(update_type: str, data: Any):
-        yield {"type": update_type, "data": data}
+    # Create the streaming callback
+    streaming_callback = create_streaming_callback()
     
-    set_streaming_callback(lambda update_type, data: None)  # Set basic callback for now
+    # Store products that need to be yielded
+    products_to_yield = []
+    
+    # Set up a custom callback that collects products for yielding
+    def collect_products_callback(update_type: str, data: Any):
+        """Collect products for yielding in the main loop"""
+        nonlocal products_to_yield
+        if update_type == "product" and isinstance(data, dict):
+            products_to_yield.append({"type": "product", "data": data})
+    
+    set_streaming_callback(collect_products_callback)
     
     while counter < max_iterations:
         try:
             turn_start = time.time()
             print(f"🕐 TIMING: Turn {counter + 1} starting at {time.strftime('%H:%M:%S')}")
+            
+            # Yield any products that were collected
+            while products_to_yield:
+                product_update = products_to_yield.pop(0)
+                yield product_update
             
             # Get response from Gemini
             ai_start = time.time()
@@ -365,19 +414,31 @@ async def process_shopping_query_with_tools_streaming(
                 print(f"🕐 TIMING: Tool '{tool_call['function_name']}' took {tool_end - tool_start:.2f}s")
                 print(f"DEBUG - Tool call result: {result}")
                 
-                # Yield any progress messages that were collected during tool execution
-                progress_messages = get_and_clear_progress_messages()
-                for progress_msg in progress_messages:
-                    yield {"type": "progress", "data": {"message": progress_msg}}
+                # Yield any products that were collected during the tool call
+                while products_to_yield:
+                    product_update = products_to_yield.pop(0)
+                    yield product_update
                 
-                # Stream the update immediately
+                # DON'T yield progress messages to frontend chat - users want products not progress
+                # But still clear them to avoid memory buildup
+                progress_messages = get_and_clear_progress_messages()
+                # for progress_msg in progress_messages:
+                #     yield {"type": "progress", "data": {"message": progress_msg}}
+                
+                # Stream the update immediately based on function type
                 if tool_call["function_name"] == "show_search_links":
                     search_links_data = next((item for item in context_vars.deals_found if item.get('type') == 'search_links'), None)
                     if search_links_data:
                         yield {"type": "search_links", "data": search_links_data}
                 
                 elif tool_call["function_name"] == "show_products":
-                    # Stream all products
+                    # Stream all products that haven't been streamed yet
+                    products = [item for item in context_vars.deals_found if item.get('type') in ['product', 'structured_product', 'display_product']]
+                    for product in products:
+                        yield {"type": "product", "data": product}
+                
+                elif tool_call["function_name"] == "search_product":
+                    # Products are already yielded via the callback, but check for any missed ones
                     products = [item for item in context_vars.deals_found if item.get('type') in ['product', 'structured_product', 'display_product']]
                     for product in products:
                         yield {"type": "product", "data": product}
@@ -390,17 +451,116 @@ async def process_shopping_query_with_tools_streaming(
                     yield {"type": "chat_response", "message": final_chat_response}
                     break
                 
-                # Continue with regular processing...
-                # [rest of the existing logic]
+                # Continue with regular processing logic similar to the non-streaming version
+                # For multi-turn thinking, provide more context about what to do next
+                if tool_call["function_name"] == "search_product":
+                    # After a search, encourage the AI to display products if found
+                    if "Found 0 products" in result or "No products found" in result:
+                        # No products found - suggest trying different search terms
+                        tool_call_message = {
+                            "role": "user", 
+                            "content": f"Search completed: {result}\n\n❌ No products found with current search terms. You MUST try multiple different approaches:\n\n🔄 REQUIRED NEXT STEPS:\n1. Try BROADER search terms (remove specific adjectives like colors, materials)\n2. Try ALTERNATIVE product names or categories\n3. Try DIFFERENT keyword combinations\n4. Remove or increase price restrictions\n5. Try SYNONYMS for the product type\n\n🎯 CONTINUE SEARCHING until you find products from at least 8-15 different websites/domains. Don't give up after one search!\n\nUse search_product again with different terms. Only use chat_message with is_final=true if you've tried at least 3-4 different search approaches and still found nothing."
+                        }
+                    elif "Found 1 products" in result or "Found 2 products" in result or "Found 3 products" in result or "Found 4 products" in result or "Found 5 products" in result:
+                        # Very few products found - MUST expand search
+                        product_count = int(result.split('Found ')[1].split(' products')[0])
+                        tool_call_message = {
+                            "role": "user", 
+                            "content": f"Search completed: {result}\n\n⚠️ Only found {product_count} products - NOT ENOUGH! You need products from at least 8-15 different websites/domains for a good selection.\n\n🔄 REQUIRED ACTIONS:\n1. Try BROADER search terms (remove specific details)\n2. INCREASE max_price or remove price restrictions entirely\n3. Try ALTERNATIVE keywords and product names\n4. Search for RELATED product categories\n5. Try DIFFERENT marketplace combinations\n\n💡 SEARCH STRATEGIES:\n- If searching 'black leather jacket', try just 'jacket'\n- If searching 'wireless bluetooth headphones', try 'headphones'\n- If searching with max_price 50, try max_price 100 or remove price limit\n- Try both specific and general terms\n\n🎯 KEEP SEARCHING until you have products from 8-15+ different websites. Use search_product again with expanded criteria!"
+                        }
+                    elif "Found 6 products" in result or "Found 7 products" in result or "Found 8 products" in result or "Found 9 products" in result or "Found 10 products" in result:
+                        # Still not quite enough - encourage one more broader search
+                        product_count = int(result.split('Found ')[1].split(' products')[0])
+                        tool_call_message = {
+                            "role": "user", 
+                            "content": f"Search completed: {result}\n\n⚡ Found {product_count} products - getting better but still need more variety from different websites! Try ONE MORE broader search to reach products from 15+ different domains.\n\n🔄 SUGGESTED IMPROVEMENTS:\n1. Remove specific adjectives or requirements\n2. Increase price range significantly\n3. Try more general product category terms\n4. Search without brand restrictions\n\nAfter this next search, you should have enough products from various websites to display a good selection. Use search_product with broader terms, then show_products() to display all results."
+                        }
+                    else:
+                        # Products found - MUST display them immediately
+                        tool_call_message = {
+                            "role": "user", 
+                            "content": f"Search completed: {result}\n\n🎉 GREAT! You found a good selection of products! You MUST now use show_products() to display them to the user immediately.\n\nCreate a curated list of the best products from your search results with:\n- Descriptive product names\n- Clear pricing\n- Store information\n- Helpful badges ('Best Value', 'Premium Choice', etc.)\n- Brief reasoning for each selection\n\nAfter displaying products, you can share reasoning about your findings and end with chat_message (is_final=true)."
+                        }
+                elif tool_call["function_name"] == "show_products":
+                    # After showing products, prompt for final response
+                    tool_call_message = {
+                        "role": "user", 
+                        "content": f"Products displayed successfully: {result}\n\nYou now have product data displayed to the user. Call chat_message with is_final=true and a brief, conversational message about what you found to complete the conversation."
+                    }
+                else:
+                    # Generic response for other functions
+                    tool_call_message = {
+                        "role": "user", 
+                        "content": f"Function returned: {result}. Continue your analysis or call chat_message with is_final=true to complete the conversation."
+                    }
                 
+                # Update messages
+                messages.append(tool_call_message)
+            else:
+                print(f"DEBUG - No tool call found in response")
+                
+                # Check if this is thinking/planning text without function calls
+                if any(keyword in text.lower() for keyword in ['let me', 'i should', 'i need to', 'i will', 'first', 'then', 'next']):
+                    # This appears to be thinking/planning text, prompt for action
+                    thinking_message = {
+                        "role": "user",
+                        "content": "I see you're thinking about your approach. Please proceed with your planned action using the appropriate function call (search_product, show_products, or chat_message with is_final=true)."
+                    }
+                    messages.append(thinking_message)
+                else:
+                    # FORCE STRUCTURED PRODUCTS: If we have search results but no structured products
+                    search_results_exist = any(deal.get('source') and deal.get('store_name') for deal in context_vars.deals_found)
+                    structured_products_exist = any(deal.get('type') == 'structured_product' for deal in context_vars.deals_found)
+                    
+                    if search_results_exist and not structured_products_exist:
+                        print(f"DEBUG - FORCING add_structured_products call because we have search results but no structured products")
+                        
+                        # Get the list of stores that returned results
+                        stores_with_results = [deal.get('store_name', 'online store') for deal in context_vars.deals_found if deal.get('store_name')]
+                        stores_text = ', '.join(stores_with_results) if stores_with_results else 'multiple stores'
+                        
+                        # Force the AI to extract products from the search results
+                        force_message = {
+                            "role": "user",
+                            "content": f"You have search results from {stores_text} but haven't extracted any products yet. You MUST call add_structured_products with product data extracted from the search results. Analyze the content from all stores and extract at least 3-5 products with names, prices, images, URLs, and store names, then call add_structured_products({{\"products\": [...]}}). This is mandatory!"
+                        }
+                        messages.append(force_message)
+                    elif structured_products_exist and not context_vars.final_chat_message:
+                        # We have products but no final message yet
+                        chat_message = {
+                            "role": "user",
+                            "content": "You have products displayed to the user. Now call chat_message with is_final=true and a conversational message to the user about what you found."
+                        }
+                        messages.append(chat_message)
+                    else:
+                        # No tool call found and no clear next action, ask for appropriate action
+                        no_tool_message = {
+                            "role": "user", 
+                            "content": "No function call detected. If you need more information, use search_product. If you have sufficient information, use show_products to display your results. If you have products displayed, use chat_message with is_final=true to complete the conversation."
+                        }
+                        messages.append(no_tool_message)
+            
             counter += 1
             turn_end = time.time()
             print(f"🕐 TIMING: Turn {counter} completed in {turn_end - turn_start:.2f}s total")
             
+            # For the first iteration, provide guidance to encourage multi-turn thinking
+            if counter == 1 and not tool_call:
+                guidance_message = {
+                    "role": "user",
+                    "content": "Remember: You can take multiple turns to gather comprehensive information. Start with your first search, then decide if you need additional searches for better variety or different product types. Use show_products to display results and chat_message with is_final=true to finish."
+                }
+                messages.append(guidance_message)
+                
         except Exception as e:
             print(f"Error in shopping query processing: {str(e)}")
             yield {"type": "error", "message": str(e)}
             break
+    
+    # Yield any remaining products before finishing
+    while products_to_yield:
+        product_update = products_to_yield.pop(0)
+        yield product_update
     
     # Final timing
     total_time = time.time() - start_time
@@ -480,19 +640,27 @@ def process_shopping_query_with_tools(
                         # No products found - suggest trying different search terms
                         tool_call_message = {
                             "role": "user", 
-                            "content": f"Search completed: {result}\n\n❌ No products found with current search terms. Try:\n- Broader search terms (remove specific adjectives)\n- Alternative product names or categories\n- Different combinations of keywords\n\nUse search_product again with different terms, or if you've tried multiple searches without success, use chat_message with is_final=true to explain the search challenge."
+                            "content": f"Search completed: {result}\n\n❌ No products found with current search terms. You MUST try multiple different approaches:\n\n🔄 REQUIRED NEXT STEPS:\n1. Try BROADER search terms (remove specific adjectives like colors, materials)\n2. Try ALTERNATIVE product names or categories\n3. Try DIFFERENT keyword combinations\n4. Remove or increase price restrictions\n5. Try SYNONYMS for the product type\n\n🎯 CONTINUE SEARCHING until you find products from at least 8-15 different websites/domains. Don't give up after one search!\n\nUse search_product again with different terms. Only use chat_message with is_final=true if you've tried at least 3-4 different search approaches and still found nothing."
                         }
-                    elif "Found 1 products" in result or "Found 2 products" in result or "Found 3 products" in result:
-                        # Very few products found - suggest expanding search
+                    elif "Found 1 products" in result or "Found 2 products" in result or "Found 3 products" in result or "Found 4 products" in result or "Found 5 products" in result:
+                        # Very few products found - MUST expand search
+                        product_count = int(result.split('Found ')[1].split(' products')[0])
                         tool_call_message = {
                             "role": "user", 
-                            "content": f"Search completed: {result}\n\n⚠️ Only found {result.split('Found ')[1].split(' products')[0]} products. Consider:\n- Removing price restrictions (increase max_price or remove it)\n- Using broader search terms\n- Trying alternative keywords\n- Searching different marketplaces\n\nUse search_product with expanded criteria to find more options, or display the current results if they meet the user's needs."
+                            "content": f"Search completed: {result}\n\n⚠️ Only found {product_count} products - NOT ENOUGH! You need products from at least 8-15 different websites/domains for a good selection.\n\n🔄 REQUIRED ACTIONS:\n1. Try BROADER search terms (remove specific details)\n2. INCREASE max_price or remove price restrictions entirely\n3. Try ALTERNATIVE keywords and product names\n4. Search for RELATED product categories\n5. Try DIFFERENT marketplace combinations\n\n💡 SEARCH STRATEGIES:\n- If searching 'black leather jacket', try just 'jacket'\n- If searching 'wireless bluetooth headphones', try 'headphones'\n- If searching with max_price 50, try max_price 100 or remove price limit\n- Try both specific and general terms\n\n🎯 KEEP SEARCHING until you have products from 8-15+ different websites. Use search_product again with expanded criteria!"
+                        }
+                    elif "Found 6 products" in result or "Found 7 products" in result or "Found 8 products" in result or "Found 9 products" in result or "Found 10 products" in result:
+                        # Still not quite enough - encourage one more broader search
+                        product_count = int(result.split('Found ')[1].split(' products')[0])
+                        tool_call_message = {
+                            "role": "user", 
+                            "content": f"Search completed: {result}\n\n⚡ Found {product_count} products - getting better but still need more variety from different websites! Try ONE MORE broader search to reach products from 15+ different domains.\n\n🔄 SUGGESTED IMPROVEMENTS:\n1. Remove specific adjectives or requirements\n2. Increase price range significantly\n3. Try more general product category terms\n4. Search without brand restrictions\n\nAfter this next search, you should have enough products from various websites to display a good selection. Use search_product with broader terms, then show_products() to display all results."
                         }
                     else:
                         # Products found - MUST display them immediately
                         tool_call_message = {
                             "role": "user", 
-                            "content": f"Search completed: {result}\n\n🎉 PRODUCTS FOUND! You MUST now use show_products() to display them to the user immediately.\n\nCreate a curated list of the best products from your search results with:\n- Descriptive product names\n- Clear pricing\n- Store information\n- Helpful badges ('Best Value', 'Premium Choice', etc.)\n- Brief reasoning for each selection\n\nAfter displaying products, you can share reasoning about your findings and end with chat_message (is_final=true)."
+                            "content": f"Search completed: {result}\n\n🎉 GREAT! You found a good selection of products! You MUST now use show_products() to display them to the user immediately.\n\nCreate a curated list of the best products from your search results with:\n- Descriptive product names\n- Clear pricing\n- Store information\n- Helpful badges ('Best Value', 'Premium Choice', etc.)\n- Brief reasoning for each selection\n\nAfter displaying products, you can share reasoning about your findings and end with chat_message (is_final=true)."
                         }
                 elif tool_call["function_name"] == "show_products":
                     # After showing products, prompt for final response
@@ -663,19 +831,27 @@ async def process_shopping_query_with_tools_async(
                         # No products found - suggest trying different search terms
                         tool_call_message = {
                             "role": "user", 
-                            "content": f"Search completed: {result}\n\n❌ No products found with current search terms. Try:\n- Broader search terms (remove specific adjectives)\n- Alternative product names or categories\n- Different combinations of keywords\n\nUse search_product again with different terms, or if you've tried multiple searches without success, use chat_message with is_final=true to explain the search challenge."
+                            "content": f"Search completed: {result}\n\n❌ No products found with current search terms. You MUST try multiple different approaches:\n\n🔄 REQUIRED NEXT STEPS:\n1. Try BROADER search terms (remove specific adjectives like colors, materials)\n2. Try ALTERNATIVE product names or categories\n3. Try DIFFERENT keyword combinations\n4. Remove or increase price restrictions\n5. Try SYNONYMS for the product type\n\n🎯 CONTINUE SEARCHING until you find products from at least 8-15 different websites/domains. Don't give up after one search!\n\nUse search_product again with different terms. Only use chat_message with is_final=true if you've tried at least 3-4 different search approaches and still found nothing."
                         }
-                    elif "Found 1 products" in result or "Found 2 products" in result or "Found 3 products" in result:
-                        # Very few products found - suggest expanding search
+                    elif "Found 1 products" in result or "Found 2 products" in result or "Found 3 products" in result or "Found 4 products" in result or "Found 5 products" in result:
+                        # Very few products found - MUST expand search
+                        product_count = int(result.split('Found ')[1].split(' products')[0])
                         tool_call_message = {
                             "role": "user", 
-                            "content": f"Search completed: {result}\n\n⚠️ Only found {result.split('Found ')[1].split(' products')[0]} products. Consider:\n- Removing price restrictions (increase max_price or remove it)\n- Using broader search terms\n- Trying alternative keywords\n- Searching different marketplaces\n\nUse search_product with expanded criteria to find more options, or display the current results if they meet the user's needs."
+                            "content": f"Search completed: {result}\n\n⚠️ Only found {product_count} products - NOT ENOUGH! You need products from at least 8-15 different websites/domains for a good selection.\n\n🔄 REQUIRED ACTIONS:\n1. Try BROADER search terms (remove specific details)\n2. INCREASE max_price or remove price restrictions entirely\n3. Try ALTERNATIVE keywords and product names\n4. Search for RELATED product categories\n5. Try DIFFERENT marketplace combinations\n\n💡 SEARCH STRATEGIES:\n- If searching 'black leather jacket', try just 'jacket'\n- If searching 'wireless bluetooth headphones', try 'headphones'\n- If searching with max_price 50, try max_price 100 or remove price limit\n- Try both specific and general terms\n\n🎯 KEEP SEARCHING until you have products from 8-15+ different websites. Use search_product again with expanded criteria!"
+                        }
+                    elif "Found 6 products" in result or "Found 7 products" in result or "Found 8 products" in result or "Found 9 products" in result or "Found 10 products" in result:
+                        # Still not quite enough - encourage one more broader search
+                        product_count = int(result.split('Found ')[1].split(' products')[0])
+                        tool_call_message = {
+                            "role": "user", 
+                            "content": f"Search completed: {result}\n\n⚡ Found {product_count} products - getting better but still need more variety from different websites! Try ONE MORE broader search to reach products from 15+ different domains.\n\n🔄 SUGGESTED IMPROVEMENTS:\n1. Remove specific adjectives or requirements\n2. Increase price range significantly\n3. Try more general product category terms\n4. Search without brand restrictions\n\nAfter this next search, you should have enough products from various websites to display a good selection. Use search_product with broader terms, then show_products() to display all results."
                         }
                     else:
                         # Products found - MUST display them immediately
                         tool_call_message = {
                             "role": "user", 
-                            "content": f"Search completed: {result}\n\n🎉 PRODUCTS FOUND! You MUST now use show_products() to display them to the user immediately.\n\nCreate a curated list of the best products from your search results with:\n- Descriptive product names\n- Clear pricing\n- Store information\n- Helpful badges ('Best Value', 'Premium Choice', etc.)\n- Brief reasoning for each selection\n\nAfter displaying products, you can share reasoning about your findings and end with chat_message (is_final=true)."
+                            "content": f"Search completed: {result}\n\n🎉 GREAT! You found a good selection of products! You MUST now use show_products() to display them to the user immediately.\n\nCreate a curated list of the best products from your search results with:\n- Descriptive product names\n- Clear pricing\n- Store information\n- Helpful badges ('Best Value', 'Premium Choice', etc.)\n- Brief reasoning for each selection\n\nAfter displaying products, you can share reasoning about your findings and end with chat_message (is_final=true)."
                         }
                 elif tool_call["function_name"] == "show_products":
                     tool_call_message = {

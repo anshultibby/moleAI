@@ -10,16 +10,91 @@ from typing import List, Set, Dict, Any
 from urllib.parse import urlparse
 import time
 from dotenv import load_dotenv
+from datetime import datetime, timedelta
 
 # Import progress streaming function
-try:
-    from .gemini_tools_converter import stream_progress_update
-except ImportError:
-    # Fallback if import fails
-    def stream_progress_update(message: str):
-        print(message)
+from .progress_utils import stream_progress_update
 
 load_dotenv()
+
+# Domain validation cache - shared across all instances
+_DOMAIN_CACHE = {}
+_CACHE_FILE = os.path.join("backend", "domain_validation_cache.json")  # Save in backend directory
+_CACHE_DURATION_HOURS = 24  # Cache valid domains for 24 hours
+
+def _load_domain_cache():
+    """Load domain validation cache from file"""
+    global _DOMAIN_CACHE
+    try:
+        if os.path.exists(_CACHE_FILE):
+            with open(_CACHE_FILE, 'r') as f:
+                cache_data = json.load(f)
+                # Convert string timestamps back to datetime objects
+                for domain, data in cache_data.items():
+                    if 'validated_at' in data:
+                        data['validated_at'] = datetime.fromisoformat(data['validated_at'])
+                _DOMAIN_CACHE = cache_data
+                print(f"📁 Loaded domain cache with {len(_DOMAIN_CACHE)} entries")
+    except Exception as e:
+        print(f"⚠️  Could not load domain cache: {e}")
+        _DOMAIN_CACHE = {}
+
+def _save_domain_cache():
+    """Save domain validation cache to file"""
+    try:
+        # Convert datetime objects to strings for JSON serialization
+        cache_data = {}
+        for domain, data in _DOMAIN_CACHE.items():
+            cache_data[domain] = data.copy()
+            if 'validated_at' in cache_data[domain]:
+                cache_data[domain]['validated_at'] = cache_data[domain]['validated_at'].isoformat()
+        
+        with open(_CACHE_FILE, 'w') as f:
+            json.dump(cache_data, f, indent=2)
+    except Exception as e:
+        print(f"⚠️  Could not save domain cache: {e}")
+
+def _is_cache_valid(domain: str) -> bool:
+    """Check if a domain's cache entry is still valid"""
+    if domain not in _DOMAIN_CACHE:
+        return False
+    
+    cached_data = _DOMAIN_CACHE[domain]
+    if 'validated_at' not in cached_data:
+        return False
+    
+    # Check if cache is expired
+    cache_age = datetime.now() - cached_data['validated_at']
+    return cache_age < timedelta(hours=_CACHE_DURATION_HOURS)
+
+def _get_cached_domains(candidate_domains: List[str]) -> tuple[List[str], List[str]]:
+    """
+    Split domains into cached (valid) and uncached (need validation)
+    Returns: (cached_valid_domains, uncached_domains)
+    """
+    cached_valid = []
+    uncached = []
+    
+    for domain in candidate_domains:
+        if _is_cache_valid(domain) and _DOMAIN_CACHE[domain].get('is_valid', False):
+            cached_valid.append(domain)
+        else:
+            uncached.append(domain)
+    
+    return cached_valid, uncached
+
+def _cache_domain_result(domain: str, is_valid: bool, status_code: int = None, error: str = None):
+    """Cache the validation result for a domain"""
+    _DOMAIN_CACHE[domain] = {
+        'is_valid': is_valid,
+        'validated_at': datetime.now(),
+        'status_code': status_code,
+        'error': error
+    }
+
+# Load cache on module import
+_load_domain_cache()
+
 
 class GoogleDiscoveryService:
     def __init__(self, api_key: str = None, search_engine_id: str = None):
@@ -275,13 +350,31 @@ class GoogleDiscoveryService:
             }
 
     def _validate_discovered_domains(self, candidate_domains: List[str], max_results: int) -> List[str]:
-        """Validate that discovered domains are actually accessible Shopify stores"""
+        """Validate that discovered domains are actually accessible Shopify stores with caching"""
         import requests
         
-        print(f"🔍 Validating {len(candidate_domains)} discovered domains...")
-        print(f"⏱️  This may take 10-20 seconds...")
+        # Check cache first to avoid repeated validation
+        cached_valid, uncached_domains = _get_cached_domains(candidate_domains)
         
-        validated_domains = []
+        print(f"🔍 Validating {len(candidate_domains)} discovered domains...")
+        if cached_valid:
+            print(f"📁 Using {len(cached_valid)} cached valid domains")
+            stream_progress_update(f"📁 **Cached domains:** {', '.join([f'*{domain}*' for domain in cached_valid[:10]])}")
+        
+        if uncached_domains:
+            print(f"⏱️  Validating {len(uncached_domains)} new domains (may take 5-10 seconds)...")
+        else:
+            print(f"✅ All domains found in cache!")
+        
+        validated_domains = cached_valid.copy()  # Start with cached valid domains
+        
+        if not uncached_domains:
+            # All domains were cached, return up to max_results
+            final_domains = validated_domains[:max_results]
+            print(f"📊 Validation complete: {len(final_domains)} domains (all from cache)")
+            return final_domains
+        
+        # Validate only uncached domains
         filtered_domains = {
             'connection_failed': [],
             'not_accessible': [],
@@ -297,14 +390,14 @@ class GoogleDiscoveryService:
         # Show progress every 5 domains
         progress_interval = 5
         
-        for i, domain in enumerate(candidate_domains):
+        for i, domain in enumerate(uncached_domains):
             if len(validated_domains) >= max_results:
                 print(f"   ✋ Stopping validation - reached max_results ({max_results})")
                 break
             
             # Show progress
             if (i + 1) % progress_interval == 0 or i == 0:
-                print(f"   📊 Progress: {i+1}/{len(candidate_domains)} domains checked, {len(validated_domains)} valid so far...")
+                print(f"   📊 Progress: {i+1}/{len(uncached_domains)} new domains checked, {len(validated_domains)} total valid so far...")
                 
             try:
                 # Test products.json endpoint (most reliable test for Shopify)
@@ -313,22 +406,27 @@ class GoogleDiscoveryService:
                 
                 if response.status_code in [200, 301, 302]:
                     validated_domains.append(domain)
+                    _cache_domain_result(domain, True, response.status_code)  # Cache success
                     stream_progress_update(f"   ✅ *{domain}* - ACCESSIBLE")  # Stream validated domains in italics
                 else:
+                    _cache_domain_result(domain, False, response.status_code)  # Cache failure
                     filtered_domains['not_accessible'].append((domain, response.status_code))
                     # Only print failures for first few to avoid spam
                     if len(filtered_domains['not_accessible']) <= 3:
                         print(f"   ❌ {i+1}: {domain} - NOT ACCESSIBLE ({response.status_code})")
                 
             except requests.exceptions.ConnectionError as e:
+                _cache_domain_result(domain, False, error=str(e))  # Cache failure
                 filtered_domains['connection_failed'].append((domain, str(e)))
                 if len(filtered_domains['connection_failed']) <= 3:
                     print(f"   ❌ {i+1}: {domain} - CONNECTION FAILED")
             except requests.exceptions.Timeout as e:
+                _cache_domain_result(domain, False, error=str(e))  # Cache failure
                 filtered_domains['timeout'].append((domain, str(e)))
                 if len(filtered_domains['timeout']) <= 3:
                     print(f"   ⏰ {i+1}: {domain} - TIMEOUT")
             except Exception as e:
+                _cache_domain_result(domain, False, error=str(e))  # Cache failure
                 filtered_domains['other_errors'].append((domain, str(e)))
                 if len(filtered_domains['other_errors']) <= 3:
                     print(f"   ❌ {i+1}: {domain} - ERROR")
@@ -336,14 +434,21 @@ class GoogleDiscoveryService:
             # Faster rate limiting
             time.sleep(0.1)  # Reduced from 0.2
         
+        # Save cache after validation
+        _save_domain_cache()
+        
         # Summarized filtering report
+        newly_validated = len(validated_domains) - len(cached_valid)
         total_filtered = sum(len(filtered_list) for filtered_list in filtered_domains.values())
-        print(f"📊 Validation complete: {len(validated_domains)} valid, {total_filtered} filtered out")
+        print(f"📊 Validation complete: {len(validated_domains)} total valid ({len(cached_valid)} cached + {newly_validated} newly validated), {total_filtered} filtered out")
         
         if validated_domains:
-            stream_progress_update(f"🎉 **Validated stores:** {', '.join([f'*{domain}*' for domain in validated_domains])}")  # Stream all validated in italics
+            # Show only newly validated domains to avoid spam
+            newly_validated_domains = [d for d in validated_domains if d not in cached_valid]
+            if newly_validated_domains:
+                stream_progress_update(f"🎉 **Newly validated stores:** {', '.join([f'*{domain}*' for domain in newly_validated_domains])}")
         
-        return validated_domains
+        return validated_domains[:max_results]
 
     def _get_fallback_shopify_domains(self, keyword: str) -> List[str]:
         """Get fallback domains when CSE doesn't return enough results"""

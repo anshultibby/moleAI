@@ -11,10 +11,11 @@ import time
 from urllib.parse import urljoin, urlparse
 
 # Import progress streaming function
-from .gemini_tools_converter import stream_progress_update
+from .progress_utils import stream_progress_update
 
 from .shopify import ShopifyProductConverter, LLMProductFilter
 from .debug_tracker import get_debug_tracker
+from .funnel_visualizer import get_funnel_visualizer
 
 
 class ShopifyJSONService:
@@ -30,14 +31,15 @@ class ShopifyJSONService:
         self.converter = ShopifyProductConverter()
         self.llm_filter = LLMProductFilter()
     
-    def search_store_products(self, store_domain: str, query: str, limit: int = 50) -> List[Dict[str, Any]]:
+    def search_store_products(self, store_domain: str, query: str, limit: int = 100, product_callback=None) -> List[Dict[str, Any]]:
         """
         Search a single Shopify store for products matching the query
         
         Args:
             store_domain: Shopify domain (e.g., 'store.myshopify.com')
             query: Search query (e.g., 'black leggings')
-            limit: Maximum products to return
+            limit: Maximum products to return (increased default for more variety)
+            product_callback: Optional callback function to stream products as they're found
             
         Returns:
             List of relevant products
@@ -51,41 +53,68 @@ class ShopifyJSONService:
             return []
             
         try:
-            # Get debug tracker for this session
+            # Get debug tracker and funnel visualizer for this session
             debug_tracker = get_debug_tracker()
+            funnel_visualizer = get_funnel_visualizer()
+            
             if debug_tracker:
                 debug_tracker.start_timing_phase(f"shopify_search_{store_domain}")
             
             # Step 1: Extract products - FASTER with progress
             print(f"   📄 Fetching products from {store_domain}...")
-            raw_products, working_base_url = self._extract_all_available_products(store_domain, limit * 6)  # Reduced multiplier for speed
+            raw_products, working_base_url = self._extract_all_available_products(store_domain, limit * 10)  # INCREASED multiplier for more diversity
+            
+            # Track raw data in funnel
+            if funnel_visualizer:
+                try:
+                    funnel_visualizer.track_raw_data(raw_products, store_domain)
+                except Exception as e:
+                    print(f"   ⚠️  Funnel tracking error: {e}")
             
             if not raw_products:
                 print(f"   ❌ No products found")
                 if debug_tracker:
                     debug_tracker.track_error(f"No raw products found for {store_domain}", "shopify_fetch")
+                if funnel_visualizer:
+                    funnel_visualizer.track_error(f"No raw products found for {store_domain}", "shopify_fetch")
                 return []
             
             print(f"   📦 Got {len(raw_products)} raw products, converting...")
             
-            # Step 2: Convert to LLM-friendly format
+            # Step 2: Convert to LLM-friendly format (includes prefiltering)
             llm_readable_products = self.converter.convert_to_llm_format(raw_products, working_base_url)
             
             print(f"   🔧 Converted to {len(llm_readable_products)} available products, filtering...")
             
-            # Step 3: Use LLM to filter for relevance  
-            relevant_products = self.llm_filter.filter_products(llm_readable_products, query)
+            # Step 3: Skip individual LLM filtering - do basic filtering only for streaming
+            # We'll do batch LLM filtering later for better efficiency
+            basic_filtered_products = self.llm_filter._basic_filter_by_query(llm_readable_products, query)
             
-            final_results = relevant_products[:limit]
-            print(f"   ✅ Final: {len(final_results)} relevant products")
+            # Return basic filtered products (LLM batch filtering happens later)
+            print(f"   ✅ Basic filter: {len(basic_filtered_products)} products")
+            
+            # Stream products to frontend immediately if callback provided
+            if product_callback and basic_filtered_products:
+                try:
+                    for product in basic_filtered_products:
+                        product_callback(product)
+                except Exception as e:
+                    print(f"   ⚠️  Product streaming error: {e}")
+            
+            # Track final results in funnel
+            if funnel_visualizer:
+                try:
+                    funnel_visualizer.track_final_results(basic_filtered_products)
+                except Exception as e:
+                    print(f"   ⚠️  Funnel tracking error: {e}")
             
             # Track debug data
             if debug_tracker:
-                debug_tracker.track_shopify_json(raw_products, llm_readable_products, final_results)
+                debug_tracker.track_shopify_json(raw_products, llm_readable_products, basic_filtered_products, store_domain)
                 debug_tracker.end_timing_phase(f"shopify_search_{store_domain}")
-                debug_tracker.track_search_results(f"shopify_{store_domain}", len(final_results), 0)  # Timing handled separately
+                debug_tracker.track_search_results(f"shopify_{store_domain}", len(basic_filtered_products), 0)  # Timing handled separately
             
-            return final_results
+            return basic_filtered_products
             
         except Exception as e:
             print(f"   ❌ Error searching {store_domain}: {e}")
@@ -226,14 +255,15 @@ class ShopifyJSONService:
         return True
 
 
-def search_multiple_stores(store_domains: List[str], query: str, max_results: int = 50) -> List[Dict[str, Any]]:
+def search_multiple_stores(store_domains: List[str], query: str, max_results: int = 200, product_callback=None) -> List[Dict[str, Any]]:
     """
-    Search multiple Shopify stores and return aggregated results
+    Search multiple Shopify stores and return aggregated results - SIMPLIFIED ONE STORE AT A TIME
     
     Args:
-        store_domains: List of Shopify domains
+        store_domains: List of ALREADY VALIDATED Shopify domains
         query: Search query  
         max_results: Maximum total results to return
+        product_callback: Optional callback function to stream products as they're found
         
     Returns:
         Aggregated list of products from all stores
@@ -241,72 +271,90 @@ def search_multiple_stores(store_domains: List[str], query: str, max_results: in
     if not store_domains or not query.strip():
         return []
     
-    print(f"🚀 Starting search for '{query}' across {len(store_domains)} stores...")
+    print(f"🚀 Starting SIMPLIFIED search for '{query}' across {len(store_domains)} stores...")
+    print(f"⚡ Processing ONE STORE AT A TIME (no batching)")
     
-    # Validate domains first - FASTER with progress
-    print(f"⚡ Step 1/3: Validating store accessibility...")
-    valid_domains = []
+    # Skip validation - domains are already validated by discovery service
+    valid_domains = store_domains  # Use domains as-is since they're already validated
     
-    session = requests.Session()
-    session.headers.update({
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
-    })
-    
-    # Show progress for domain validation
-    for i, domain in enumerate(store_domains):
-        if (i + 1) % 5 == 0 or i == 0:
-            print(f"   📊 Checking domains: {i+1}/{len(store_domains)}, {len(valid_domains)} valid so far...")
-            
-        try:
-            test_url = f"https://{domain}/products.json"
-            response = session.head(test_url, timeout=3)  # Faster timeout
-            if response.status_code in [200, 301, 302]:
-                valid_domains.append(domain)
-                stream_progress_update(f"   ✅ *{domain}* - accessible store")  # Stream validated stores in italics
-            # Only print successful validations to reduce noise
-        except Exception:
-            pass  # Silent failure to reduce noise
-    
-    if not valid_domains:
-        print("❌ No valid domains found")
-        return []
-    
-    print(f"✅ {len(valid_domains)} stores are accessible")
-    
-    # Search each store - FASTER with progress
-    print(f"⚡ Step 2/3: Searching products in {len(valid_domains)} stores...")
-    all_products = []
+    # Search each store - ONE AT A TIME with immediate LLM filtering
+    all_filtered_products = []
     service = ShopifyJSONService()
+    
+    # LLM filter for individual store processing
+    from .shopify.llm_filter import LLMProductFilter
+    llm_filter = LLMProductFilter()
     
     results_per_store = max(10, max_results // len(valid_domains)) if valid_domains else 20
     
     for i, domain in enumerate(valid_domains):
         store_url = f"https://{domain}"
-        stream_progress_update(f"🏪 [{i+1}/{len(valid_domains)}] Searching *[{domain}]({store_url})*...")  # Clickable link in italics
+        stream_progress_update(f"🏪 [{i+1}/{len(valid_domains)}] Searching *[{domain}]({store_url})*...")
+        
         try:
-            products = service.search_store_products(domain, query, results_per_store)
-            all_products.extend(products)
-            print(f"   ✅ Found {len(products)} products ({len(all_products)} total so far)")
+            # Get basic filtered products from this store
+            print(f"   📦 Fetching products from {domain}...")
+            basic_products = service.search_store_products(domain, query, results_per_store, None)  # No callback for now
+            
+            if basic_products:
+                print(f"   🔍 Got {len(basic_products)} basic filtered products, applying LLM filter...")
+                
+                # Apply LLM filtering to THIS STORE'S products immediately
+                llm_filtered = llm_filter.filter_products(basic_products, query)
+                
+                print(f"   🤖 LLM filter: {len(basic_products)} → {len(llm_filtered)} products selected")
+                
+                # Add store-specific metadata
+                for product in llm_filtered:
+                    product['llm_refined'] = True
+                    product['store_processed'] = domain
+                
+                # Add to final results
+                all_filtered_products.extend(llm_filtered)
+                
+                # Stream to frontend immediately if callback provided
+                if product_callback and llm_filtered:
+                    try:
+                        for product in llm_filtered:
+                            product_callback(product)
+                    except Exception as e:
+                        print(f"   ⚠️  Product streaming error: {e}")
+                
+                print(f"   ✅ Store complete: {len(llm_filtered)} products (total: {len(all_filtered_products)})")
+                
+                # Stop if we have enough results
+                if len(all_filtered_products) >= max_results:
+                    print(f"   🎯 Reached target of {max_results} products, stopping search")
+                    break
+            else:
+                print(f"   ❌ No products found in {domain}")
+                
         except Exception as e:
-            print(f"   ❌ Error: {e}")
+            print(f"   ❌ Error processing {domain}: {e}")
+            continue
     
-    # Process results
-    print(f"⚡ Step 3/3: Processing {len(all_products)} products...")
+    # Final processing
+    print(f"⚡ Final processing: {len(all_filtered_products)} LLM-filtered products from {i+1} stores")
     
-    # Remove duplicates and sort by relevance
+    # Remove duplicates based on product URL
     unique_products = []
     seen_urls = set()
-    
-    for product in all_products:
+    for product in all_filtered_products:
         url = product.get('product_url', '')
         if url and url not in seen_urls:
             seen_urls.add(url)
             unique_products.append(product)
+        elif not url:
+            # Include products without URLs (shouldn't happen, but be safe)
+            unique_products.append(product)
+    
+    print(f"   🔧 Deduplication: {len(all_filtered_products)} → {len(unique_products)} unique products")
     
     # Sort by relevance score (higher is better)
     unique_products.sort(key=lambda x: x.get('relevance_score', 0), reverse=True)
     
+    # Limit results
     final_results = unique_products[:max_results]
-    print(f"✅ Search complete: {len(final_results)} final results")
+    print(f"✅ SIMPLIFIED search complete: {len(final_results)} final results")
     
     return final_results 

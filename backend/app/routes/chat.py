@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from datetime import datetime
 from ..models.chat import ChatMessage, ChatResponse
-from ..utils.shopping_pipeline import process_shopping_query_with_tools, preprocess_shopping_query
+from ..utils.shopping_pipeline import process_shopping_query_with_tools, preprocess_shopping_query, process_shopping_query_with_tools_streaming
 from ..utils.shopping_pipeline_v2 import process_shopping_query_simple
 import os
 import json
@@ -33,8 +33,8 @@ async def stream_chat(message: ChatMessage):
                 yield f"data: {json.dumps({'type': 'error', 'message': 'Gemini API key not configured'})}\n\n"
                 return
             
-            # Send initial message
-            yield f"data: {json.dumps({'type': 'start', 'message': 'Starting search...'})}\n\n"
+            # DON'T send start message - users want products not progress
+            # yield f"data: {json.dumps({'type': 'start', 'message': 'Starting search...'})}\n\n"
             
             # Process query with streaming callbacks
             async for update in process_shopping_query_with_tools_streaming(message.message, GEMINI_API_KEY):
@@ -152,28 +152,34 @@ async def process_shopping_query_with_tools_streaming(query: str, api_key: str):
     """
     Stream shopping query processing with real-time updates
     """
-    # This will be implemented to yield updates as functions are called
-    yield {"type": "reasoning", "title": "Planning Search Strategy", "content": "I'm analyzing your request and planning the best search approach..."}
+    from ..utils.progress_utils import set_streaming_callback
+    from ..utils.shopping_pipeline import process_shopping_query_with_tools_streaming as pipeline_streaming
     
-    # The actual implementation will be added to call the real function with callbacks
-    # For now, just call the regular function and yield the final results
+    # Set up streaming callback to capture and forward updates
+    streaming_updates = []
+    
+    def streaming_callback(update_type: str, data):
+        """Capture streaming updates for forwarding"""
+        streaming_updates.append({"type": update_type, "data": data})
+    
+    # Set the global streaming callback
+    set_streaming_callback(streaming_callback)
+    
     try:
-        deals_found, messages, final_chat_response = process_shopping_query_with_tools(query, api_key)
-        
-        # Yield all the results we found
-        for deal in deals_found:
-            if deal.get('type') == 'reasoning':
-                yield {"type": "reasoning", "data": deal}
-            elif deal.get('type') == 'search_links':
-                yield {"type": "search_links", "data": deal}
-            elif deal.get('type') in ['product', 'structured_product', 'display_product']:
-                yield {"type": "product", "data": deal}
-        
-        # Final response
-        yield {"type": "chat_response", "message": final_chat_response}
-        
+        # Use the real streaming pipeline
+        async for update in pipeline_streaming(query, api_key):
+            yield update
+            
+            # Also yield any intermediate updates that were captured
+            while streaming_updates:
+                intermediate_update = streaming_updates.pop(0)
+                yield intermediate_update
+                
     except Exception as e:
         yield {"type": "error", "message": str(e)}
+    finally:
+        # Clear the streaming callback
+        set_streaming_callback(None)
 
 @router.post("/chat/simple")
 async def simple_chat(message: ChatMessage):
@@ -187,8 +193,8 @@ async def simple_chat(message: ChatMessage):
                 yield f"data: {json.dumps({'type': 'error', 'message': 'OpenAI API key not configured'})}\n\n"
                 return
             
-            # Send initial message
-            yield f"data: {json.dumps({'type': 'start', 'message': 'Starting search...'})}\n\n"
+            # DON'T send start message - users want products not progress  
+            # yield f"data: {json.dumps({'type': 'start', 'message': 'Starting search...'})}\n\n"
             
             # Process query with the new simplified pipeline
             for update in process_shopping_query_simple(message.message, OPENAI_API_KEY):

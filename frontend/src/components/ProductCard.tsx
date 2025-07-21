@@ -154,20 +154,11 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
 
   return (
     <div 
-      className="group bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:shadow-md border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-200 cursor-pointer w-[140px] sm:w-[160px] lg:w-[180px] flex-shrink-0 h-[180px] sm:h-[220px] flex flex-col relative active:scale-95 sm:active:scale-100"
+      className="group bg-white dark:bg-slate-800 rounded-xl shadow-sm hover:shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-200 cursor-pointer w-full flex flex-col relative active:scale-95 sm:active:scale-100"
       onClick={handleCardClick}
     >
-      {/* Remove button - Smaller and subtle */}
-      <button
-        onClick={handleRemoveClick}
-        className="absolute top-1 right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs transition-all z-10 opacity-70 group-hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-        title="Remove"
-      >
-        ×
-      </button>
-
-      {/* Image section - More compact */}
-      <div className="relative bg-gray-50 dark:bg-slate-700 h-20 sm:h-28 flex-shrink-0">
+      {/* Image section */}
+      <div className="relative bg-gray-50 dark:bg-slate-700 h-32 sm:h-40 flex-shrink-0">
         {imageUrl ? (
           <>
             <img
@@ -181,14 +172,14 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
             {imageLoading && !imageError && (
               <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-600">
                 <div className="text-center">
-                  <span className="text-gray-400 text-lg sm:text-xl block">👗</span>
+                  <span className="text-gray-400 text-xl sm:text-2xl block">👗</span>
                 </div>
               </div>
             )}
             {imageError && (
               <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-600">
                 <div className="text-center">
-                  <span className="text-gray-400 text-lg sm:text-xl block">👗</span>
+                  <span className="text-gray-400 text-xl sm:text-2xl block">👗</span>
                 </div>
               </div>
             )}
@@ -196,31 +187,31 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-600">
             <div className="text-center">
-              <span className="text-gray-400 text-lg sm:text-xl block">👗</span>
+              <span className="text-gray-400 text-xl sm:text-2xl block">👗</span>
             </div>
           </div>
         )}
       </div>
 
-      {/* Minimal content section */}
-      <div className="p-2 flex-1 flex flex-col justify-between">
+      {/* Content section with guaranteed space */}
+      <div className="p-3 sm:p-4 flex flex-col justify-between min-h-[80px] sm:min-h-[90px]">
         {/* Store name */}
-        <div className="mb-1">
-          <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+        <div>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate font-medium">
             {storeName}
           </p>
         </div>
         
         {/* Product name */}
-        <div className="flex-1">
-          <h3 className="font-medium text-slate-900 dark:text-white text-xs line-clamp-2 leading-tight">
+        <div className="flex-1 min-h-0 py-1">
+          <h3 className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base line-clamp-2 leading-tight">
             {displayName}
           </h3>
         </div>
         
         {/* Price */}
         <div className="mt-1">
-          <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400 truncate">
+          <p className="text-sm sm:text-base font-bold text-indigo-600 dark:text-indigo-400 truncate">
             {product.price || 'Price on request'}
           </p>
         </div>

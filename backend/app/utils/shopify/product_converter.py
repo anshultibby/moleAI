@@ -9,23 +9,38 @@ from html import unescape
 from urllib.parse import urljoin, urlparse
 
 
+# Import funnel tracking
+try:
+    from ..funnel_visualizer import get_funnel_visualizer
+except ImportError:
+    def get_funnel_visualizer():
+        return None
+
+
 class ShopifyProductConverter:
     """Converts raw Shopify product data to clean, structured format"""
     
     def convert_to_llm_format(self, raw_products: List[Dict], store_url: str) -> List[Dict[str, Any]]:
         """Convert raw Shopify products to clean, LLM-readable format"""
         llm_products = []
+        funnel_visualizer = get_funnel_visualizer()
         
         for product in raw_products:
             try:
                 # Extract and validate variants
                 variants = product.get('variants', [])
                 if not variants:
+                    # Track prefilter decision
+                    if funnel_visualizer:
+                        funnel_visualizer.track_prefilter_decision(product, "No variants available", "removed")
                     continue  # Skip products without variants
                 
                 # Filter to only available variants
                 available_variants = [v for v in variants if v.get('available', False)]
                 if not available_variants:
+                    # Track prefilter decision
+                    if funnel_visualizer:
+                        funnel_visualizer.track_prefilter_decision(product, "No available variants", "removed")
                     continue  # Skip products with no available variants
                 
                 # Get the best available variant (usually first available one)
@@ -67,9 +82,16 @@ class ShopifyProductConverter:
                     'source': 'shopify_json'
                 }
                 
+                # Track successful prefilter decision
+                if funnel_visualizer:
+                    funnel_visualizer.track_prefilter_decision(product, "Passed variant and availability checks", "kept")
+                
                 llm_products.append(llm_product)
                 
             except Exception as e:
+                # Track error in prefiltering
+                if funnel_visualizer:
+                    funnel_visualizer.track_prefilter_decision(product, f"Conversion error: {str(e)}", "removed")
                 print(f"   ⚠️  Error converting product: {e}")
                 continue
         

@@ -12,6 +12,11 @@ interface ChatPanelProps {
 
 // Helper function to make links clickable in text and handle italic formatting
 function makeLinksClickable(text: string) {
+  // Check if text is undefined or null
+  if (!text || typeof text !== 'string') {
+    return '';
+  }
+  
   // First handle markdown-style links [text](url)
   let result = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-600 underline">$1</a>')
   
@@ -94,7 +99,7 @@ function MessageContent({ message, searchLinksData }: { message: Message, search
         </div>
         <div 
           className="text-slate-600 dark:text-slate-400"
-          dangerouslySetInnerHTML={{ __html: makeLinksClickable(message.content) }}
+          dangerouslySetInnerHTML={{ __html: makeLinksClickable(message.content || '') }}
         />
       </div>
     )
@@ -105,7 +110,7 @@ function MessageContent({ message, searchLinksData }: { message: Message, search
     <div 
       className="text-xs sm:text-sm leading-relaxed text-slate-900 dark:text-slate-100"
       dangerouslySetInnerHTML={{ 
-        __html: message.role === 'assistant' ? makeLinksClickable(message.content) : message.content 
+        __html: message.role === 'assistant' ? makeLinksClickable(message.content || '') : (message.content || '')
       }}
     />
   )
@@ -134,12 +139,13 @@ export default function ChatPanel({
       e.preventDefault()
       onSendMessage()
     }
+    // Allow Shift+Enter for new lines in textarea
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-r border-slate-200/60 dark:border-slate-600/60">
-      {/* Chat Messages - Fixed spacing and layout */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin bg-gradient-to-b from-slate-50/50 to-white dark:from-slate-800/50 dark:to-slate-900">
+    <div className="h-full flex flex-col bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-r border-slate-200/60 dark:border-slate-600/60">
+      {/* Chat Messages - Fixed spacing and layout with independent scrolling */}
+      <div className="flex-1 overflow-y-auto scrollbar-thin mobile-scroll bg-gradient-to-b from-slate-50/50 to-white dark:from-slate-800/50 dark:to-slate-900 min-h-0">
         <div className="max-w-2xl mx-auto px-3 sm:px-4 py-4 sm:py-2">
           {messages.length === 0 && (
             <div className="text-center pt-12 pb-8">
@@ -244,43 +250,43 @@ export default function ChatPanel({
       </div>
 
       {/* Chat Input - Enhanced with modern styling */}
-      <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border-t border-slate-200/60 dark:border-slate-600/60 p-3 sm:p-4">
+      <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border-t border-slate-200/60 dark:border-slate-600/60 p-3 sm:p-4 flex-shrink-0">
         <div className="max-w-2xl mx-auto">
-          <div className="flex space-x-2 sm:space-x-3">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => onInputChange(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Ask me to find clothing deals..."
-                className="w-full px-3 sm:px-4 py-2 sm:py-3 pr-10 sm:pr-12 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:text-white text-sm font-medium placeholder-slate-500 dark:placeholder-slate-400 transition-all"
-                disabled={isLoading}
-              />
-              {input && (
-                <button
-                  onClick={() => onInputChange('')}
-                  className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-                >
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
+          <div className="relative">
+            <textarea
+              value={input}
+              onChange={(e) => onInputChange(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Ask me to find clothing deals..."
+              rows={3}
+              className="w-full px-3 sm:px-4 py-3 sm:py-4 pr-12 sm:pr-14 pb-12 sm:pb-14 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:text-white text-sm sm:text-base font-medium placeholder-slate-500 dark:placeholder-slate-400 transition-all resize-none overflow-y-auto scrollbar-thin min-h-[80px] sm:min-h-[96px]"
+              disabled={isLoading}
+              style={{ maxHeight: '120px' }}
+            />
+            
+            {/* Clear button */}
+            {input && (
+              <button
+                onClick={() => onInputChange('')}
+                className="absolute right-2 sm:right-3 top-2 sm:top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+              >
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+            
+            {/* Send button - positioned inside textarea at bottom right */}
             <button
               onClick={onSendMessage}
               disabled={!input.trim() || isLoading}
-              className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 disabled:from-slate-400 disabled:to-slate-500 text-white rounded-lg sm:rounded-xl font-medium text-sm shadow-lg disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 disabled:transform-none flex items-center space-x-1 sm:space-x-2"
+              className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 disabled:from-slate-400 disabled:to-slate-500 text-white rounded-lg font-medium text-sm shadow-lg disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 disabled:transform-none flex items-center justify-center space-x-1"
             >
               {isLoading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  <span className="hidden sm:inline">Sending</span>
-                </>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
               ) : (
                 <>
-                  <span className="hidden sm:inline">Send</span>
+                  <span className="hidden sm:inline text-xs">Send</span>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                   </svg>

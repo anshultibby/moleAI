@@ -39,7 +39,7 @@ class HybridSearchService:
             self.rye_service = None
             self.has_rye = False
     
-    async def search(self, query: str, max_results: int = 20, include_amazon: bool = True) -> SearchResult:
+    async def search(self, query: str, max_results: int = 100, include_amazon: bool = True, product_callback=None) -> SearchResult:
         """
         Simplified multi-source search
         
@@ -66,7 +66,7 @@ class HybridSearchService:
         
         if stores:
             print(f"🏪 Found {len(stores)} Shopify stores")
-            shopify_products = search_multiple_stores(stores, query, max_results)
+            shopify_products = search_multiple_stores(stores, query, max_results * 2, product_callback)  # Pass callback for streaming
             all_products.extend(shopify_products)
             sources_used['shopify_json'] = len(shopify_products)
             stores_searched = len(stores)
@@ -113,8 +113,18 @@ class HybridSearchService:
                     sources_used['jina_scrape'] = len(jina_products)
                     print(f"   ✅ Got {len(jina_products)} products from Jina fallback")
         
-        # Phase 4: Final ranking and deduplication
-        final_products = self._rank_and_dedupe(all_products, query)[:max_results]
+        # Phase 4: Final ranking and deduplication (LLM filtering already done in batches)
+        print(f"📊 Phase 4: Final ranking and deduplication of {len(all_products)} products...")
+        
+        # Deduplicate and rank - LLM filtering was already done in 200-product batches
+        final_products = self._rank_and_dedupe(all_products, query)
+        print(f"   ✅ Final deduplication: {len(all_products)} → {len(final_products)} unique products")
+        
+        # Products were already streamed during batch LLM filtering, no need to stream again
+        
+        # Only limit if we have way more than needed
+        if len(final_products) > max_results * 1.5:
+            final_products = final_products[:max_results]
         
         search_time = time.time() - start_time
         print(f"✅ Search completed in {search_time:.2f}s - {len(final_products)} products")
@@ -126,7 +136,7 @@ class HybridSearchService:
             search_time=search_time
         )
     
-    async def search_shopify_only(self, query: str, max_results: int = 20) -> SearchResult:
+    async def search_shopify_only(self, query: str, max_results: int = 100, product_callback=None) -> SearchResult:
         """
         Pure Shopify search - fastest and most reliable
         """
@@ -136,10 +146,15 @@ class HybridSearchService:
         print(f"🏪 Pure Shopify search: '{query}'")
         
         # Discover and search Shopify stores
-        stores = self.discovery.discover_shopify_stores(query, max_results=20)
+        stores = self.discovery.discover_shopify_stores(query, max_results=50)  # Get more stores
         
         if stores:
-            products = search_multiple_stores(stores, query, max_results)
+            # search_multiple_stores now does LLM filtering in 200-product batches
+            products = search_multiple_stores(stores, query, max_results * 2, product_callback)  # Pass callback for streaming
+            
+            # LLM filtering is already done in batches during search - no need for additional filtering
+            print(f"✅ Got {len(products)} LLM-filtered products from Shopify stores")
+                
             sources_used = {'shopify_json': len(products)}
         else:
             products = []
@@ -213,34 +228,36 @@ class HybridSearchService:
 
 
 # Simple wrapper function for easy integration
-async def hybrid_search(query: str, max_results: int = 20) -> List[Dict[str, Any]]:
+async def hybrid_search(query: str, max_results: int = 20, product_callback=None) -> List[Dict[str, Any]]:
     """
     Main search function - Shopify JSON-first with optional Amazon
     
     Args:
         query: Search query
         max_results: Max products to return
+        product_callback: Optional callback to stream products as they're found
         
     Returns:
         List of product dictionaries
     """
     service = HybridSearchService()
-    result = await service.search(query, max_results)
+    result = await service.search(query, max_results, include_amazon=True, product_callback=product_callback)
     return result.products
 
 
 # Pure Shopify search function
-async def shopify_search(query: str, max_results: int = 20) -> List[Dict[str, Any]]:
+async def shopify_search(query: str, max_results: int = 100, product_callback=None) -> List[Dict[str, Any]]:
     """
     Pure Shopify search - fastest option
     
     Args:
         query: Search query
-        max_results: Max products to return
+        max_results: Max products to return (increased default)
+        product_callback: Optional callback to stream products as they're found
         
     Returns:
         List of product dictionaries  
     """
     service = HybridSearchService()
-    result = await service.search_shopify_only(query, max_results)
+    result = await service.search_shopify_only(query, max_results, product_callback)
     return result.products 
