@@ -67,6 +67,8 @@ export default function ChatInterface() {
     try {
       // Use streaming endpoint for real-time updates
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      console.log('Attempting to connect to backend at:', apiUrl)
+      
     const response = await fetch(`${apiUrl}/api/chat/stream`, {
         method: 'POST',
         headers: {
@@ -76,6 +78,10 @@ export default function ChatInterface() {
           message: input
         })
       })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
 
       if (!response.body) {
         throw new Error('No response body')
@@ -194,6 +200,8 @@ export default function ChatInterface() {
       // Fallback to regular endpoint
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+        console.log('Falling back to regular endpoint at:', apiUrl)
+        
       const response = await axios.post<ChatResponse>(`${apiUrl}/api/chat`, {
           message: input
         })
@@ -263,9 +271,10 @@ export default function ChatInterface() {
         }
       } catch (fallbackError) {
         console.error('Error with fallback request:', fallbackError)
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
         const errorMessage: Message = {
           role: 'assistant',
-          content: 'Sorry, I encountered an error. Please try again.',
+          content: `Sorry, I couldn't connect to the backend at ${apiUrl}. Please check if the backend is running and the URL is correct. Error: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown error'}`,
           timestamp: new Date().toISOString()
         }
         setMessages(prev => [...prev, errorMessage])

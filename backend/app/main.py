@@ -15,24 +15,26 @@ allowed_origins = [
     "http://localhost:3005",
     "https://localhost:3000",  # For HTTPS localhost
     "https://localhost:3005",   # For HTTPS localhost
-    "https://moleai-production.up.railway.app"  # Railway backend
+    "https://moleai-production.up.railway.app",  # Railway backend
+    "https://shopmole-ai.vercel.app"  # Vercel frontend
 ]
 
 # Add production origins from environment variables
 if os.getenv("FRONTEND_URL"):
     allowed_origins.append(os.getenv("FRONTEND_URL"))
 
-# For production, allow all Vercel domains (you can make this more specific)
+# For production, allow all Vercel domains
 if os.getenv("NODE_ENV") == "production" or os.getenv("ENVIRONMENT") == "production":
+    # Add common Vercel preview domains
     allowed_origins.extend([
-        "https://*.vercel.app",
-        "https://vercel.app"
+        "https://shopmole-ai-git-main.vercel.app",
+        "https://shopmole-ai-git-preview.vercel.app"
     ])
 
-# Allow all HTTPS origins in production (more permissive, you can restrict this)
+# Use regex for Vercel preview deployments
 allow_origin_regex = None
 if os.getenv("NODE_ENV") == "production" or os.getenv("ENVIRONMENT") == "production":
-    allow_origin_regex = r"https://.*\.vercel\.app"
+    allow_origin_regex = r"https://shopmole-ai.*\.vercel\.app"
 
 app.add_middleware(
     CORSMiddleware,
