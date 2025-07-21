@@ -166,5 +166,8 @@ pids
 # Debug artifacts
 debug/
 
+# Application cache files
+domain_validation_cache.json
+
 # Funnel visualization reports
 funnel_reports/ 
