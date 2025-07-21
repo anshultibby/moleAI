@@ -9,37 +9,33 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Configure CORS with environment-based origins
+# Configure CORS with specific allowed origins
 allowed_origins = [
     "http://localhost:3000", 
     "http://localhost:3005",
-    "https://localhost:3000",  # For HTTPS localhost
-    "https://localhost:3005",   # For HTTPS localhost
-    "https://moleai-production.up.railway.app",  # Railway backend
-    "https://shopmole-ai.vercel.app"  # Vercel frontend
+    "https://localhost:3000",
+    "https://localhost:3005",
+    "https://moleai-production.up.railway.app",
+    "https://shopmole-ai.vercel.app",
+    "https://shopmole-ai-git-main.vercel.app"
 ]
 
-# Add production origins from environment variables
+# Add environment-based frontend URL
 if os.getenv("FRONTEND_URL"):
     allowed_origins.append(os.getenv("FRONTEND_URL"))
 
-# For production, allow all Vercel domains
+# For development and production flexibility
 if os.getenv("NODE_ENV") == "production" or os.getenv("ENVIRONMENT") == "production":
-    # Add common Vercel preview domains
+    # Allow all HTTPS Vercel domains for this specific app
     allowed_origins.extend([
-        "https://shopmole-ai-git-main.vercel.app",
-        "https://shopmole-ai-git-preview.vercel.app"
+        "https://shopmole-ai-git-preview.vercel.app",
+        "https://shopmole-ai-anshultibby.vercel.app"
     ])
-
-# Use regex for Vercel preview deployments
-allow_origin_regex = None
-if os.getenv("NODE_ENV") == "production" or os.getenv("ENVIRONMENT") == "production":
-    allow_origin_regex = r"https://shopmole-ai.*\.vercel\.app"
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_origin_regex=allow_origin_regex,
+    allow_origin_regex=r"https://shopmole-ai.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

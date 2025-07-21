@@ -38,6 +38,11 @@ export default function ChatInterface() {
     setSelectedBrand('')
   }
 
+  const handleLogout = () => {
+    sessionStorage.removeItem('shopmole_authenticated')
+    window.location.reload()
+  }
+
   // Filter out duplicate products based on name and store
   const getUniqueProducts = (products: Product[]): Product[] => {
     const seen = new Set<string>()
@@ -303,6 +308,18 @@ export default function ChatInterface() {
 
           {/* Compact toggles */}
           <div className="flex items-center space-x-2">
+            
+            {/* Logout Button */}
+            <button
+              onClick={handleLogout}
+              className="px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded transition-colors flex items-center space-x-1"
+              title="Logout"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span className="hidden sm:inline">Logout</span>
+            </button>
             
             {/* Desktop chat toggle */}
             <div className="hidden lg:flex items-center space-x-1">
