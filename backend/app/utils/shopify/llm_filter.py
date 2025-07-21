@@ -101,21 +101,21 @@ class LLMProductFilter:
             # Create compact product list for LLM
             product_list = self._create_llm_product_list(products)
             
-            # STRICT & PRECISE: Only exact matches to user query
-            prompt = f"""STRICT FILTER for: "{query}"
+            # BALANCED FILTERING: Core requirements + reasonable matching
+            prompt = f"""SMART FILTER for: "{query}"
 
 {chr(10).join(product_list)}
 
-STRICT RULES - REJECT if ANY of these fail:
-1. Product type must EXACTLY match (shirt≠jacket, shoes≠boots, jeans≠pants)
-2. If color specified, product MUST have that color
-3. If material specified, product MUST be that material  
-4. If brand specified, product MUST be that brand
-5. If gender specified, product MUST match (men's≠unisex)
+SMART RULES - Select products that are RELEVANT:
+1. Product type should match general category (dress, top, jacket, shoes, etc.)
+2. If specific color mentioned, prefer that color but allow similar shades
+3. If material mentioned, prefer that material but allow reasonable alternatives
+4. Consider style, occasion, and overall relevance to the query
+5. Include products that would satisfy the user's intent
 
-BE VERY STRICT. Only select products that PRECISELY match "{query}".
+Be SELECTIVE but not overly restrictive. Focus on products a user would actually want.
 
-Return ONLY numbers of products that match ALL requirements:"""
+Return numbers of the BEST products that match the user's intent (aim for 5-15 products):"""
 
             response = model.generate_content(prompt)
             
@@ -330,9 +330,10 @@ Return ONLY numbers of products that match ALL requirements:"""
             print(f"   ✅ No specific requirements found - returning all {len(products)} products for LLM filtering")
             return products
         
-        # Even if we found some requirements, be more lenient for complex queries
-        if len(query_words) > 2 and len(required_colors + required_materials + required_sizes + required_brands + required_genders) <= 2:
-            print(f"   ✅ Complex query with minimal requirements - returning all {len(products)} products for LLM filtering")
+        # Be more lenient for most queries - only apply strict filtering for very specific multi-requirement queries
+        total_requirements = len(required_colors + required_materials + required_sizes + required_brands + required_genders)
+        if total_requirements <= 2:  # Allow up to 2 specific requirements before strict filtering
+            print(f"   ✅ Minimal requirements ({total_requirements}) - returning all {len(products)} products for LLM filtering")
             return products
         
         # Only apply strict filtering for very specific queries

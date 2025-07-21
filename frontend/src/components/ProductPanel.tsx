@@ -48,7 +48,7 @@ export default function ProductPanel({
     return true
   })
 
-  // Limit products per store to maximum 6 items
+  // Limit products per store to maximum items
   const limitProductsPerStore = (products: Product[], maxPerStore: number = 6): Product[] => {
     const storeGroups: { [store: string]: Product[] } = {}
     
@@ -61,19 +61,30 @@ export default function ProductPanel({
       storeGroups[storeName].push(product)
     })
     
+    // Debug logging
+    console.log('Store groups:', Object.keys(storeGroups).map(store => ({
+      store,
+      count: storeGroups[store].length
+    })))
+    
     // Limit each store to maxPerStore products and flatten
     const limitedProducts: Product[] = []
     Object.values(storeGroups).forEach(storeProducts => {
       limitedProducts.push(...storeProducts.slice(0, maxPerStore))
     })
     
+    console.log(`Store limiting: ${products.length} → ${limitedProducts.length} products (max ${maxPerStore} per store)`)
+    
     return limitedProducts
   }
 
-  // Apply store limit to filtered products
-  const storeLimitedProducts = limitProductsPerStore(filteredProducts, 6)
+  // Apply store limit to filtered products (40 per store for good variety)
+  const storeLimitedProducts = limitProductsPerStore(filteredProducts, 40)
+  
+  // Debug: Log final product counts
+  console.log(`Final display: ${products.length} total → ${filteredProducts.length} filtered → ${storeLimitedProducts.length} final`)
 
-  // Helper function to extract numeric price value
+  // Helper function to extract numeric price value (for within-store sorting)
   const getPriceValue = (priceStr: string): number => {
     if (!priceStr || typeof priceStr !== 'string') {
       return 0
@@ -89,12 +100,42 @@ export default function ProductPanel({
     return 0
   }
 
-  // Sort all products by price (lowest to highest)
-  const sortedProducts = [...storeLimitedProducts].sort((a, b) => {
-    const priceA = getPriceValue(a.price)
-    const priceB = getPriceValue(b.price)
-    return priceA - priceB
-  })
+  // Preserve streaming order while grouping by store
+  // This keeps stores in the order they first appeared and products within stores in stream order
+  const sortedProducts = (() => {
+    // Track the order stores first appeared
+    const storeFirstAppearance: { [store: string]: number } = {}
+    const storeProducts: { [store: string]: Product[] } = {}
+    
+    // Group products by store and track first appearance order
+    storeLimitedProducts.forEach((product, index) => {
+      const storeName = product.store || 'Unknown Store'
+      
+      // Record when this store first appeared
+      if (!(storeName in storeFirstAppearance)) {
+        storeFirstAppearance[storeName] = index
+      }
+      
+      // Group products by store
+      if (!storeProducts[storeName]) {
+        storeProducts[storeName] = []
+      }
+      storeProducts[storeName].push(product)
+    })
+    
+    // Sort stores by their first appearance order, then flatten products
+    const sortedStores = Object.keys(storeProducts).sort((a, b) => 
+      storeFirstAppearance[a] - storeFirstAppearance[b]
+    )
+    
+    const result: Product[] = []
+    sortedStores.forEach(store => {
+      // Products within each store maintain their streaming order
+      result.push(...storeProducts[store])
+    })
+    
+    return result
+  })()
 
   // Auto-resize textarea based on content
   useEffect(() => {
@@ -241,7 +282,7 @@ export default function ProductPanel({
           </div>
         ) : (
           <div className="p-4 sm:p-6">
-            {/* Responsive product grid - vertical scrolling on all devices */}
+            {/* Responsive product grid - organized by store */}
             <div className="relative">
               {/* Unified responsive grid for all screen sizes */}
               <div className={`grid gap-4 sm:gap-6 ${

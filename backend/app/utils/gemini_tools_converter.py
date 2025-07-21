@@ -190,7 +190,7 @@ async def search_product(args: Dict[str, Any], context: ShoppingContextVariables
     max_price = args.get("max_price")
     category = args.get("category")
     marketplaces = args.get("marketplaces", ["SHOPIFY"])
-    limit = args.get("limit", 50)  # INCREASED default for more domain diversity
+    limit = args.get("limit", 300)  # MUCH HIGHER default for maximum domain diversity and better results
     
     print(f"🔍 Searching for: '{query}' (limit: {limit})")
     
@@ -222,7 +222,8 @@ async def search_product(args: Dict[str, Any], context: ShoppingContextVariables
                     'price_value': product.get('price_value', 0),
                     'image_url': product.get('image_url', ''),
                     'product_url': product.get('product_url', ''),
-                    'store_name': product.get('store_name', 'Unknown Store'),
+                    'store': product.get('store_name', 'Unknown Store'),  # Frontend expects 'store' field
+                    'store_name': product.get('store_name', 'Unknown Store'),  # Keep for backend compatibility
                     'description': product.get('description', ''),
                     'source': product.get('source', 'shopify_json'),
                     'marketplace': product.get('marketplace', 'SHOPIFY'),
@@ -241,7 +242,8 @@ async def search_product(args: Dict[str, Any], context: ShoppingContextVariables
                             'price_value': product.get('price_value', 0),
                             'image_url': product.get('image_url', ''),
                             'product_url': product.get('product_url', ''),
-                            'store_name': product.get('store_name', 'Unknown Store'),
+                            'store': product.get('store_name', 'Unknown Store'),  # Frontend expects 'store' field
+                            'store_name': product.get('store_name', 'Unknown Store'),  # Keep for backend compatibility
                             'description': product.get('description', ''),
                             'source': product.get('source', 'shopify_json'),
                             'marketplace': product.get('marketplace', 'SHOPIFY'),
@@ -252,14 +254,14 @@ async def search_product(args: Dict[str, Any], context: ShoppingContextVariables
             except Exception as e:
                 print(f"   ⚠️  Product callback error: {e}")
         
-        # Use our fast Shopify JSON search with streaming
+        # Use our fast Shopify JSON search with streaming (includes real-time price filtering)
         if "AMAZON" in marketplaces and "SHOPIFY" in marketplaces:
             # Use hybrid search (Shopify + Amazon if available) with streaming
-            products = await hybrid_search(query, max_results=limit, product_callback=stream_product_callback)
+            products = await hybrid_search(query, max_results=limit, product_callback=stream_product_callback, max_price=max_price)
             search_source = "Shopify stores + Amazon Business"
         else:
             # Use pure Shopify search (fastest) with streaming
-            products = await shopify_search(query, max_results=limit, product_callback=stream_product_callback)
+            products = await shopify_search(query, max_results=limit, product_callback=stream_product_callback, max_price=max_price)
             search_source = "Shopify stores"
         
         search_time = time.time() - start_time
@@ -267,31 +269,11 @@ async def search_product(args: Dict[str, Any], context: ShoppingContextVariables
         if not products:
             return f"No products found for '{query}' in {search_source}"
         
-        # Apply price filter if specified
+        # Price filtering is now done during LLM filtering for real-time streaming
         if max_price:
-            print(f"🔍 Filtering {len(products)} products with max_price: ${max_price}")
-            filtered_products = []
-            for product in products:
-                try:
-                    price_value = product.get('price_value', 0)
-                    price_str = product.get('price', 'No price')
-                    product_name = product.get('product_name', 'Unknown')[:30]
-                    
-                    # Include products if: price_value is 0 (parsing failed) OR price_value <= max_price
-                    if price_value == 0 or price_value <= max_price:
-                        filtered_products.append(product)
-                        print(f"   ✅ Include: {product_name} - {price_str} (value: {price_value})")
-                    else:
-                        print(f"   ❌ Exclude: {product_name} - {price_str} (value: {price_value}) > ${max_price}")
-                except Exception as e:
-                    # If price parsing fails, include the product
-                    filtered_products.append(product)
-                    print(f"   ⚠️  Price error for {product.get('product_name', 'Unknown')[:30]}: {e}")
-            
-            print(f"🔍 Price filtering: {len(products)} → {len(filtered_products)} products")
-            products = filtered_products
+            print(f"💰 Price filtering was applied during search - all {len(products)} products are under ${max_price}")
         
-        # Add products to context
+        # Add products to context  
         for product in products:
             context.add_deal({
                 'type': 'product',
@@ -300,7 +282,8 @@ async def search_product(args: Dict[str, Any], context: ShoppingContextVariables
                 'price_value': product.get('price_value', 0),
                 'image_url': product.get('image_url', ''),
                 'product_url': product.get('product_url', ''),
-                'store_name': product.get('store_name', 'Unknown Store'),
+                'store': product.get('store_name', 'Unknown Store'),  # Frontend expects 'store' field
+                'store_name': product.get('store_name', 'Unknown Store'),  # Keep for backend compatibility
                 'description': product.get('description', ''),
                 'source': product.get('source', 'shopify_json'),
                 'marketplace': product.get('marketplace', 'SHOPIFY'),

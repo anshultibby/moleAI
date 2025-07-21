@@ -31,7 +31,7 @@ class ShopifyJSONService:
         self.converter = ShopifyProductConverter()
         self.llm_filter = LLMProductFilter()
     
-    def search_store_products(self, store_domain: str, query: str, limit: int = 100, product_callback=None) -> List[Dict[str, Any]]:
+    def search_store_products(self, store_domain: str, query: str, limit: int = 300, product_callback=None) -> List[Dict[str, Any]]:
         """
         Search a single Shopify store for products matching the query
         
@@ -255,7 +255,7 @@ class ShopifyJSONService:
         return True
 
 
-def search_multiple_stores(store_domains: List[str], query: str, max_results: int = 300, product_callback=None) -> List[Dict[str, Any]]:
+def search_multiple_stores(store_domains: List[str], query: str, max_results: int = 300, product_callback=None, max_price=None) -> List[Dict[str, Any]]:
     """
     Search multiple Shopify stores and return aggregated results - SIMPLIFIED ONE STORE AT A TIME
     
@@ -294,7 +294,7 @@ def search_multiple_stores(store_domains: List[str], query: str, max_results: in
         try:
             # Get basic filtered products from this store
             print(f"   📦 Fetching products from {domain}...")
-            basic_products = service.search_store_products(domain, query, results_per_store, None)  # No callback for now
+            basic_products = service.search_store_products(domain, query, results_per_store, None)  # We'll stream LLM-filtered products instead
             
             if basic_products:
                 print(f"   🔍 Got {len(basic_products)} basic filtered products, applying LLM filter...")
@@ -302,7 +302,26 @@ def search_multiple_stores(store_domains: List[str], query: str, max_results: in
                 # Apply LLM filtering to THIS STORE'S products immediately
                 llm_filtered = llm_filter.filter_products(basic_products, query)
                 
+                # Apply price filtering to LLM results before streaming
+                if max_price and llm_filtered:
+                    price_filtered = []
+                    for product in llm_filtered:
+                        try:
+                            price_value = product.get('price_value', 0)
+                            if price_value == 0 or price_value <= max_price:
+                                price_filtered.append(product)
+                        except (ValueError, TypeError):
+                            price_filtered.append(product)  # Include if price parsing fails
+                    
+                    if len(price_filtered) != len(llm_filtered):
+                        print(f"   💰 Price filter: {len(llm_filtered)} → {len(price_filtered)} products under ${max_price}")
+                    
+                    llm_filtered = price_filtered
+                
                 print(f"   🤖 LLM filter: {len(basic_products)} → {len(llm_filtered)} products selected")
+                
+                # DEBUG: Check if streaming will happen
+                print(f"   🔍 DEBUG: Will try to stream {len(llm_filtered)} products...")
                 
                 # Add store-specific metadata
                 for product in llm_filtered:
@@ -312,13 +331,62 @@ def search_multiple_stores(store_domains: List[str], query: str, max_results: in
                 # Add to final results
                 all_filtered_products.extend(llm_filtered)
                 
-                # Stream to frontend immediately if callback provided
-                if product_callback and llm_filtered:
+                # Stream to frontend immediately - CRITICAL FOR REAL-TIME UPDATES!
+                print(f"   🔍 DEBUG: About to check if streaming should happen. Products to stream: {len(llm_filtered)}")
+                if llm_filtered:
                     try:
-                        for product in llm_filtered:
-                            product_callback(product)
+                        print(f"   📡 Streaming {len(llm_filtered)} LLM-filtered products to frontend...")
+                        
+                        # Use global streaming callback for real-time updates
+                        from .progress_utils import get_streaming_callback
+                        global_callback = get_streaming_callback()
+                        
+                        print(f"   🔧 DEBUG: Global callback available: {global_callback is not None}")
+                        
+                        if global_callback:
+                            print(f"   🔧 DEBUG: About to loop through {len(llm_filtered)} products...")
+                            for i, product in enumerate(llm_filtered):
+                                print(f"   🔧 DEBUG: Processing product {i+1}/{len(llm_filtered)}: {product.get('product_name', 'Unknown')[:30]}...")
+                                
+                                # Create product data for streaming
+                                product_data = {
+                                    'type': 'product',
+                                    'product_name': product.get('product_name', 'Unknown Product'),
+                                    'price': product.get('price', 'Price not available'),
+                                    'price_value': product.get('price_value', 0),
+                                    'image_url': product.get('image_url', ''),
+                                    'product_url': product.get('product_url', ''),
+                                    'store': product.get('store_name', 'Unknown Store'),  # Frontend expects 'store' field
+                                    'store_name': product.get('store_name', 'Unknown Store'),  # Keep for backend compatibility
+                                    'description': product.get('description', ''),
+                                    'source': product.get('source', 'shopify_json'),
+                                    'marketplace': product.get('marketplace', 'SHOPIFY'),
+                                    'is_available': product.get('is_available', True),
+                                    'id': f"product-{product.get('product_name', '')}-{product.get('store_name', '')}"
+                                }
+                                
+                                print(f"   🔧 DEBUG: About to call global_callback for product {i+1}...")
+                                # Stream to frontend immediately
+                                try:
+                                    global_callback("product", product_data)
+                                    print(f"   🔧 DEBUG: Successfully called global_callback for product {i+1}")
+                                except Exception as e:
+                                    print(f"   ❌ ERROR: global_callback failed for product {i+1}: {e}")
+                                    break
+                            
+                            print(f"   ✅ Successfully streamed {len(llm_filtered)} products via global callback")
+                        else:
+                            print(f"   ⚠️  No global streaming callback available")
+                        
+                        # Also call the local callback if provided
+                        if product_callback:
+                            for product in llm_filtered:
+                                product_callback(product)
+                                
                     except Exception as e:
                         print(f"   ⚠️  Product streaming error: {e}")
+                else:
+                    print(f"   ⚠️  No LLM-filtered products to stream (count: {len(llm_filtered)})")
                 
                 print(f"   ✅ Store complete: {len(llm_filtered)} products (total: {len(all_filtered_products)})")
                 

@@ -2,7 +2,8 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from datetime import datetime
 from ..models.chat import ChatMessage, ChatResponse
-from ..utils.shopping_pipeline import process_shopping_query_with_tools, preprocess_shopping_query, process_shopping_query_with_tools_streaming
+from ..utils.shopping_pipeline import process_shopping_query_with_tools, preprocess_shopping_query
+from ..utils.streaming_pipeline import process_shopping_query_streaming
 from ..utils.shopping_pipeline_v2 import process_shopping_query_simple
 import os
 import json
@@ -150,36 +151,15 @@ async def process_shopping_query_with_tools_async(query: str, api_key: str) -> t
 
 async def process_shopping_query_with_tools_streaming(query: str, api_key: str):
     """
-    Stream shopping query processing with real-time updates
+    Stream shopping query processing with real-time updates using the new clean pipeline
     """
-    from ..utils.progress_utils import set_streaming_callback
-    from ..utils.shopping_pipeline import process_shopping_query_with_tools_streaming as pipeline_streaming
-    
-    # Set up streaming callback to capture and forward updates
-    streaming_updates = []
-    
-    def streaming_callback(update_type: str, data):
-        """Capture streaming updates for forwarding"""
-        streaming_updates.append({"type": update_type, "data": data})
-    
-    # Set the global streaming callback
-    set_streaming_callback(streaming_callback)
-    
     try:
-        # Use the real streaming pipeline
-        async for update in pipeline_streaming(query, api_key):
+        # Use the new clean streaming pipeline
+        async for update in process_shopping_query_streaming(query, api_key):
             yield update
-            
-            # Also yield any intermediate updates that were captured
-            while streaming_updates:
-                intermediate_update = streaming_updates.pop(0)
-                yield intermediate_update
                 
     except Exception as e:
         yield {"type": "error", "message": str(e)}
-    finally:
-        # Clear the streaming callback
-        set_streaming_callback(None)
 
 @router.post("/chat/simple")
 async def simple_chat(message: ChatMessage):

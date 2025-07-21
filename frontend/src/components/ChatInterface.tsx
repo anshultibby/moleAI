@@ -49,6 +49,7 @@ export default function ChatInterface() {
     return products.filter(product => {
       const key = `${product.product_name || product.name}-${product.store}-${product.price}`
       if (seen.has(key)) {
+        console.log(`Duplicate product filtered out: ${key}`)
         return false
       }
       seen.add(key)
@@ -148,10 +149,21 @@ export default function ChatInterface() {
                   ...data.data,
                   id: data.data.id || `product-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
                 }
+                
+                // Debug logging
+                console.log('Received product:', {
+                  name: product.product_name,
+                  store: product.store,
+                  store_name: product.store_name,
+                  price: product.price
+                })
+                
                 // Filter duplicates when adding
                 setAllProducts(prev => {
                   const combined = [...prev, product]
-                  return getUniqueProducts(combined)
+                  const unique = getUniqueProducts(combined)
+                  console.log(`Products after dedup: ${prev.length} + 1 → ${unique.length}`)
+                  return unique
                 })
                 // Switch to products tab on mobile when we get the first product
                 setActiveView('products')

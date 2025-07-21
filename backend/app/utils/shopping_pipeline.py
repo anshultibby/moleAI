@@ -363,27 +363,57 @@ async def process_shopping_query_with_tools_streaming(
     # Create the streaming callback
     streaming_callback = create_streaming_callback()
     
-    # Store products that need to be yielded
-    products_to_yield = []
+    # Use a thread-safe queue for product streaming
+    import asyncio
+    import threading
+    import queue
     
-    # Set up a custom callback that collects products for yielding
-    def collect_products_callback(update_type: str, data: Any):
-        """Collect products for yielding in the main loop"""
-        nonlocal products_to_yield
+    # Use a regular queue.Queue which works with synchronous callbacks
+    product_queue = queue.Queue()
+    
+    # Set up a custom callback that immediately adds products to the queue
+    def immediate_stream_callback(update_type: str, data: Any):
+        """Immediately stream products to frontend via queue"""
         if update_type == "product" and isinstance(data, dict):
-            products_to_yield.append({"type": "product", "data": data})
+            product_update = {"type": "product", "data": data}
+            print(f"   🚀 IMMEDIATE: Queuing product for streaming: {data.get('product_name', 'Unknown')}")
+            
+            # Put product in queue for immediate consumption by the main loop
+            try:
+                product_queue.put_nowait(product_update)
+                print(f"   ✅ Product added to queue successfully")
+            except queue.Full:
+                print(f"   ⚠️  Product queue is full, skipping product")
+            except Exception as e:
+                print(f"   ❌ Error adding product to queue: {e}")
     
-    set_streaming_callback(collect_products_callback)
+    set_streaming_callback(immediate_stream_callback)
+    print(f"🔧 PIPELINE: Set streaming callback in shopping_pipeline.py")
+    
+    # DEBUG: Test if the callback was set properly
+    from .progress_utils import get_streaming_callback
+    test_callback = get_streaming_callback()
+    print(f"🔧 PIPELINE DEBUG: Streaming callback set successfully: {test_callback is not None}")
+    if test_callback:
+        print(f"🔧 PIPELINE DEBUG: Callback function: {test_callback.__name__}")
     
     while counter < max_iterations:
         try:
             turn_start = time.time()
             print(f"🕐 TIMING: Turn {counter + 1} starting at {time.strftime('%H:%M:%S')}")
             
-            # Yield any products that were collected
-            while products_to_yield:
-                product_update = products_to_yield.pop(0)
-                yield product_update
+            # Yield any products that were queued
+            products_yielded_this_turn = 0
+            try:
+                while True:
+                    product_update = product_queue.get_nowait()
+                    print(f"   🎯 YIELDING QUEUED: {product_update['data'].get('product_name', 'Unknown')} from {product_update['data'].get('store', 'Unknown Store')}")
+                    yield product_update
+                    products_yielded_this_turn += 1
+            except queue.Empty:
+                if products_yielded_this_turn > 0:
+                    print(f"   ✅ Yielded {products_yielded_this_turn} queued products")
+                pass
             
             # Get response from Gemini
             ai_start = time.time()
@@ -405,19 +435,32 @@ async def process_shopping_query_with_tools_streaming(
             if tool_call:
                 # Execute the tool call
                 tool_start = time.time()
+                
+                # Execute the tool call (products will be queued via callback during execution)
+                print(f"   🔧 Queue size before tool execution: {product_queue.qsize()}")
                 result = execute_function_with_context(
                     tool_call["function_name"], 
                     tool_call["arguments"], 
                     context_vars
                 )
+                print(f"   🔧 Queue size after tool execution: {product_queue.qsize()}")
+                
                 tool_end = time.time()
                 print(f"🕐 TIMING: Tool '{tool_call['function_name']}' took {tool_end - tool_start:.2f}s")
                 print(f"DEBUG - Tool call result: {result}")
                 
-                # Yield any products that were collected during the tool call
-                while products_to_yield:
-                    product_update = products_to_yield.pop(0)
-                    yield product_update
+                # Yield any products that were queued during the tool call
+                products_yielded_after_tool = 0
+                try:
+                    while True:
+                        product_update = product_queue.get_nowait()
+                        print(f"   🎯 YIELDING AFTER TOOL: {product_update['data'].get('product_name', 'Unknown')} from {product_update['data'].get('store', 'Unknown Store')}")
+                        yield product_update
+                        products_yielded_after_tool += 1
+                except queue.Empty:
+                    if products_yielded_after_tool > 0:
+                        print(f"   ✅ Yielded {products_yielded_after_tool} products after tool execution")
+                    pass
                 
                 # DON'T yield progress messages to frontend chat - users want products not progress
                 # But still clear them to avoid memory buildup
@@ -558,9 +601,17 @@ async def process_shopping_query_with_tools_streaming(
             break
     
     # Yield any remaining products before finishing
-    while products_to_yield:
-        product_update = products_to_yield.pop(0)
-        yield product_update
+    final_products_yielded = 0
+    try:
+        while True:
+            product_update = product_queue.get_nowait()
+            print(f"   🎯 FINAL YIELD: {product_update['data'].get('product_name', 'Unknown')} from {product_update['data'].get('store', 'Unknown Store')}")
+            yield product_update
+            final_products_yielded += 1
+    except queue.Empty:
+        if final_products_yielded > 0:
+            print(f"   ✅ Final cleanup: yielded {final_products_yielded} remaining products")
+        pass
     
     # Final timing
     total_time = time.time() - start_time
