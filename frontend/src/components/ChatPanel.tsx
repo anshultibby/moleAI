@@ -125,6 +125,7 @@ export default function ChatPanel({
   onSendMessage
 }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -133,6 +134,16 @@ export default function ChatPanel({
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // Auto-resize textarea based on content
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      const scrollHeight = textareaRef.current.scrollHeight
+      const maxHeight = window.innerWidth >= 640 ? 120 : 80 // Different max heights for mobile vs desktop
+      textareaRef.current.style.height = Math.min(scrollHeight, maxHeight) + 'px'
+    }
+  }, [input])
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -254,14 +265,14 @@ export default function ChatPanel({
         <div className="max-w-2xl mx-auto">
           <div className="relative">
             <textarea
+              ref={textareaRef}
               value={input}
               onChange={(e) => onInputChange(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Ask me to find clothing deals..."
-              rows={3}
-              className="w-full px-3 sm:px-4 py-3 sm:py-4 pr-12 sm:pr-14 pb-12 sm:pb-14 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:text-white text-sm sm:text-base font-medium placeholder-slate-500 dark:placeholder-slate-400 transition-all resize-none overflow-y-auto scrollbar-thin min-h-[80px] sm:min-h-[96px]"
+              rows={1}
+              className="w-full px-3 sm:px-4 py-3 sm:py-4 pr-12 sm:pr-14 pb-12 sm:pb-14 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:text-white text-sm sm:text-base font-medium placeholder-slate-500 dark:placeholder-slate-400 transition-all resize-none overflow-y-auto scrollbar-thin min-h-[44px] sm:min-h-[52px]"
               disabled={isLoading}
-              style={{ maxHeight: '120px' }}
             />
             
             {/* Clear button */}
