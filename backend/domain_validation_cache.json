@@ -1,61 +1,313 @@
 {
-  "davidaugustinc.myshopify.com": {
+  "the-loft-boutique.myshopify.com": {
     "is_valid": true,
-    "validated_at": "2025-07-20T22:30:12.362143",
+    "validated_at": "2025-07-21T05:34:11.363004",
     "status_code": 200,
     "error": null
   },
-  "moniquelhuillier.myshopify.com": {
+  "loveshackfancy.myshopify.com": {
     "is_valid": true,
-    "validated_at": "2025-07-20T22:30:12.601022",
+    "validated_at": "2025-07-21T05:34:11.660363",
     "status_code": 200,
     "error": null
   },
-  "sclarandis-com.myshopify.com": {
+  "verano-by-tanya.myshopify.com": {
     "is_valid": true,
-    "validated_at": "2025-07-20T22:30:13.033051",
+    "validated_at": "2025-07-21T05:34:12.136467",
     "status_code": 200,
     "error": null
   },
-  "crank-brothers.myshopify.com": {
+  "janasya-india.myshopify.com": {
     "is_valid": true,
-    "validated_at": "2025-07-20T22:30:13.371579",
+    "validated_at": "2025-07-21T05:34:12.480080",
     "status_code": 200,
     "error": null
   },
-  "sarah-flint.myshopify.com": {
+  "tigermist.myshopify.com": {
     "is_valid": true,
-    "validated_at": "2025-07-20T22:30:13.851878",
+    "validated_at": "2025-07-21T05:34:12.844458",
     "status_code": 200,
     "error": null
   },
-  "leolo-shoes.myshopify.com": {
+  "native-oklahoma-store.myshopify.com": {
     "is_valid": true,
-    "validated_at": "2025-07-20T22:30:14.364244",
+    "validated_at": "2025-07-21T05:34:13.185871",
     "status_code": 200,
     "error": null
   },
-  "kswiss-us.myshopify.com": {
+  "alicia-bell.myshopify.com": {
     "is_valid": true,
-    "validated_at": "2025-07-20T22:30:14.665595",
+    "validated_at": "2025-07-21T05:34:13.532228",
     "status_code": 200,
     "error": null
   },
-  "pearlizumi.myshopify.com": {
+  "oneelevenolive.myshopify.com": {
     "is_valid": true,
-    "validated_at": "2025-07-20T22:30:15.024968",
+    "validated_at": "2025-07-21T05:34:13.907344",
     "status_code": 200,
     "error": null
   },
-  "therafit-shoe.myshopify.com": {
+  "poupette-st-barth.myshopify.com": {
     "is_valid": true,
-    "validated_at": "2025-07-20T22:30:16.786719",
+    "validated_at": "2025-07-21T05:34:14.143252",
     "status_code": 200,
     "error": null
   },
-  "phoebe-philo-us.myshopify.com": {
+  "pocampo.myshopify.com": {
     "is_valid": true,
-    "validated_at": "2025-07-20T22:30:17.115896",
+    "validated_at": "2025-07-21T05:34:14.476998",
+    "status_code": 200,
+    "error": null
+  },
+  "theshopyohjiyamamotocom.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:14.764695",
+    "status_code": 200,
+    "error": null
+  },
+  "anne-louise-boutique-x.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:15.206985",
+    "status_code": 200,
+    "error": null
+  },
+  "avara-boutique.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:15.515571",
+    "status_code": 200,
+    "error": null
+  },
+  "misa-los-angeles.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:15.829766",
+    "status_code": 200,
+    "error": null
+  },
+  "twirlco.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:16.090306",
+    "status_code": 200,
+    "error": null
+  },
+  "12th-tribe.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:16.416475",
+    "status_code": 200,
+    "error": null
+  },
+  "girlhero.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:16.771109",
+    "status_code": 200,
+    "error": null
+  },
+  "saboskirt.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:17.118900",
+    "status_code": 200,
+    "error": null
+  },
+  "selfieleslie-us.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:17.426884",
+    "status_code": 200,
+    "error": null
+  },
+  "foxs-designer-off-price.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:17.707962",
+    "status_code": 200,
+    "error": null
+  },
+  "saboskirtus.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:18.003962",
+    "status_code": 200,
+    "error": null
+  },
+  "marimofashion.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:18.797921",
+    "status_code": 200,
+    "error": null
+  },
+  "different-touch-usa.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:19.146135",
+    "status_code": 200,
+    "error": null
+  },
+  "reddressboutique.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:19.412006",
+    "status_code": 200,
+    "error": null
+  },
+  "pmayo-us.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:19.705748",
+    "status_code": 200,
+    "error": null
+  },
+  "seweverlasting.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:20.106446",
+    "status_code": 200,
+    "error": null
+  },
+  "lameeraint.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:20.732710",
+    "status_code": 200,
+    "error": null
+  },
+  "jigsaw-uk.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:21.076492",
+    "status_code": 200,
+    "error": null
+  },
+  "e15686-4.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:21.399882",
+    "status_code": 200,
+    "error": null
+  },
+  "arriveclothing.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:21.726620",
+    "status_code": 200,
+    "error": null
+  },
+  "veiled-collection.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:22.104428",
+    "status_code": 200,
+    "error": null
+  },
+  "pearlbylelarose.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:22.451263",
+    "status_code": 200,
+    "error": null
+  },
+  "shop-boutique-on-main.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:22.895260",
+    "status_code": 200,
+    "error": null
+  },
+  "lagence-fashion.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:23.227534",
+    "status_code": 200,
+    "error": null
+  },
+  "johanna-ortiz.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:23.626251",
+    "status_code": 200,
+    "error": null
+  },
+  "identity-midtown.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:23.976861",
+    "status_code": 200,
+    "error": null
+  },
+  "dressereal.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:24.376524",
+    "status_code": 200,
+    "error": null
+  },
+  "borgodenor.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:24.912373",
+    "status_code": 200,
+    "error": null
+  },
+  "gemy-maalouf.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:25.240007",
+    "status_code": 200,
+    "error": null
+  },
+  "flowers-dress-boutique.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:25.495625",
+    "status_code": 200,
+    "error": null
+  },
+  "its-summer-somewhere.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:25.929023",
+    "status_code": 200,
+    "error": null
+  },
+  "shopprettymommy.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:26.255590",
+    "status_code": 200,
+    "error": null
+  },
+  "catalogclothing.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:26.623193",
+    "status_code": 200,
+    "error": null
+  },
+  "adrianna-papell-usd.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:26.943071",
+    "status_code": 200,
+    "error": null
+  },
+  "matatraders.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:27.286334",
+    "status_code": 200,
+    "error": null
+  },
+  "cleobella.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:27.617359",
+    "status_code": 200,
+    "error": null
+  },
+  "stitch-and-feather.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:27.931333",
+    "status_code": 200,
+    "error": null
+  },
+  "abyatifashion.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:28.271633",
+    "status_code": 200,
+    "error": null
+  },
+  "yumikim.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:28.604588",
+    "status_code": 200,
+    "error": null
+  },
+  "lace-beads.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:34:29.065397",
+    "status_code": 200,
+    "error": null
+  },
+  "wild-summer.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:35:45.123246",
+    "status_code": 200,
+    "error": null
+  },
+  "pinklilyboutique.myshopify.com": {
+    "is_valid": true,
+    "validated_at": "2025-07-21T05:35:45.520246",
     "status_code": 200,
     "error": null
   }
