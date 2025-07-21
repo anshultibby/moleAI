@@ -2,7 +2,7 @@ export interface Message {
   role: 'user' | 'assistant'
   content: string
   timestamp: string
-  type?: 'reasoning' | 'normal' | 'search_links'
+  type?: 'reasoning' | 'normal' | 'search_links' | 'progress'
 }
 
 export interface Product {

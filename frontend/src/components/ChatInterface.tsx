@@ -17,7 +17,10 @@ export default function ChatInterface() {
   const [reasoningData, setReasoningData] = useState<any[]>([])
   const [selectedPriceBucket, setSelectedPriceBucket] = useState('')
   const [selectedBrand, setSelectedBrand] = useState('')
-  const [isProductViewExpanded, setIsProductViewExpanded] = useState(false)
+  
+  // New state for mobile-friendly toggle system
+  const [activeView, setActiveView] = useState<'products' | 'chat'>('products')
+  const [isChatExpanded, setIsChatExpanded] = useState(false)
 
   const removeProduct = (productId: string) => {
     setAllProducts(prev => prev.filter(p => p.id !== productId))
@@ -35,8 +38,17 @@ export default function ChatInterface() {
     setSelectedBrand('')
   }
 
-  const toggleProductView = () => {
-    setIsProductViewExpanded(prev => !prev)
+  // Filter out duplicate products based on name and store
+  const getUniqueProducts = (products: Product[]): Product[] => {
+    const seen = new Set<string>()
+    return products.filter(product => {
+      const key = `${product.product_name || product.name}-${product.store}-${product.price}`
+      if (seen.has(key)) {
+        return false
+      }
+      seen.add(key)
+      return true
+    })
   }
 
   const sendMessage = async () => {
@@ -87,7 +99,6 @@ export default function ChatInterface() {
               
               // Handle different types of streaming updates
               if (data.type === 'reasoning') {
-                // Add reasoning as chat message immediately
                 const reasoningMessage: Message = {
                   role: 'assistant',
                   content: data.data.formatted_text || data.data.title,
@@ -99,7 +110,6 @@ export default function ChatInterface() {
               }
               
               else if (data.type === 'search_links') {
-                // Add search links as chat message immediately
                 const searchMessage: Message = {
                   role: 'assistant',
                   content: `Found ${data.data.links?.length || 0} shopping sites for "${data.data.search_query}"`,
@@ -108,7 +118,6 @@ export default function ChatInterface() {
                 }
                 setMessages(prev => [...prev, searchMessage])
                 
-                // Remove duplicates by URL
                 const uniqueLinks = {
                   ...data.data,
                   links: data.data.links?.filter((link: any, index: number, self: any[]) => 
@@ -123,16 +132,18 @@ export default function ChatInterface() {
               }
               
               else if (data.type === 'product') {
-                // Add product immediately
                 const product = {
                   ...data.data,
                   id: data.data.id || `product-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
                 }
-                setAllProducts(prev => [...prev, product])
+                // Filter duplicates when adding
+                setAllProducts(prev => {
+                  const combined = [...prev, product]
+                  return getUniqueProducts(combined)
+                })
               }
               
               else if (data.type === 'chat_response') {
-                // Add final chat response
                 const finalMessage: Message = {
                   role: 'assistant',
                   content: data.message,
@@ -159,6 +170,16 @@ export default function ChatInterface() {
                 setMessages(prev => [...prev, startMessage])
               }
               
+              else if (data.type === 'progress') {
+                const progressMessage: Message = {
+                  role: 'assistant',
+                  content: data.message,
+                  timestamp: new Date().toISOString(),
+                  type: 'progress'
+                }
+                setMessages(prev => [...prev, progressMessage])
+              }
+              
             } catch (e) {
               console.error('Error parsing streaming data:', e)
             }
@@ -183,7 +204,6 @@ export default function ChatInterface() {
 
         setMessages(prev => [...prev, assistantMessage])
         
-        // Process deals_found as before (fallback)
         if (response.data.deals_found && response.data.deals_found.length > 0) {
           const newProducts: Product[] = []
           const newSearchLinks: SearchLinksData[] = []
@@ -213,7 +233,7 @@ export default function ChatInterface() {
           })
           
           if (newProducts.length > 0) {
-            setAllProducts(prev => [...prev, ...newProducts])
+            setAllProducts(prev => getUniqueProducts([...prev, ...newProducts]))
           }
           
           if (newSearchLinks.length > 0) {
@@ -253,39 +273,147 @@ export default function ChatInterface() {
     }
   }
 
-  return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
-      {/* Left Panel - Chat (40% width or hidden when expanded) */}
-      {!isProductViewExpanded && (
-        <div className="w-[40%] min-w-[380px] flex flex-col shadow-elegant-lg">
-          <ChatPanel
-            messages={messages}
-            input={input}
-            isLoading={isLoading}
-            searchLinksData={searchLinksData}
-            onInputChange={setInput}
-            onSendMessage={sendMessage}
-          />
-        </div>
-      )}
+  const uniqueProducts = getUniqueProducts(allProducts)
 
-      {/* Right Panel - Products, Search Links, and Reasoning (60% width or full width when expanded) */}
-      <div className={`${isProductViewExpanded ? "w-full" : "w-[60%] min-w-0"} flex flex-col`}>
-        
+  return (
+    <div className="h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex flex-col">
+      
+      {/* Compact top toggle bar */}
+      <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700 shadow-sm px-3 py-2 flex-shrink-0">
+        <div className="flex items-center justify-between">
           
-        {/* Products Panel */}
-        <div className="flex-1 min-h-0">
-          <ProductPanel
-            products={allProducts}
-            selectedPriceBucket={selectedPriceBucket}
-            selectedBrand={selectedBrand}
-            onPriceBucketChange={setSelectedPriceBucket}
-            onBrandChange={setSelectedBrand}
-            onClearAll={clearAllProducts}
-            onRemoveProduct={removeProduct}
-            isExpanded={isProductViewExpanded}
-            onToggleExpand={toggleProductView}
-          />
+          {/* Minimal branding */}
+          <div className="flex items-center space-x-2">
+            <div className="w-6 h-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded flex items-center justify-center">
+              <span className="text-white text-xs font-bold">M</span>
+            </div>
+            <span className="text-sm font-semibold text-slate-800 dark:text-white">MoleAI</span>
+          </div>
+
+          {/* Compact toggles */}
+          <div className="flex items-center space-x-2">
+            
+            {/* Desktop chat toggle */}
+            <div className="hidden lg:flex items-center space-x-1">
+              <button
+                onClick={() => setIsChatExpanded(!isChatExpanded)}
+                className={`px-2 py-1 rounded text-xs font-medium transition-all ${
+                  isChatExpanded 
+                    ? 'bg-indigo-500 text-white' 
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                Chat
+              </button>
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                {uniqueProducts.length}
+              </span>
+            </div>
+
+            {/* Mobile toggle */}
+            <div className="flex lg:hidden">
+              <div className="flex bg-slate-100 dark:bg-slate-700 rounded p-0.5">
+                <button
+                  onClick={() => setActiveView('products')}
+                  className={`px-2 py-1 rounded text-xs font-medium transition-all flex items-center space-x-1 ${
+                    activeView === 'products'
+                      ? 'bg-white dark:bg-slate-600 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  <span>Products</span>
+                  {uniqueProducts.length > 0 && (
+                    <span className="bg-indigo-500 text-white text-xs px-1 py-0.5 rounded-full min-w-[1rem] h-4 flex items-center justify-center">
+                      {uniqueProducts.length}
+                    </span>
+                  )}
+                </button>
+                
+                <button
+                  onClick={() => setActiveView('chat')}
+                  className={`px-2 py-1 rounded text-xs font-medium transition-all flex items-center space-x-1 ${
+                    activeView === 'chat'
+                      ? 'bg-white dark:bg-slate-600 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  <span>Chat</span>
+                  {messages.length > 0 && (
+                    <span className="bg-green-500 text-white text-xs px-1 py-0.5 rounded-full min-w-[1rem] h-4 flex items-center justify-center">
+                      {messages.filter(m => m.role === 'assistant').length}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+            
+          </div>
+        </div>
+      </div>
+
+      {/* Main content area */}
+      <div className="flex-1 flex min-h-0">
+        
+        {/* Desktop layout */}
+        <div className="hidden lg:flex w-full">
+          {/* Chat Panel - Collapsible */}
+          {isChatExpanded && (
+            <div className="w-[380px] flex-shrink-0 border-r border-slate-200 dark:border-slate-700">
+              <ChatPanel
+                messages={messages}
+                input={input}
+                isLoading={isLoading}
+                searchLinksData={searchLinksData}
+                onInputChange={setInput}
+                onSendMessage={sendMessage}
+              />
+            </div>
+          )}
+
+          {/* Products Panel */}
+          <div className="flex-1 min-w-0">
+            <ProductPanel
+              products={uniqueProducts}
+              selectedPriceBucket={selectedPriceBucket}
+              selectedBrand={selectedBrand}
+              onPriceBucketChange={setSelectedPriceBucket}
+              onBrandChange={setSelectedBrand}
+              onClearAll={clearAllProducts}
+              onRemoveProduct={removeProduct}
+              isExpanded={!isChatExpanded}
+              onToggleExpand={() => setIsChatExpanded(!isChatExpanded)}
+            />
+          </div>
+        </div>
+
+        {/* Mobile layout */}
+        <div className="flex lg:hidden w-full">
+          {activeView === 'products' ? (
+            <div className="w-full">
+              <ProductPanel
+                products={uniqueProducts}
+                selectedPriceBucket={selectedPriceBucket}
+                selectedBrand={selectedBrand}
+                onPriceBucketChange={setSelectedPriceBucket}
+                onBrandChange={setSelectedBrand}
+                onClearAll={clearAllProducts}
+                onRemoveProduct={removeProduct}
+                isExpanded={true}
+                onToggleExpand={() => {}}
+              />
+            </div>
+          ) : (
+            <div className="w-full">
+              <ChatPanel
+                messages={messages}
+                input={input}
+                isLoading={isLoading}
+                searchLinksData={searchLinksData}
+                onInputChange={setInput}
+                onSendMessage={sendMessage}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

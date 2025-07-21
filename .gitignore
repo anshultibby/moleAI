@@ -161,4 +161,7 @@ pids
 .fusebox/
 
 # DynamoDB Local files
-.dynamodb/ 
+.dynamodb/
+
+# Debug artifacts
+debug/ 

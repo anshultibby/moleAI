@@ -10,10 +10,105 @@ interface ChatPanelProps {
   onSendMessage: () => void
 }
 
-// Helper function to make links clickable in text
+// Helper function to make links clickable in text and handle italic formatting
 function makeLinksClickable(text: string) {
-  const urlRegex = /\[([^\]]+)\]\(([^)]+)\)/g
-  return text.replace(urlRegex, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-600 underline">$1</a>')
+  // First handle markdown-style links [text](url)
+  let result = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-600 underline">$1</a>')
+  
+  // Handle italic text with asterisks *text*
+  result = result.replace(/\*([^*]+)\*/g, '<em class="italic text-slate-700 dark:text-slate-300">$1</em>')
+  
+  // Handle bold text with double asterisks **text**
+  result = result.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-slate-800 dark:text-slate-200">$1</strong>')
+  
+  return result
+}
+
+// Component for rendering different message types
+function MessageContent({ message, searchLinksData }: { message: Message, searchLinksData: SearchLinksData[] }) {
+  if (message.type === 'reasoning') {
+    return (
+      <div className="text-xs sm:text-sm leading-relaxed">
+        <div className="flex items-center mb-1 sm:mb-2">
+          <span className="text-base sm:text-lg mr-1 sm:mr-2">🧠</span>
+          <span className="font-semibold text-blue-700 dark:text-blue-300 text-xs sm:text-sm">AI Reasoning</span>
+        </div>
+        <div 
+          className="text-slate-700 dark:text-slate-300"
+          dangerouslySetInnerHTML={{ __html: message.content }}
+        />
+      </div>
+    )
+  }
+
+  if (message.type === 'search_links') {
+    return (
+      <div className="text-xs sm:text-sm leading-relaxed">
+        <div className="flex items-center mb-1 sm:mb-2">
+          <span className="text-base sm:text-lg mr-1 sm:mr-2">🔍</span>
+          <span className="font-semibold text-green-700 dark:text-green-300 text-xs sm:text-sm">Search Results</span>
+        </div>
+        <div className="text-slate-700 dark:text-slate-300 mb-2 sm:mb-3">{message.content}</div>
+        
+        {/* Compact link tabs */}
+        <div className="flex flex-wrap gap-1 sm:gap-2">
+          {searchLinksData.flatMap((linkData: SearchLinksData) => 
+            linkData.links.slice(0, 6).map((link, linkIndex: number) => (
+              <button
+                key={`${linkData.id}-${linkIndex}`}
+                onClick={() => {
+                  try {
+                    // Validate URL before opening
+                    const url = new URL(link.url)
+                    if (url.protocol === 'http:' || url.protocol === 'https:') {
+                      window.open(link.url, '_blank', 'noopener,noreferrer')
+                    } else {
+                      console.warn('Invalid URL protocol:', link.url)
+                    }
+                  } catch (error) {
+                    console.warn('Invalid URL:', link.url, error)
+                    // Try fallback to homepage if available
+                    if (link.domain) {
+                      window.open(`https://${link.domain}`, '_blank', 'noopener,noreferrer')
+                    }
+                  }
+                }}
+                className="px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs bg-white dark:bg-slate-600 border border-green-300 dark:border-slate-400 rounded hover:bg-green-100 dark:hover:bg-slate-500 transition-colors"
+                title={link.title || `Visit ${link.domain}`}
+              >
+                {link.domain ? link.domain.replace('.myshopify.com', '').replace('www.', '') : 'Store'}
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  if (message.type === 'progress') {
+    return (
+      <div className="text-xs sm:text-sm leading-relaxed">
+        <div className="flex items-center mb-1 sm:mb-2">
+          <span className="text-base sm:text-lg mr-1 sm:mr-2">⚡</span>
+          <span className="font-semibold text-orange-700 dark:text-orange-300 text-xs sm:text-sm">Progress Update</span>
+        </div>
+        <div 
+          className="text-slate-600 dark:text-slate-400"
+          dangerouslySetInnerHTML={{ __html: makeLinksClickable(message.content) }}
+        />
+      </div>
+    )
+  }
+
+  // Default message content
+  return (
+    <div 
+      className="text-xs sm:text-sm leading-relaxed text-slate-900 dark:text-slate-100"
+      dangerouslySetInnerHTML={{ 
+        __html: message.role === 'assistant' ? makeLinksClickable(message.content) : message.content 
+      }}
+    />
+  )
 }
 
 export default function ChatPanel({
@@ -43,46 +138,27 @@ export default function ChatPanel({
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-r border-slate-200/60 dark:border-slate-600/60">
-      {/* Chat Header - Enhanced with gradient and better typography */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-700 dark:to-purple-700 shadow-elegant-lg">
-        <div className="px-6 py-6">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-              <span className="text-2xl">🛒</span>
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-white">
-                Shopping Assistant
-              </h1>
-              <p className="text-indigo-100 text-sm font-medium">
-                Discover amazing fashion deals with AI
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Chat Messages - Enhanced spacing and design */}
+      {/* Chat Messages - Fixed spacing and layout */}
       <div className="flex-1 overflow-y-auto scrollbar-thin bg-gradient-to-b from-slate-50/50 to-white dark:from-slate-800/50 dark:to-slate-900">
-        <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+        <div className="max-w-2xl mx-auto px-3 sm:px-4 py-4 sm:py-2">
           {messages.length === 0 && (
             <div className="text-center pt-12 pb-8">
               {/* Enhanced empty state with better visuals */}
               <div className="mb-8 relative">
-                <div className="w-20 h-20 mx-auto bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-elegant-lg">
+                <div className="w-20 h-20 mx-auto bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
                   <span className="text-3xl">💬</span>
                 </div>
-                <div className="absolute -top-2 -right-2 w-6 h-6 bg-yellow-400 rounded-full animate-pulse-glow"></div>
+                <div className="absolute -top-2 -right-2 w-6 h-6 bg-yellow-400 rounded-full animate-pulse"></div>
               </div>
               
-              <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200 mb-3 gradient-text">
+              <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200 mb-3">
                 Let's find your perfect style!
               </h3>
               <p className="text-slate-600 dark:text-slate-400 mb-8 text-lg">
                 Ask me anything about fashion and I'll find the best deals for you
               </p>
               
-              <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-6 shadow-elegant">
+              <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
                 <p className="text-slate-700 dark:text-slate-300 font-medium mb-4">
                   ✨ Try asking me:
                 </p>
@@ -109,137 +185,68 @@ export default function ChatPanel({
             </div>
           )}
 
-          {messages.map((message, index) => (
-            <div key={index} className="group">
-              <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-xs lg:max-w-md ${message.role === 'user' ? 'order-2' : 'order-1'}`}>
-                  {/* Message bubble with enhanced styling - different styles for different types */}
-                  <div
-                    className={`px-5 py-3 rounded-2xl shadow-elegant ${
-                      message.role === 'user'
-                        ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white ml-4'
-                        : message.type === 'reasoning'
-                        ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-600 border border-blue-200 dark:border-slate-500 mr-4'
-                        : message.type === 'search_links'
-                        ? 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-slate-700 dark:to-slate-600 border border-green-200 dark:border-slate-500 mr-4'
-                        : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-600 mr-4'
-                    }`}
-                  >
-                    {message.type === 'reasoning' ? (
-                      <div className="text-sm leading-relaxed">
-                        <div className="flex items-center mb-2">
-                          <span className="text-lg mr-2">🧠</span>
-                          <span className="font-semibold text-blue-700 dark:text-blue-300">AI Reasoning</span>
-                        </div>
-                        <div 
-                          className="reasoning-display"
-                          dangerouslySetInnerHTML={{ __html: message.content }}
-                        />
-                        <style jsx>{`
-                          .reasoning-display .reasoning-step {
-                            margin: 8px 0;
-                            padding-left: 16px;
-                            border-left: 2px solid #3b82f6;
-                          }
-                          .reasoning-display .reasoning-conclusion {
-                            margin: 12px 0;
-                            padding: 8px;
-                            background: rgba(59, 130, 246, 0.1);
-                            border-radius: 6px;
-                          }
-                          .reasoning-display .reasoning-confidence {
-                            margin: 8px 0;
-                            font-size: 12px;
-                            opacity: 0.8;
-                          }
-                        `}</style>
-                      </div>
-                    ) : message.type === 'search_links' ? (
-                      <div className="text-sm leading-relaxed">
-                        <div className="flex items-center mb-2">
-                          <span className="text-lg mr-2">🔍</span>
-                          <span className="font-semibold text-green-700 dark:text-green-300">Search Results</span>
-                        </div>
-                        <div>{message.content}</div>
-                                                 {/* Add compact link tabs */}
-                         <div className="mt-2 flex flex-wrap gap-1">
-                           {searchLinksData.flatMap((linkData: SearchLinksData) => 
-                             linkData.links.slice(0, 6).map((link, linkIndex: number) => (
-                               <button
-                                 key={`${linkData.id}-${linkIndex}`}
-                                 onClick={() => window.open(link.url, '_blank')}
-                                 className="px-2 py-1 text-xs bg-white dark:bg-slate-600 border border-green-300 dark:border-slate-400 rounded-md hover:bg-green-100 dark:hover:bg-slate-500 transition-colors"
-                                 title={link.title}
-                               >
-                                 {link.domain || new URL(link.url).hostname.replace('www.', '')}
-                               </button>
-                             ))
-                           )}
-                         </div>
-                      </div>
-                    ) : (
-                      <div 
-                        className="text-sm leading-relaxed"
-                        dangerouslySetInnerHTML={{ 
-                          __html: message.role === 'assistant' ? makeLinksClickable(message.content) : message.content 
-                        }}
-                      />
-                    )}
-                  </div>
-                  
-                  {/* Timestamp */}
-                  <p className={`text-xs mt-2 px-1 ${
-                    message.role === 'user' 
-                      ? 'text-slate-500 dark:text-slate-400 text-right mr-4' 
-                      : 'text-slate-500 dark:text-slate-400 ml-4'
-                  }`}>
-                    {new Date(message.timestamp).toLocaleTimeString([], { 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
-                    })}
-                  </p>
-                </div>
-                
+          {/* Messages with proper spacing */}
+          <div className="space-y-4 sm:space-y-6">
+            {messages.map((message, index) => (
+              <div key={index} className="flex items-start space-x-2 sm:space-x-3">
                 {/* Avatar */}
-                <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${
+                <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex-shrink-0 flex items-center justify-center ${
                   message.role === 'user' 
-                    ? 'order-1 bg-slate-300 dark:bg-slate-600 ml-3' 
-                    : 'order-2 bg-gradient-to-br from-indigo-500 to-purple-600 mr-3'
+                    ? 'bg-slate-300 dark:bg-slate-600' 
+                    : 'bg-gradient-to-br from-indigo-500 to-purple-600'
                 }`}>
-                  <span className="text-sm">
+                  <span className="text-xs sm:text-sm">
                     {message.role === 'user' ? '👤' : '🤖'}
                   </span>
                 </div>
-              </div>
-            </div>
-          ))}
 
-          {isLoading && (
-            <div className="flex justify-start group">
-              <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 mr-3">
-                <span className="text-sm">🤖</span>
-              </div>
-              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 max-w-xs px-5 py-3 rounded-2xl shadow-elegant">
-                <div className="flex items-center space-x-3">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                {/* Message Content */}
+                <div className="flex-1 min-w-0">
+                  <div className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl ${
+                    message.role === 'user'
+                      ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white ml-auto max-w-xs sm:max-w-sm'
+                      : message.type === 'reasoning'
+                      ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-600 border border-blue-200 dark:border-slate-500'
+                      : message.type === 'search_links'
+                      ? 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-slate-700 dark:to-slate-600 border border-green-200 dark:border-slate-500'
+                      : message.type === 'progress'
+                      ? 'bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-slate-700 dark:to-slate-600 border border-orange-200 dark:border-slate-500'
+                      : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 shadow-sm'
+                  }`}>
+                    <MessageContent message={message} searchLinksData={searchLinksData} />
                   </div>
-                  <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">Finding amazing deals...</span>
                 </div>
               </div>
-            </div>
-          )}
+            ))}
+
+            {/* Loading indicator */}
+            {isLoading && (
+              <div className="flex items-start space-x-2 sm:space-x-3">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
+                  <span className="text-xs sm:text-sm">🤖</span>
+                </div>
+                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-sm">
+                  <div className="flex items-center space-x-2 sm:space-x-3">
+                    <div className="flex space-x-1">
+                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-indigo-500 rounded-full animate-bounce"></div>
+                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    </div>
+                    <span className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium">Finding deals...</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           <div ref={messagesEndRef} />
         </div>
       </div>
 
       {/* Chat Input - Enhanced with modern styling */}
-      <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border-t border-slate-200/60 dark:border-slate-600/60 p-4">
+      <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border-t border-slate-200/60 dark:border-slate-600/60 p-3 sm:p-4">
         <div className="max-w-2xl mx-auto">
-          <div className="flex space-x-3">
+          <div className="flex space-x-2 sm:space-x-3">
             <div className="flex-1 relative">
               <input
                 type="text"
@@ -247,15 +254,15 @@ export default function ChatPanel({
                 onChange={(e) => onInputChange(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Ask me to find clothing deals..."
-                className="w-full px-4 py-3 pr-12 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:text-white text-sm font-medium placeholder-slate-500 dark:placeholder-slate-400 transition-all"
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 pr-10 sm:pr-12 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:text-white text-sm font-medium placeholder-slate-500 dark:placeholder-slate-400 transition-all"
                 disabled={isLoading}
               />
               {input && (
                 <button
                   onClick={() => onInputChange('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                  className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
@@ -264,16 +271,16 @@ export default function ChatPanel({
             <button
               onClick={onSendMessage}
               disabled={!input.trim() || isLoading}
-              className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 disabled:from-slate-400 disabled:to-slate-500 text-white rounded-xl font-medium text-sm shadow-elegant disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 disabled:transform-none flex items-center space-x-2"
+              className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 disabled:from-slate-400 disabled:to-slate-500 text-white rounded-lg sm:rounded-xl font-medium text-sm shadow-lg disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 disabled:transform-none flex items-center space-x-1 sm:space-x-2"
             >
               {isLoading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  <span>Sending</span>
+                  <span className="hidden sm:inline">Sending</span>
                 </>
               ) : (
                 <>
-                  <span>Send</span>
+                  <span className="hidden sm:inline">Send</span>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                   </svg>

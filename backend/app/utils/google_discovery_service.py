@@ -11,6 +11,14 @@ from urllib.parse import urlparse
 import time
 from dotenv import load_dotenv
 
+# Import progress streaming function
+try:
+    from .gemini_tools_converter import stream_progress_update
+except ImportError:
+    # Fallback if import fails
+    def stream_progress_update(message: str):
+        print(message)
+
 load_dotenv()
 
 class GoogleDiscoveryService:
@@ -27,6 +35,8 @@ class GoogleDiscoveryService:
         Discover Shopify store domains using Google CSE with fallback
         Returns list of unique domain names that are actually accessible
         """
+        print(f"🔍 Discovering Shopify stores for '{keyword}'...")
+        
         # Phase 1: Try Google CSE discovery
         validated_domains = self._discover_via_google_cse(keyword, max_results)
         
@@ -48,6 +58,7 @@ class GoogleDiscoveryService:
             
             return unique_domains[:max_results]
         
+        print(f"✅ Discovery complete: {len(validated_domains)} stores found")
         return validated_domains
 
     def _discover_via_google_cse(self, keyword: str, max_results: int) -> List[str]:
@@ -56,14 +67,14 @@ class GoogleDiscoveryService:
         
         # Expanded search strategies to find diverse stores
         search_queries = [
-            f"{keyword} site:myshopify.com",
-            f"{keyword} inurl:collections site:myshopify.com", 
-            f"{keyword} shop site:myshopify.com",
-            f"buy {keyword} site:myshopify.com",
-            f"{keyword} store site:myshopify.com",
-            f"{keyword} online shop site:myshopify.com",
-            f"best {keyword} site:myshopify.com",
-            f"{keyword} boutique site:myshopify.com"
+            f"{keyword}",
+            f"{keyword} inurl:collections", 
+            f"{keyword} shop",
+            f"buy {keyword}",
+            f"{keyword} store",
+            f"{keyword} online shop",
+            f"best {keyword}",
+            f"{keyword} boutique"
         ]
         
         # Try broader related terms too
@@ -83,7 +94,7 @@ class GoogleDiscoveryService:
             
             expansions = category_expansions.get(keyword.lower(), [])
             for expansion in expansions[:2]:  # Limit to avoid too many queries
-                search_queries.append(f"{expansion} site:myshopify.com")
+                search_queries.append(f"{expansion}")
         
         print(f"🔍 Running {len(search_queries)} Google CSE queries to find diverse stores...")
         
@@ -268,7 +279,7 @@ class GoogleDiscoveryService:
         import requests
         
         print(f"🔍 Validating {len(candidate_domains)} discovered domains...")
-        print(f"📋 Candidate domains: {candidate_domains}")
+        print(f"⏱️  This may take 10-20 seconds...")
         
         validated_domains = []
         filtered_domains = {
@@ -283,75 +294,55 @@ class GoogleDiscoveryService:
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
         })
         
+        # Show progress every 5 domains
+        progress_interval = 5
+        
         for i, domain in enumerate(candidate_domains):
             if len(validated_domains) >= max_results:
                 print(f"   ✋ Stopping validation - reached max_results ({max_results})")
                 break
+            
+            # Show progress
+            if (i + 1) % progress_interval == 0 or i == 0:
+                print(f"   📊 Progress: {i+1}/{len(candidate_domains)} domains checked, {len(validated_domains)} valid so far...")
                 
             try:
                 # Test products.json endpoint (most reliable test for Shopify)
                 test_url = f"https://{domain}/products.json"
-                response = session.head(test_url, timeout=8)  # Increased timeout
+                response = session.head(test_url, timeout=5)  # Reduced timeout for speed
                 
                 if response.status_code in [200, 301, 302]:
                     validated_domains.append(domain)
-                    print(f"   ✅ {i+1}/{len(candidate_domains)}: {domain} - ACCESSIBLE ({response.status_code})")
+                    stream_progress_update(f"   ✅ *{domain}* - ACCESSIBLE")  # Stream validated domains in italics
                 else:
                     filtered_domains['not_accessible'].append((domain, response.status_code))
-                    print(f"   ❌ {i+1}/{len(candidate_domains)}: {domain} - NOT ACCESSIBLE ({response.status_code})")
+                    # Only print failures for first few to avoid spam
+                    if len(filtered_domains['not_accessible']) <= 3:
+                        print(f"   ❌ {i+1}: {domain} - NOT ACCESSIBLE ({response.status_code})")
                 
             except requests.exceptions.ConnectionError as e:
                 filtered_domains['connection_failed'].append((domain, str(e)))
-                print(f"   ❌ {i+1}/{len(candidate_domains)}: {domain} - CONNECTION FAILED: {e}")
+                if len(filtered_domains['connection_failed']) <= 3:
+                    print(f"   ❌ {i+1}: {domain} - CONNECTION FAILED")
             except requests.exceptions.Timeout as e:
                 filtered_domains['timeout'].append((domain, str(e)))
-                print(f"   ⏰ {i+1}/{len(candidate_domains)}: {domain} - TIMEOUT: {e}")
+                if len(filtered_domains['timeout']) <= 3:
+                    print(f"   ⏰ {i+1}: {domain} - TIMEOUT")
             except Exception as e:
                 filtered_domains['other_errors'].append((domain, str(e)))
-                print(f"   ❌ {i+1}/{len(candidate_domains)}: {domain} - ERROR: {e}")
+                if len(filtered_domains['other_errors']) <= 3:
+                    print(f"   ❌ {i+1}: {domain} - ERROR")
             
-            # Rate limiting to be respectful
-            time.sleep(0.2)  # Slightly faster
+            # Faster rate limiting
+            time.sleep(0.1)  # Reduced from 0.2
         
-        # Detailed filtering summary
+        # Summarized filtering report
         total_filtered = sum(len(filtered_list) for filtered_list in filtered_domains.values())
-        print(f"\n📊 Filtering Summary:")
-        print(f"   ✅ Validated: {len(validated_domains)}")
-        print(f"   🚫 Filtered out: {total_filtered}")
+        print(f"📊 Validation complete: {len(validated_domains)} valid, {total_filtered} filtered out")
         
-        if filtered_domains['connection_failed']:
-            print(f"   🔌 Connection failed ({len(filtered_domains['connection_failed'])}):")
-            for domain, error in filtered_domains['connection_failed'][:3]:  # Show first 3
-                print(f"      - {domain}: {error}")
-            if len(filtered_domains['connection_failed']) > 3:
-                print(f"      ... and {len(filtered_domains['connection_failed']) - 3} more")
+        if validated_domains:
+            stream_progress_update(f"🎉 **Validated stores:** {', '.join([f'*{domain}*' for domain in validated_domains])}")  # Stream all validated in italics
         
-        if filtered_domains['not_accessible']:
-            print(f"   🚫 Not accessible ({len(filtered_domains['not_accessible'])}):")
-            for domain, status in filtered_domains['not_accessible'][:3]:  # Show first 3
-                print(f"      - {domain}: HTTP {status}")
-            if len(filtered_domains['not_accessible']) > 3:
-                print(f"      ... and {len(filtered_domains['not_accessible']) - 3} more")
-        
-        if filtered_domains['timeout']:
-            print(f"   ⏰ Timeouts ({len(filtered_domains['timeout'])}):")
-            for domain, error in filtered_domains['timeout'][:3]:  # Show first 3
-                print(f"      - {domain}")
-            if len(filtered_domains['timeout']) > 3:
-                print(f"      ... and {len(filtered_domains['timeout']) - 3} more")
-        
-        # Check for potentially over-filtered domains
-        potentially_valid = []
-        for domain, status in filtered_domains['not_accessible']:
-            if status in [403, 401, 503]:  # These might be temporarily blocked but valid stores
-                potentially_valid.append((domain, status))
-        
-        if potentially_valid:
-            print(f"   ⚠️  Potentially over-filtered ({len(potentially_valid)} domains with 403/401/503):")
-            for domain, status in potentially_valid[:3]:
-                print(f"      - {domain}: HTTP {status} (might be blocking bots but is a valid store)")
-        
-        print(f"✅ Final: {len(validated_domains)} domains validated as accessible")
         return validated_domains
 
     def _get_fallback_shopify_domains(self, keyword: str) -> List[str]:

@@ -3,6 +3,7 @@ from fastapi.responses import StreamingResponse
 from datetime import datetime
 from ..models.chat import ChatMessage, ChatResponse
 from ..utils.shopping_pipeline import process_shopping_query_with_tools, preprocess_shopping_query
+from ..utils.shopping_pipeline_v2 import process_shopping_query_simple
 import os
 import json
 from dotenv import load_dotenv
@@ -14,6 +15,7 @@ router = APIRouter()
 
 # Get API keys
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY")
 
 # Simple in-memory storage for demo (replace with proper database later)
@@ -171,4 +173,40 @@ async def process_shopping_query_with_tools_streaming(query: str, api_key: str):
         yield {"type": "chat_response", "message": final_chat_response}
         
     except Exception as e:
-        yield {"type": "error", "message": str(e)} 
+        yield {"type": "error", "message": str(e)}
+
+@router.post("/chat/simple")
+async def simple_chat(message: ChatMessage):
+    """
+    Simple chat using standard OpenAI conversation history pattern
+    """
+    async def generate_stream():
+        try:
+            # Check API keys
+            if not OPENAI_API_KEY:
+                yield f"data: {json.dumps({'type': 'error', 'message': 'OpenAI API key not configured'})}\n\n"
+                return
+            
+            # Send initial message
+            yield f"data: {json.dumps({'type': 'start', 'message': 'Starting search...'})}\n\n"
+            
+            # Process query with the new simplified pipeline
+            for update in process_shopping_query_simple(message.message, OPENAI_API_KEY):
+                yield f"data: {json.dumps(update)}\n\n"
+            
+            # Send completion
+            yield f"data: {json.dumps({'type': 'complete'})}\n\n"
+            
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+    
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/plain",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*"
+        }
+    ) 

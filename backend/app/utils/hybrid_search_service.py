@@ -136,7 +136,7 @@ class HybridSearchService:
         print(f"🏪 Pure Shopify search: '{query}'")
         
         # Discover and search Shopify stores
-        stores = self.discovery.discover_shopify_stores(query, max_results=12)
+        stores = self.discovery.discover_shopify_stores(query, max_results=20)
         
         if stores:
             products = search_multiple_stores(stores, query, max_results)

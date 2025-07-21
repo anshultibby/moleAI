@@ -44,6 +44,40 @@ body {
   line-height: 1.6;
 }
 
+/* Mobile-specific optimizations */
+@media (max-width: 640px) {
+  /* Improve touch targets */
+  button, .cursor-pointer {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better text sizing on mobile */
+  body {
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+  
+  /* Smooth scroll for horizontal product lists */
+  .snap-x {
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .snap-start {
+    scroll-snap-align: start;
+  }
+  
+  /* Hide scrollbars on mobile for cleaner look */
+  .mobile-scroll-hidden {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .mobile-scroll-hidden::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* Enhanced scrollbar */
 .scrollbar-thin::-webkit-scrollbar {
   width: 6px;
@@ -218,6 +252,20 @@ body {
   }
 }
 
+/* Mobile touch feedback */
+@media (max-width: 640px) {
+  .product-card-hover:active {
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
+  }
+  
+  /* Better button feedback on mobile */
+  button:active {
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
+  }
+}
+
 /* Image loading placeholder animation */
 @keyframes shimmer {
   0% {
@@ -238,5 +286,27 @@ body {
   .image-loading {
     background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
     background-size: 400% 100%;
+  }
+}
+
+/* Toggle widget styles */
+.toggle-widget {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Smooth view transitions */
+.view-transition {
+  transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+/* Safe area support for mobile devices */
+@supports (padding: max(0px)) {
+  .safe-area-top {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
 } 

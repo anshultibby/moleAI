@@ -19,8 +19,46 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
     setImageError(true)
   }
 
+  // Extract store name from URL
+  const getStoreName = () => {
+    if (product.store && product.store !== 'Unknown Store' && product.store !== 'unknown') {
+      return product.store
+    }
+    
+    // Extract from product URL
+    if (product.product_url) {
+      try {
+        const url = new URL(product.product_url)
+        const hostname = url.hostname.toLowerCase()
+        
+        // Remove common prefixes and suffixes
+        let storeName = hostname
+          .replace(/^(www\.|shop\.|store\.)/, '')
+          .replace(/\.(com|net|org|co\.uk|myshopify\.com)$/, '')
+          .replace(/\.myshopify$/, '')
+        
+        // Capitalize first letter
+        storeName = storeName.charAt(0).toUpperCase() + storeName.slice(1)
+        
+        // Handle special cases
+        if (hostname.includes('myshopify.com')) {
+          const shopName = hostname.split('.myshopify.com')[0]
+          return shopName.charAt(0).toUpperCase() + shopName.slice(1)
+        }
+        
+        return storeName
+      } catch (e) {
+        return 'Online Store'
+      }
+    }
+    
+    return 'Store'
+  }
+
   const getImageUrl = (url?: string) => {
-    if (!url) return null
+    if (!url || url.includes('example.com')) {
+      return null
+    }
     
     // Handle different store image URL formats
     if (url.includes('zara')) {
@@ -33,29 +71,10 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
     
     // Handle H&M images
     if (url.includes('hm.com') || url.includes('h&m')) {
-      // H&M images usually work as-is, but we can add quality params if needed
       if (!url.includes('$')) {
         const separator = url.includes('?') ? '&' : '?'
         return url + separator + '$quality$=80&wid=300&hei=400'
       }
-    }
-    
-    // Handle Uniqlo images
-    if (url.includes('uniqlo')) {
-      // Uniqlo images usually work well as-is
-      return url
-    }
-    
-    // Handle ASOS images
-    if (url.includes('asos')) {
-      // ASOS images usually work well as-is
-      return url
-    }
-    
-    // Handle Forever 21 images
-    if (url.includes('forever21')) {
-      // Forever 21 images usually work well as-is
-      return url
     }
     
     // Handle relative URLs
@@ -64,22 +83,16 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
     }
     
     if (url.startsWith('/')) {
-      // Try to infer the store from the product's store field
-      const storeName = product.store?.toLowerCase() || ''
-      if (storeName.includes('zara')) {
-        return 'https://www.zara.com' + url
-      } else if (storeName.includes('h&m') || storeName.includes('hm')) {
-        return 'https://www2.hm.com' + url
-      } else if (storeName.includes('uniqlo')) {
-        return 'https://www.uniqlo.com' + url
-      } else if (storeName.includes('forever')) {
-        return 'https://www.forever21.com' + url
-      } else if (storeName.includes('asos')) {
-        return 'https://www.asos.com' + url
-      } else {
-        // Fallback to a generic domain
-        return 'https://example.com' + url
+      // Try to infer the store from the product's URL
+      if (product.product_url) {
+        try {
+          const baseUrl = new URL(product.product_url).origin
+          return baseUrl + url
+        } catch (e) {
+          return null
+        }
       }
+      return null
     }
     
     return url
@@ -124,7 +137,8 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
   }
 
   const handleCardClick = () => {
-    if (product.product_url) {
+    // Always link to the actual product, never to example.com
+    if (product.product_url && !product.product_url.includes('example.com')) {
       window.open(product.product_url, '_blank', 'noopener,noreferrer')
     }
   }
@@ -136,24 +150,24 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
 
   const imageUrl = getImageUrl(product.image_url)
   const displayName = getProductDisplayName()
-  const category = getProductCategory()
+  const storeName = getStoreName()
 
   return (
     <div 
-      className="group bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:shadow-md border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-200 cursor-pointer min-w-[250px] max-w-[250px] flex-shrink-0 h-[360px] flex flex-col"
+      className="group bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:shadow-md border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-200 cursor-pointer w-[140px] sm:w-[160px] lg:w-[180px] flex-shrink-0 h-[180px] sm:h-[220px] flex flex-col relative active:scale-95 sm:active:scale-100"
       onClick={handleCardClick}
     >
-      {/* Remove button */}
+      {/* Remove button - Smaller and subtle */}
       <button
         onClick={handleRemoveClick}
-        className="absolute top-2 right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs transition-all z-10 opacity-0 group-hover:opacity-100"
+        className="absolute top-1 right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs transition-all z-10 opacity-70 group-hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
         title="Remove"
       >
         ×
       </button>
 
-      {/* Image section - Fixed height */}
-      <div className="relative bg-gray-50 dark:bg-slate-700 h-48 flex-shrink-0">
+      {/* Image section - More compact */}
+      <div className="relative bg-gray-50 dark:bg-slate-700 h-20 sm:h-28 flex-shrink-0">
         {imageUrl ? (
           <>
             <img
@@ -165,80 +179,50 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
               loading="lazy"
             />
             {imageLoading && !imageError && (
-              <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-600 image-loading">
+              <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-600">
                 <div className="text-center">
-                  <span className="text-gray-400 text-3xl block mb-2">👗</span>
-                  <span className="text-gray-500 text-sm">Loading...</span>
+                  <span className="text-gray-400 text-lg sm:text-xl block">👗</span>
                 </div>
               </div>
             )}
             {imageError && (
               <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-600">
                 <div className="text-center">
-                  <span className="text-gray-400 text-3xl block mb-2">👗</span>
-                  <span className="text-gray-500 text-sm">Image not available</span>
+                  <span className="text-gray-400 text-lg sm:text-xl block">👗</span>
                 </div>
               </div>
             )}
           </>
         ) : (
-          <div className="image-placeholder w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-600">
+          <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-600">
             <div className="text-center">
-              <span className="text-gray-400 text-3xl block mb-2">👗</span>
-              <span className="text-gray-500 text-sm">Image not available</span>
+              <span className="text-gray-400 text-lg sm:text-xl block">👗</span>
             </div>
-          </div>
-        )}
-
-        {/* Store badge */}
-        <div className="absolute top-2 left-2">
-          <span className="px-2 py-1 bg-white/90 dark:bg-slate-800/90 text-xs font-medium rounded text-slate-700 dark:text-slate-300">
-            {product.store || 'Zara'}
-          </span>
-        </div>
-
-        {/* Category badge */}
-        {category && (
-          <div className="absolute bottom-2 left-2">
-            <span className="px-2 py-1 bg-indigo-500/90 text-white text-xs font-medium rounded">
-              {category}
-            </span>
           </div>
         )}
       </div>
 
-      {/* Content section - Flexible height with consistent structure */}
-      <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-        <div className="flex-1 space-y-2">
-          {/* Product name - Fixed height area */}
-          <h3 className="font-semibold text-slate-900 dark:text-white text-sm line-clamp-2 leading-tight h-10 flex items-start">
-            {displayName}
-          </h3>
-          
-          {/* Description area - Fixed height whether content exists or not */}
-          <div className="h-8">
-            {product.description && product.description !== displayName && (
-              <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                {product.description}
-              </p>
-            )}
-          </div>
+      {/* Minimal content section */}
+      <div className="p-2 flex-1 flex flex-col justify-between">
+        {/* Store name */}
+        <div className="mb-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+            {storeName}
+          </p>
         </div>
         
-        {/* Price section - Always at bottom */}
-        <div className="flex items-center justify-between pt-2">
-          <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">
+        {/* Product name */}
+        <div className="flex-1">
+          <h3 className="font-medium text-slate-900 dark:text-white text-xs line-clamp-2 leading-tight">
+            {displayName}
+          </h3>
+        </div>
+        
+        {/* Price */}
+        <div className="mt-1">
+          <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400 truncate">
             {product.price || 'Price on request'}
           </p>
-          
-          {/* External link indicator */}
-          {product.product_url && (
-            <div className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-            </div>
-          )}
         </div>
       </div>
     </div>
