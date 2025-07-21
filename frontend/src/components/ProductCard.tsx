@@ -1,5 +1,6 @@
 import { Product } from '../types'
 import { useState } from 'react'
+import Image from 'next/image'
 
 interface ProductCardProps {
   product: Product
@@ -161,13 +162,13 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
       <div className="relative bg-gray-50 dark:bg-slate-700 h-32 sm:h-40 flex-shrink-0">
         {imageUrl ? (
           <>
-            <img
+            <Image
               src={imageUrl}
               alt={displayName}
-              className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+              fill
+              className={`object-cover transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
               onError={handleImageError}
               onLoad={handleImageLoad}
-              loading="lazy"
             />
             {imageLoading && !imageError && (
               <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-600">

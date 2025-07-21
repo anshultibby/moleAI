@@ -158,10 +158,10 @@ export default function ChatPanel({
               </div>
               
               <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200 mb-3">
-                Let's find your perfect style!
+                Let&apos;s find your perfect style!
               </h3>
               <p className="text-slate-600 dark:text-slate-400 mb-8 text-lg">
-                Ask me anything about fashion and I'll find the best deals for you
+                Ask me anything about fashion and I&apos;ll find the best deals for you
               </p>
               
               <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
@@ -181,9 +181,9 @@ export default function ChatPanel({
                       onClick={() => onInputChange(suggestion)}
                     >
                       <div className="w-2 h-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"></div>
-                      <span className="text-slate-700 dark:text-slate-300 text-sm font-medium">
-                        "{suggestion}"
-                      </span>
+                                        <span className="text-slate-700 dark:text-slate-300 text-sm font-medium">
+                    &quot;{suggestion}&quot;
+                  </span>
                     </div>
                   ))}
                 </div>

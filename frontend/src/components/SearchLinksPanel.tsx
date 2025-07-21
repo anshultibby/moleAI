@@ -57,7 +57,7 @@ export default function SearchLinksPanel({ searchLinksData, onRemove }: SearchLi
             <div>
               <h3 className="font-semibold text-lg">Search Results</h3>
               <p className="text-blue-100 text-sm">
-                Found {searchLinksData.total_results} results for "{searchLinksData.search_query}"
+                Found {searchLinksData.total_results} results for &quot;{searchLinksData.search_query}&quot;
               </p>
             </div>
           </div>
@@ -122,7 +122,7 @@ export default function SearchLinksPanel({ searchLinksData, onRemove }: SearchLi
                             key={highlightIndex}
                             className="text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300 px-2 py-1 rounded-full border border-yellow-200 dark:border-yellow-700"
                           >
-                            "{highlight.length > 50 ? highlight.substring(0, 50) + '...' : highlight}"
+                            &quot;{highlight.length > 50 ? highlight.substring(0, 50) + '...' : highlight}&quot;
                           </span>
                         ))}
                       </div>

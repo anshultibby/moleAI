@@ -81,7 +81,7 @@ export default function ProductPanel({
                 No products yet
               </h3>
               <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-lg leading-relaxed px-4">
-                Start chatting and I'll find amazing deals that match your style preferences
+                Start chatting and I&apos;ll find amazing deals that match your style preferences
               </p>
               
               <div className="mt-6 sm:mt-8 p-4 bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl border border-slate-200/60 dark:border-slate-600/60">
