@@ -78,7 +78,7 @@ class ToolExecutionService:
                 "should_continue": True,
                 "next_message": {
                     "role": "user", 
-                    "content": f"Search completed: {result}\n\n❌ No products found with current search terms. You MUST try multiple different approaches:\n\n🔄 REQUIRED NEXT STEPS:\n1. Try BROADER search terms (remove specific adjectives like colors, materials)\n2. Try ALTERNATIVE product names or categories\n3. Try DIFFERENT keyword combinations\n4. Remove or increase price restrictions\n5. Try SYNONYMS for the product type\n\n🎯 CONTINUE SEARCHING until you find products from at least 8-15 different websites/domains. Don't give up after one search!\n\nUse search_product again with different terms. Only use chat_message with is_final=true if you've tried at least 3-4 different search approaches and still found nothing."
+                    "content": f"Search completed: {result}\n\n❌ No products found with current search terms. Try ONE more relevant approach:\n\n🔄 NEXT STEPS:\n1. Try slightly BROADER but still relevant terms (e.g., if 'black leather jacket' found nothing, try 'leather jacket')\n2. Try ALTERNATIVE but related product names\n3. Consider slight price range adjustment if budget was very restrictive\n\n🎯 FOCUS ON RELEVANCE: Only try variations that would still match what the user actually wants. Better to show fewer highly relevant results than many loosely related ones.\n\nUse search_product ONE more time with a relevant variation, or use chat_message with is_final=true to explain the specific search challenge."
                 }
             }
         

@@ -101,40 +101,55 @@ class LLMProductFilter:
             # Create compact product list for LLM
             product_list = self._create_llm_product_list(products)
             
-            # ENHANCED FILTERING: Core requirements + accurate matching for specific criteria
-            prompt = f"""SMART FILTER for: "{query}"
+            # ENHANCED STRICT FILTERING: Zero tolerance for irrelevant results
+            prompt = f"""ULTRA-STRICT FILTER for: "{query}"
 
 {chr(10).join(product_list)}
 
-CRITICAL MATCHING RULES - Be ACCURATE on these specific criteria:
-1. **GENDER**: If query mentions "men's", "women's", "boys", "girls", "kids" - match EXACTLY
-   - "men's shoes" = only men's shoes, NOT women's or unisex
-   - "women's jacket" = only women's jacket, NOT men's or unisex  
-   - "kids clothes" = only children's items, NOT adult items
+🚨 CRITICAL STRICT MATCHING RULES - USER TRUST DEPENDS ON ACCURACY:
 
-2. **PRODUCT TYPE**: Must match the core category (dress, top, jacket, shoes, etc.)
-   - "jacket" should not include "pants" or "shoes"
-   - "dress" should not include "skirt" or "top"
+❌ IMMEDIATE REJECTION CRITERIA:
+- Wrong product category (if user asks for "shoes", don't include anything that isn't shoes)
+- Wrong gender (if "men's" is specified, zero women's items allowed)
+- Wrong material (if "leather" specified, no fabric/cotton items)
+- Wrong color (if "black" specified, no blue/red/other colors unless it's genuinely black)
+- Wrong size category (if "large" specified, no small/medium items)
 
-3. **COLOR**: If specific color mentioned, prefer exact matches but allow similar shades
-   - "black" = black, dark gray, charcoal (similar)
-   - "red" = red, burgundy, crimson (similar)
+✅ MANDATORY REQUIREMENTS:
+1. **EXACT PRODUCT TYPE MATCH**: Query must match the CORE product category
+   - "jacket" = ONLY jackets (no coats, blazers, sweaters unless explicitly jacket-like)
+   - "dress" = ONLY dresses (no skirts, tops, rompers)
+   - "headphones" = ONLY headphones (no earbuds unless specifically mentioned)
+   - "laptop" = ONLY laptops (no tablets, phones, accessories)
 
-4. **MATERIAL**: If material mentioned, prefer exact but allow reasonable alternatives
-   - "leather" = genuine leather preferred, faux leather acceptable
-   - "cotton" = 100% cotton preferred, cotton blends acceptable
+2. **GENDER PRECISION**: If gender specified, ZERO tolerance for wrong gender
+   - "men's" = ABSOLUTELY NO women's items (even if unisex)
+   - "women's" = ABSOLUTELY NO men's items (even if unisex)
+   - "kids" = ABSOLUTELY NO adult items
 
-5. **SIZE**: If size mentioned, only include products that have that size available
-   - "large" = only products with size L/Large available
-   - "size 8" = only products with size 8 available
+3. **COLOR ACCURACY**: If color specified, must be that exact color or very close shade
+   - "black" = only black, very dark gray, charcoal
+   - "white" = only white, off-white, cream
+   - "red" = only red, burgundy, crimson (no pink, orange)
 
-6. **STYLE & OCCASION**: Consider the context and intended use
-   - "formal" vs "casual" distinction matters
-   - "workout" vs "everyday" distinction matters
+4. **MATERIAL PRECISION**: If material specified, must contain that material
+   - "leather" = must be genuine or faux leather (no fabric)
+   - "cotton" = must contain cotton (not polyester, wool, etc.)
+   - "denim" = must be denim material
 
-Be PRECISE and ACCURATE on gender, size, and core product type. Focus on products a user would actually want and that match their specific requirements.
+5. **SIZE REQUIREMENTS**: If size mentioned, must have that size available
+   - Only include if the specific size is clearly available
 
-Return numbers of the BEST products that accurately match the user's intent (aim for 5-15 products):"""
+🎯 TRUST-BUILDING APPROACH:
+- Better to show 3-5 PERFECT matches than 15 mediocre ones
+- Users prefer fewer, highly relevant results over many irrelevant ones
+- If query is very specific, be extra strict on ALL criteria
+- Only include products you're confident the user would actually want
+
+⚠️ ZERO TOLERANCE POLICY:
+Reject any product that doesn't meet ALL specified criteria. User trust is more important than quantity.
+
+Return ONLY the numbers of products that PERFECTLY match all user requirements (aim for 3-8 highly relevant products):"""
 
             response = model.generate_content(prompt)
             
@@ -344,19 +359,21 @@ Return numbers of the BEST products that accurately match the user's intent (aim
         print(f"      Brands: {required_brands}")
         print(f"      Genders: {required_genders}")
         
-        # If no specific requirements, return all products (let LLM handle it)
-        if not any([required_colors, required_materials, required_sizes, required_brands, required_genders]):
-            print(f"   ✅ No specific requirements found - returning all {len(products)} products for LLM filtering")
-            return products
-        
-        # Be more lenient for most queries - only apply strict filtering for very specific multi-requirement queries
+        # LOOSE BASIC FILTERING: Let LLM handle the strict matching
         total_requirements = len(required_colors + required_materials + required_sizes + required_brands + required_genders)
-        if total_requirements <= 2:  # Allow up to 2 specific requirements before strict filtering
-            print(f"   ✅ Minimal requirements ({total_requirements}) - returning all {len(products)} products for LLM filtering")
+        
+        # If no specific requirements, return all products (let LLM handle strict filtering)
+        if total_requirements == 0:
+            print(f"   ✅ No specific requirements found - returning all {len(products)} products for strict LLM filtering")
             return products
         
-        # Only apply strict filtering for very specific queries
-        print(f"   🔍 Found multiple specific requirements - applying strict filtering")
+        # Only apply basic filtering for very specific multi-requirement queries
+        if total_requirements <= 2:  # Allow up to 2 specific requirements before basic filtering
+            print(f"   ✅ Minimal requirements ({total_requirements}) - returning all {len(products)} products for strict LLM filtering")
+            return products
+        
+        # Only apply basic filtering for very specific queries (3+ requirements)
+        print(f"   🔍 Found multiple specific requirements ({total_requirements}) - applying basic filtering")
         strict_products = []
         
         for product in products:
@@ -424,4 +441,36 @@ Return numbers of the BEST products that accurately match the user's intent (aim
                 print(f"   ❌ REJECT: {product.get('product_name', 'Unknown')[:40]}... ({rejection_reason})")
         
         print(f"   📊 STRICT basic filtering: {len(products)} → {len(strict_products)} products (only exact matches)")
-        return strict_products 
+        return strict_products
+    
+    def _apply_basic_keyword_filtering(self, products: List[Dict], query_words: List[str]) -> List[Dict]:
+        """Apply basic keyword filtering even when no specific requirements found"""
+        if not query_words:
+            return products
+            
+        filtered_products = []
+        
+        for product in products:
+            # Get searchable text
+            name = product.get('product_name', '').lower()
+            product_type = product.get('product_type', '').lower()
+            tags = ' '.join(product.get('tags', [])).lower()
+            description = product.get('description', '').lower()
+            vendor = product.get('vendor', '').lower()
+            
+            searchable_text = f"{name} {product_type} {tags} {description} {vendor}"
+            
+            # STRICT: Require at least 75% of query words to match
+            matched_words = sum(1 for word in query_words if word in searchable_text)
+            match_ratio = matched_words / len(query_words) if query_words else 0
+            
+            # Much stricter threshold: require 75% word match for most queries
+            min_ratio = 0.75 if len(query_words) > 1 else 1.0  # Single word must match exactly
+            
+            if match_ratio >= min_ratio:
+                filtered_products.append(product)
+            else:
+                print(f"   ❌ REJECT: {product.get('product_name', 'Unknown')[:40]}... (only {matched_words}/{len(query_words)} words matched)")
+        
+        print(f"   📊 Basic keyword filtering: {len(products)} → {len(filtered_products)} products (≥75% word match)")
+        return filtered_products 

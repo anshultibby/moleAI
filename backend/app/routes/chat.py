@@ -34,6 +34,11 @@ async def stream_chat(message: ChatMessage):
                 yield f"data: {json.dumps({'type': 'error', 'message': 'Gemini API key not configured'})}\n\n"
                 return
             
+            # Clear any previous streaming state before starting new query
+            from ..utils.streaming_service import get_streaming_service
+            streaming_service = get_streaming_service()
+            streaming_service.clear_queue()
+            
             # DON'T send start message - users want products not progress
             # yield f"data: {json.dumps({'type': 'start', 'message': 'Starting search...'})}\n\n"
             

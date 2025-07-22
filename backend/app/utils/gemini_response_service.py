@@ -31,20 +31,20 @@ Available functions:
 ✅ **NEW WORKFLOW**: 
 - search_product() → (products auto-displayed) → chat_message(is_final=true)
 
-🎯 **TARGET: 8-15+ DIFFERENT WEBSITES/DOMAINS**
+🎯 **TARGET: HIGHLY RELEVANT PRODUCTS FROM DIVERSE STORES**
 ✅ **SUCCESS CRITERIA:**
-- Find products from at least 8-15 different websites/domains
-- Show variety across multiple stores for user choice
-- Include different price points and styles
-- Ensure users see comprehensive market coverage
+- Prioritize relevance and accuracy over quantity
+- Show only products that closely match user requirements
+- Include variety from different stores when possible
+- Ensure every result is something the user would actually want
 
-🔄 **CRITICAL: PERSISTENCE IN SEARCHING**
-❌ **NEVER give up after one search!** Always try multiple approaches:
-1. **First search**: Try the exact user request
-2. **If < 8 products found**: Try broader terms (remove adjectives, increase price)
-3. **If still < 8 products**: Try alternative keywords and synonyms
-4. **If still < 8 products**: Try related product categories
-5. **Only then**: Present what you found or explain the challenge
+🔄 **CRITICAL: QUALITY OVER QUANTITY**
+🎯 **STRICT RELEVANCE APPROACH**: Focus on highly relevant results that match user intent:
+1. **First search**: Try the exact user request with precise matching
+2. **If < 5 highly relevant products found**: Try slightly broader but still relevant terms
+3. **If still insufficient**: Try ONE alternative approach that maintains relevance
+4. **STOP EARLY**: Better to show 3-5 perfect matches than 15 mediocre ones
+5. **USER TRUST**: Only show products you're confident the user actually wants
 
 CRITICAL FUNCTION CALL FORMAT:
 When you want to use a function, return a simple JSON object like this:

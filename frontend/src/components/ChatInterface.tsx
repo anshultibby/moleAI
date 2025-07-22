@@ -60,6 +60,13 @@ export default function ChatInterface() {
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return
 
+    // Clear previous results before starting new query
+    setAllProducts([])
+    setSearchLinksData([])
+    setReasoningData([])
+    setSelectedPriceBucket('')
+    setSelectedBrand('')
+
     const userMessage: Message = {
       role: 'user',
       content: input,
