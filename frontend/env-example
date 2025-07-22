@@ -1,0 +1,38 @@
+# =============================================================================
+# MoleAI Frontend Environment Variables
+# =============================================================================
+# Copy this file to .env.local and configure your backend URL
+
+# Backend API Configuration
+# =============================================================================
+
+# Backend API URL - REQUIRED
+# For local development:
+NEXT_PUBLIC_API_URL=http://localhost:8000
+
+# For production deployment, replace with your deployed backend URL:
+# Examples:
+# - Railway: https://your-app-name.up.railway.app
+# - Render: https://your-app-name.onrender.com  
+# - Heroku: https://your-app-name.herokuapp.com
+# - Custom domain: https://api.yourdomain.com
+# NEXT_PUBLIC_API_URL=https://your-backend-url-here.com
+
+# Environment Configuration (Optional)
+# =============================================================================
+
+# Environment type
+NODE_ENV=development
+
+# =============================================================================
+# Setup Instructions:
+# 
+# 1. Copy this file: cp env-example .env.local
+# 2. Update NEXT_PUBLIC_API_URL to point to your backend
+# 3. Run: npm install
+# 4. Start the frontend: npm run dev
+# 
+# For Docker setup, see README.md
+# 
+# Note: The backend must be running and accessible at the configured URL
+# ============================================================================= 
