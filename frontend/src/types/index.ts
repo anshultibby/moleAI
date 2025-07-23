@@ -42,6 +42,13 @@ export interface ChatResponse {
   deals_found?: (Product | SearchLinksData)[]
 }
 
+export interface StreamMessage {
+  type: 'start' | 'message' | 'product' | 'complete' | 'error'
+  content?: string
+  product?: Product
+  error?: string
+}
+
 // Price bucket helper function
 export function getPriceBucket(priceStr: string): string {
   // Handle undefined, null, or empty strings

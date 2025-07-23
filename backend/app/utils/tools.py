@@ -85,30 +85,36 @@ def fetch_products(domain: str, query: str = "", limit: int = 20) -> str:
         debug_log(f"Fetching products from {domain}...")
         products = service.search_products(domain, query, limit)
         
-        result = {
-            "products": [
-                {
-                    "title": p.title,
-                    "description": p.description,
-                    "price": p.price,
-                    "url": p.product_url,
-                    "image": p.image_url,
-                    "store": p.store_domain
-                }
-                for p in products
-            ],
-            "store": domain,
-            "query": query
+        # Format products to match frontend expectations
+        formatted_products = []
+        for p in products:
+            product_id = f"{p.store_domain}-{p.title}".lower().replace(" ", "-").replace("/", "-").replace("&", "and")
+            formatted_products.append({
+                "product_name": p.title,
+                "price": p.price,
+                "store": p.store_domain,
+                "image_url": p.image_url,
+                "product_url": p.product_url,
+                "description": p.description,
+                "id": product_id
+            })
+        
+        # Return in ChatResponse format
+        response = {
+            "response": f"Found {len(formatted_products)} products from {domain}" + (f" matching '{query}'" if query else ""),
+            "timestamp": datetime.now().isoformat(),
+            "deals_found": formatted_products
         }
-        debug_log(f"Found {len(result['products'])} products")
-        return json.dumps(result, indent=2)
+        
+        debug_log(f"Found {len(formatted_products)} products")
+        return json.dumps(response, indent=2)
+        
     except Exception as e:
         debug_log(f"Error in fetch_products: {str(e)}")
         return json.dumps({
-            "products": [], 
-            "store": domain, 
-            "query": query,
-            "error": str(e)
+            "response": f"Error fetching products from {domain}: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
+            "deals_found": []
         })
 
 @tool(

@@ -1,7 +1,7 @@
 """Chat routes using the agent system with tools"""
 
 import json
-from typing import Dict, List
+from typing import Dict, List, Optional
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -22,8 +22,49 @@ class ChatHistory(BaseModel):
     conversation_id: str
     messages: List[Dict[str, str]]
 
+class StreamMessage(BaseModel):
+    type: str  # 'start' | 'message' | 'product' | 'complete' | 'error'
+    content: Optional[str] = None
+    product: Optional[Dict] = None
+    error: Optional[str] = None
+
 # Store chat histories by conversation ID
 chat_histories: Dict[str, List[Dict[str, str]]] = {}
+
+def extract_json_from_message(content: str) -> Optional[Dict]:
+    """Extract JSON data from a message containing ```json blocks"""
+    try:
+        if "```json" in content:
+            # Extract everything between ```json and ```
+            json_str = content.split("```json")[1].split("```")[0].strip()
+            data = json.loads(json_str)
+            debug_log(f"Extracted JSON data: {json.dumps(data)[:200]}...")
+            return data
+    except Exception as e:
+        debug_log(f"Error extracting JSON: {str(e)}")
+    return None
+
+def is_tool_call(content: str) -> bool:
+    """Check if a message is a tool call"""
+    try:
+        if "```json" in content:
+            json_data = extract_json_from_message(content)
+            return json_data is not None and "tool_calls" in json_data
+    except Exception as e:
+        debug_log(f"Error checking tool call: {str(e)}")
+    return False
+
+def extract_products_from_tool_response(content: str) -> Optional[Dict]:
+    """Extract product data from a tool response"""
+    try:
+        if "```json" in content:
+            json_data = extract_json_from_message(content)
+            if json_data and "deals_found" in json_data:
+                debug_log(f"Found product data: {json.dumps(json_data)[:200]}...")
+                return json_data
+    except Exception as e:
+        debug_log(f"Error extracting product data: {str(e)}")
+    return None
 
 def create_shopping_agent() -> Agent:
     """Create an agent instance with our tools"""
@@ -65,7 +106,7 @@ async def stream_chat(message: ChatMessage):
         async def generate_stream():
             try:
                 # Send start signal
-                yield f"data: {json.dumps({'type': 'start'})}\n\n"
+                yield f"data: {json.dumps(StreamMessage(type='start').dict())}\n\n"
                 
                 # Add user message to history
                 history.append({
@@ -79,21 +120,43 @@ async def stream_chat(message: ChatMessage):
                     # Add to history
                     history.append(msg)
                     
-                    # Only stream assistant messages that aren't tool calls
-                    if msg["role"] == "assistant" and "```json" not in msg["content"]:
-                        debug_log(f"Streaming message: {msg['content'][:100]}...")
-                        yield f"data: {json.dumps({'type': 'message', 'content': msg['content']})}\n\n"
+                    if msg["role"] == "assistant":
+                        debug_log(f"Processing assistant message: {msg['content'][:200]}...")
+                        
+                        # Skip tool calls
+                        if is_tool_call(msg["content"]):
+                            debug_log("Skipping tool call message")
+                            continue
+                            
+                        # Check for product data
+                        product_data = extract_products_from_tool_response(msg["content"])
+                        if product_data:
+                            # Stream each product
+                            for product in product_data["deals_found"]:
+                                debug_log(f"Streaming product: {json.dumps(product)[:200]}...")
+                                stream_msg = StreamMessage(type='product', product=product)
+                                yield f"data: {json.dumps(stream_msg.dict())}\n\n"
+                            
+                            # Stream the response message if present
+                            if "response" in product_data:
+                                debug_log(f"Streaming product response: {product_data['response'][:100]}...")
+                                yield f"data: {json.dumps(StreamMessage(type='message', content=product_data['response']).dict())}\n\n"
+                        else:
+                            # If no product data, check if it's a regular message
+                            if not "```json" in msg["content"]:
+                                debug_log(f"Streaming regular message: {msg['content'][:100]}...")
+                                yield f"data: {json.dumps(StreamMessage(type='message', content=msg['content']).dict())}\n\n"
                 
                 # Store updated history
                 chat_histories[message.conversation_id] = history
                 debug_log(f"Conversation complete. Final history length: {len(history)}")
                 
                 # Send completion
-                yield f"data: {json.dumps({'type': 'complete'})}\n\n"
+                yield f"data: {json.dumps(StreamMessage(type='complete').dict())}\n\n"
                 
             except Exception as e:
                 debug_log(f"Error in stream: {str(e)}")
-                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+                yield f"data: {json.dumps(StreamMessage(type='error', error=str(e)).dict())}\n\n"
         
         return StreamingResponse(
             generate_stream(),

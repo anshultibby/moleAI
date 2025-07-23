@@ -170,7 +170,7 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
       onClick={handleCardClick}
     >
       {/* Image section - Fixed height */}
-      <div className="relative bg-gray-50 dark:bg-slate-700 product-card-image flex-shrink-0">
+      <div className="relative bg-gray-50 dark:bg-slate-700 product-card-image flex-shrink-0 h-[200px] sm:h-[250px]">
         {imageUrl ? (
           <>
             <Image
@@ -181,8 +181,8 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
                 imageLoading ? 'opacity-0' : 'opacity-100'
               } ${
                 imageFitMode === 'contain' 
-                  ? 'image-contain' 
-                  : 'image-cover'
+                  ? 'object-contain' 
+                  : 'object-cover'
               }`}
               onError={handleImageError}
               onLoad={handleImageLoad}
@@ -220,7 +220,7 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
       </div>
 
       {/* Content section - Fixed height with flex layout */}
-      <div className="p-3 sm:p-3.5 flex flex-col justify-between product-card-content">
+      <div className="p-3 sm:p-3.5 flex flex-col justify-between product-card-content min-h-[100px]">
         {/* Store name */}
         <div className="flex-shrink-0">
           <p className="text-xs text-slate-500 dark:text-slate-400 truncate font-medium">
@@ -242,8 +242,6 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
           </p>
         </div>
       </div>
-
-
     </div>
   )
 } 

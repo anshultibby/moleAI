@@ -82,7 +82,7 @@ export default function ChatInterface() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
       console.log('Attempting to connect to backend at:', apiUrl)
       
-    const response = await fetch(`${apiUrl}/api/chat/stream`, {
+      const response = await fetch(`${apiUrl}/api/chat/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -118,106 +118,50 @@ export default function ChatInterface() {
               console.log('Streaming update:', data)
               
               // Handle different types of streaming updates
-              if (data.type === 'reasoning') {
-                const reasoningMessage: Message = {
-                  role: 'assistant',
-                  content: data.data.formatted_text || data.data.title,
-                  timestamp: new Date().toISOString(),
-                  type: 'reasoning'
-                }
-                setMessages(prev => [...prev, reasoningMessage])
-                setReasoningData(prev => [...prev, data.data])
-              }
-              
-              else if (data.type === 'search_links') {
-                const searchMessage: Message = {
-                  role: 'assistant',
-                  content: `Found ${data.data.links?.length || 0} shopping sites for "${data.data.search_query}"`,
-                  timestamp: new Date().toISOString(),
-                  type: 'search_links'
-                }
-                setMessages(prev => [...prev, searchMessage])
-                
-                const uniqueLinks = {
-                  ...data.data,
-                  links: data.data.links?.filter((link: any, index: number, self: any[]) => 
-                    index === self.findIndex((l: any) => l.url === link.url)
-                  ) || []
-                }
-                
-                setSearchLinksData(prev => [...prev, {
-                  ...uniqueLinks,
-                  id: `search-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-                }])
-              }
-              
-              else if (data.type === 'product') {
-                const product = {
-                  ...data.data,
-                  id: data.data.id || `product-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-                }
-                
-                // Debug logging
-                console.log('Received product:', {
-                  name: product.product_name,
-                  store: product.store,
-                  store_name: product.store_name,
-                  price: product.price
-                })
-                
-                // Filter duplicates when adding
-                setAllProducts(prev => {
-                  const combined = [...prev, product]
-                  const unique = getUniqueProducts(combined)
-                  console.log(`Products after dedup: ${prev.length} + 1 → ${unique.length}`)
-                  return unique
-                })
-                // Switch to products tab on mobile when we get the first product
-                setActiveView('products')
-              }
-              
-              else if (data.type === 'chat_response') {
-                const finalMessage: Message = {
-                  role: 'assistant',
-                  content: data.message || 'Search completed.',
-                  timestamp: new Date().toISOString()
-                }
-                setMessages(prev => [...prev, finalMessage])
-                // Switch to products tab when search is complete if we have products
-                setAllProducts(prev => {
-                  if (prev.length > 0) {
-                    setActiveView('products')
+              switch (data.type) {
+                case 'start':
+                  const startMessage: Message = {
+                    role: 'assistant',
+                    content: 'Let me help you with that...',
+                    timestamp: new Date().toISOString()
                   }
-                  return prev
-                })
-              }
-              
-              else if (data.type === 'error') {
-                const errorMessage: Message = {
-                  role: 'assistant',
-                  content: `Sorry, I encountered an error: ${data.message || 'Unknown error'}`,
-                  timestamp: new Date().toISOString()
-                }
-                setMessages(prev => [...prev, errorMessage])
-              }
-              
-              else if (data.type === 'start') {
-                const startMessage: Message = {
-                  role: 'assistant', 
-                  content: data.message || 'Starting search...',
-                  timestamp: new Date().toISOString()
-                }
-                setMessages(prev => [...prev, startMessage])
-              }
-              
-              else if (data.type === 'progress') {
-                const progressMessage: Message = {
-                  role: 'assistant',
-                  content: data.message || 'Processing...',
-                  timestamp: new Date().toISOString(),
-                  type: 'progress'
-                }
-                setMessages(prev => [...prev, progressMessage])
+                  setMessages(prev => [...prev, startMessage])
+                  break
+                
+                case 'message':
+                  if (data.content) {
+                    const message: Message = {
+                      role: 'assistant',
+                      content: data.content,
+                      timestamp: new Date().toISOString()
+                    }
+                    setMessages(prev => [...prev, message])
+                  }
+                  break
+                
+                case 'product':
+                  if (data.product) {
+                    // Use the backend-provided ID or generate one if missing
+                    const product: Product = {
+                      ...data.product,
+                      // Ensure we have a product_name
+                      product_name: data.product.product_name || data.product.name || data.product.title || 'Unknown Product',
+                      // Use provided ID or generate one
+                      id: data.product.id || `${data.product.store}-${data.product.product_name || data.product.name || data.product.title}`.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+                    }
+                    console.log('Adding product:', product)
+                    setAllProducts(prev => [...prev, product])
+                  }
+                  break
+                
+                case 'error':
+                  const errorMessage: Message = {
+                    role: 'assistant',
+                    content: `Sorry, I encountered an error: ${data.error}`,
+                    timestamp: new Date().toISOString()
+                  }
+                  setMessages(prev => [...prev, errorMessage])
+                  break
               }
               
             } catch (e) {
@@ -229,91 +173,12 @@ export default function ChatInterface() {
 
     } catch (error) {
       console.error('Error with streaming:', error)
-      
-      // Fallback to regular endpoint
-      try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-        console.log('Falling back to regular endpoint at:', apiUrl)
-        
-      const response = await axios.post<ChatResponse>(`${apiUrl}/api/chat`, {
-          message: input
-        })
-
-        const assistantMessage: Message = {
-          role: 'assistant',
-          content: response.data.response,
-          timestamp: response.data.timestamp
-        }
-
-        setMessages(prev => [...prev, assistantMessage])
-        
-        if (response.data.deals_found && response.data.deals_found.length > 0) {
-          const newProducts: Product[] = []
-          const newSearchLinks: SearchLinksData[] = []
-          const newReasoning: any[] = []
-          
-          response.data.deals_found.forEach(item => {
-            console.log('Processing item:', item.type, item)
-            
-            if (item.type === 'search_links') {
-              const searchLinksItem = item as SearchLinksData
-              newSearchLinks.push({
-                ...searchLinksItem,
-                id: searchLinksItem.id || `search-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-              })
-            } else if (item.type === 'reasoning') {
-              newReasoning.push({
-                ...item,
-                id: item.id || `reasoning-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-              })
-            } else {
-              const productItem = item as Product
-              newProducts.push({
-                ...productItem,
-                id: productItem.id || `product-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-              })
-            }
-          })
-          
-          if (newProducts.length > 0) {
-            setAllProducts(prev => getUniqueProducts([...prev, ...newProducts]))
-            // Switch to products tab when we get products
-            setActiveView('products')
-          }
-          
-          if (newSearchLinks.length > 0) {
-            const uniqueLinks = newSearchLinks.map(linkData => ({
-              ...linkData,
-              links: linkData.links.filter((link, index, self) => 
-                index === self.findIndex(l => l.url === link.url)
-              )
-            }))
-            setSearchLinksData(prev => [...prev, ...uniqueLinks])
-          }
-          
-          if (newReasoning.length > 0) {
-            setReasoningData(prev => [...prev, ...newReasoning])
-            newReasoning.forEach(reasoning => {
-              const reasoningMessage: Message = {
-                role: 'assistant',
-                content: reasoning.formatted_text || reasoning.title,
-                timestamp: new Date().toISOString(),
-                type: 'reasoning'
-              }
-              setMessages(prev => [...prev, reasoningMessage])
-            })
-          }
-        }
-      } catch (fallbackError) {
-        console.error('Error with fallback request:', fallbackError)
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-        const errorMessage: Message = {
-          role: 'assistant',
-          content: `Sorry, I couldn't connect to the backend at ${apiUrl}. Please check if the backend is running and the URL is correct. Error: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown error'}`,
-          timestamp: new Date().toISOString()
-        }
-        setMessages(prev => [...prev, errorMessage])
+      const errorMessage: Message = {
+        role: 'assistant',
+        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        timestamp: new Date().toISOString()
       }
+      setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
     }
