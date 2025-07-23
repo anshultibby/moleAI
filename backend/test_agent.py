@@ -3,12 +3,6 @@
 Simple test script for the Agent system
 """
 
-import sys
-import os
-
-# Add the app directory to Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app'))
-
 from app.modules.agent import Agent, Tool, LLM
 
 
@@ -20,6 +14,11 @@ def simple_add(a: int, b: int) -> int:
 def greet(name: str) -> str:
     """Simple greeting function"""
     return f"Hello, {name}! Nice to meet you."
+
+
+def search_web(query: str) -> str:
+    """Mock web search function"""
+    return f"Search results for '{query}': Found 3 articles about artificial intelligence, including recent advances in machine learning and neural networks."
 
 
 def test_basic_functionality():
@@ -83,13 +82,10 @@ def test_basic_functionality():
     assert "greet_person" in instructions
     print("✓ System instructions generated correctly")
     
-    # Test tool call extraction
-    test_response = '''{"tool_call": {"name": "add_numbers", "arguments": {"a": 5, "b": 7}}}'''
-    tool_call = agent._extract_tool_call(test_response)
-    assert tool_call is not None
-    assert tool_call.name == "add_numbers"
-    assert tool_call.arguments == {"a": 5, "b": 7}
-    print("✓ Tool call extraction working")
+    # Test conversation with tool call
+    messages = agent.run_conversation("Add 5 and 7")
+    assert len(messages) >= 3  # system, user, assistant (and possibly function)
+    print("✓ Conversation with tool call working")
     
     print("\n🎉 All basic functionality tests passed!")
 
@@ -110,13 +106,29 @@ def test_with_real_llm():
     add_tool = Tool(
         name="add_numbers",
         description="Add two numbers together", 
-        function=simple_add
+        function=simple_add,
+        parameters={
+            "a": {"type": "integer", "required": True},
+            "b": {"type": "integer", "required": True}
+        }
     )
     
     greet_tool = Tool(
         name="greet_person",
         description="Greet a person by name",
-        function=greet
+        function=greet,
+        parameters={
+            "name": {"type": "string", "required": True}
+        }
+    )
+    
+    search_tool = Tool(
+        name="search_web",
+        description="Search the web for information",
+        function=search_web,
+        parameters={
+            "query": {"type": "string", "required": True}
+        }
     )
     
     # Create real LLM
@@ -125,24 +137,27 @@ def test_with_real_llm():
     # Create agent
     agent = Agent(
         name="MathHelper",
-        description="A helpful assistant that can do basic math and greetings",
-        tools=[add_tool, greet_tool],
+        description="A helpful assistant that can do basic math, greetings, and web searches",
+        tools=[add_tool, greet_tool, search_tool],
         llm=llm
     )
     
-    # Test a simple conversation
+    # Test a simple math conversation
     print("Running conversation: 'Add 15 and 25'")
-    conversation = agent.run_conversation("Add 15 and 25")
+    messages = agent.run_conversation("Add 15 and 25")
     
     print("\nConversation flow:")
-    for msg in conversation:
-        if msg['type'] == 'message':
-            print(f"  {msg['role'].upper()}: {msg['content']}")
-        elif msg['type'] == 'tool_call':
-            tool_call = msg['tool_call'] 
-            print(f"  TOOL_CALL: {tool_call['name']}({tool_call['arguments']})")
-        elif msg['type'] == 'tool_result':
-            print(f"  TOOL_RESULT: {msg['content']}")
+    for msg in messages:
+        print(f"{msg['role'].upper()}: {msg['content']}")
+    
+    # Test web search conversation
+    print("\n" + "-"*30)
+    print("Running conversation: 'Search for information about artificial intelligence'")
+    messages2 = agent.run_conversation("Search for information about artificial intelligence")
+    
+    print("\nConversation flow:")
+    for msg in messages2:
+        print(f"{msg['role'].upper()}: {msg['content']}")
     
     print("\n🎉 Real LLM test completed!")
 

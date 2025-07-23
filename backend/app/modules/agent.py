@@ -1,8 +1,18 @@
 import json
-import re
-from typing import List, Dict, Any, Optional, Callable, Union
+from typing import List, Dict, Any, Optional, Callable
 from dataclasses import dataclass
+from pydantic import BaseModel
 import google.generativeai as genai
+
+from ..config import GEMINI_API_KEY
+
+
+class ToolCall(BaseModel):
+    name: str
+    arguments: Dict[str, Any]
+
+class ToolCallList(BaseModel):
+    tool_calls: List[ToolCall]
 
 
 @dataclass
@@ -32,6 +42,7 @@ class LLM:
     """Base LLM interface for chat completions"""
     
     def __init__(self, model_name: str = "gemini-2.0-flash-exp", api_key: str = None):
+        print(f"\n🤖 Initializing LLM with model: {model_name}")
         self.model_name = model_name
         self.api_key = api_key
         self._setup_client()
@@ -40,52 +51,37 @@ class LLM:
         """Setup the LLM client"""
         if "gemini" in self.model_name.lower():
             if self.api_key:
+                print("✓ Configuring Gemini with API key")
                 genai.configure(api_key=self.api_key)
             self.client = genai.GenerativeModel(self.model_name)
             self.client_type = "gemini"
+            print("✓ Gemini client ready")
         else:
-            # Could add other LLM providers here
             raise ValueError(f"Unsupported model: {self.model_name}")
     
     def chat_completion(self, messages: List[Dict[str, str]]) -> str:
         """Get chat completion from the LLM"""
         try:
             if self.client_type == "gemini":
-                # Convert messages to Gemini format
-                conversation_text = self._format_messages_for_gemini(messages)
+                print("\n📤 Preparing Gemini request...")
+                conversation_text = "\n\n".join([
+                    f"{msg.get('role', 'user').upper()}: {msg.get('content', '')}"
+                    for msg in messages
+                ])
+                print(f"📝 First 200 chars of conversation: {conversation_text[:200]}...")
+                
+                print("🚀 Sending to Gemini...")
                 response = self.client.generate_content(conversation_text)
+                print(f"📥 Got response: {response.text[:200]}...")
                 return response.text
-            else:
-                raise ValueError(f"Unsupported client type: {self.client_type}")
         except Exception as e:
+            print(f"❌ Error in LLM: {str(e)}")
             return f"Error getting LLM response: {str(e)}"
-    
-    def _format_messages_for_gemini(self, messages: List[Dict[str, str]]) -> str:
-        """Format messages for Gemini API"""
-        formatted = []
-        for msg in messages:
-            role = msg.get('role', 'user')
-            content = msg.get('content', '')
-            if role == 'system':
-                formatted.append(f"SYSTEM: {content}")
-            elif role == 'user':
-                formatted.append(f"USER: {content}")
-            elif role == 'assistant':
-                formatted.append(f"ASSISTANT: {content}")
-            elif role == 'function':
-                formatted.append(f"FUNCTION_RESULT: {content}")
-        return "\n\n".join(formatted)
-
-
-@dataclass
-class ToolCall:
-    """Represents a tool call extracted from LLM response"""
-    name: str
-    arguments: Dict[str, Any]
-    call_id: str = None
 
 
 class Agent:
+    """Core Agent class that handles tool-based conversations with LLMs"""
+    
     def __init__(self, name: str, description: str, tools: List[Tool], llm: LLM):
         self.name = name
         self.description = description
@@ -95,160 +91,113 @@ class Agent:
 
     def _build_system_instructions(self) -> str:
         """Build system instructions including tool descriptions"""
-        instructions = f"""You are {self.name}: {self.description}
+        tool_descriptions = []
+        for tool in self.tools.values():
+            desc = f"- {tool.name}: {tool.description}"
+            if tool.parameters:
+                desc += f"\n  Parameters: {json.dumps(tool.parameters, indent=2)}"
+            tool_descriptions.append(desc)
+
+        return f"""You are {self.name}: {self.description}
 
 Available tools:
+{chr(10).join(tool_descriptions)}
+
+When using tools, respond with the following JSON format:
+{{
+    "tool_calls": [
+        {{"name": "tool_name", "arguments": {{"param1": "value1"}}}},
+        {{"name": "tool_name2", "arguments": {{"param2": "value2"}}}}
+    ]
+}}
 """
-        for tool in self.tools.values():
-            instructions += f"- {tool.name}: {tool.description}\n"
-            if tool.parameters:
-                instructions += f"  Parameters: {json.dumps(tool.parameters, indent=2)}\n"
+
+    def run_conversation(self, user_message: str, max_iterations: int = 10) -> List[Dict[str, str]]:
+        """Run the conversation and return the message history"""
+        print(f"\n🔄 Starting new conversation (max {max_iterations} iterations)...")
+        messages = [
+            {"role": "system", "content": self.system_instructions},
+            {"role": "user", "content": user_message}
+        ]
+        print(f"📝 System instructions length: {len(self.system_instructions)}")
         
-        instructions += """
-When you want to use a tool, respond with a JSON object in this format:
-{
-    "tool_call": {
-        "name": "tool_name",
-        "arguments": {"param1": "value1", "param2": "value2"}
-    }
-}
-
-When you want to send a message to the user, respond with plain text (no JSON).
-
-You can either:
-1. Call a tool (which will be executed and results added to conversation)
-2. Send a message to the user (which will be displayed)
-
-Always be helpful and use tools when appropriate to assist the user.
-"""
-        return instructions
-
-    def get_chat_completion(self, messages: List[Dict[str, str]]) -> str:
-        """Get chat completion with system instructions"""
-        # Add system instructions as first message if not present
-        messages_with_system = []
-        if not messages or messages[0].get('role') != 'system':
-            messages_with_system.append({
-                'role': 'system', 
-                'content': self.system_instructions
-            })
-        messages_with_system.extend(messages)
-        
-        return self.llm.chat_completion(messages_with_system)
-
-    def _extract_tool_call(self, response: str) -> Optional[ToolCall]:
-        """Extract tool call from LLM response"""
-        try:
-            # Look for JSON in the response
-            lines = response.strip().split('\n')
-            for line in lines:
-                line = line.strip()
-                if line.startswith('{') and line.endswith('}'):
-                    try:
-                        data = json.loads(line)
-                        if 'tool_call' in data:
-                            tool_data = data['tool_call']
-                            return ToolCall(
-                                name=tool_data['name'],
-                                arguments=tool_data.get('arguments', {}),
-                                call_id=f"call_{len(response)}"
-                            )
-                    except json.JSONDecodeError:
-                        continue
-            
-            # Also check if the entire response is JSON
-            try:
-                data = json.loads(response.strip())
-                if 'tool_call' in data:
-                    tool_data = data['tool_call']
-                    return ToolCall(
-                        name=tool_data['name'],
-                        arguments=tool_data.get('arguments', {}),
-                        call_id=f"call_{len(response)}"
-                    )
-            except json.JSONDecodeError:
-                pass
-                
-        except Exception as e:
-            print(f"Error extracting tool call: {e}")
-        
-        return None
-
-    def run_conversation(self, user_message: str, max_iterations: int = 10) -> List[Dict[str, Any]]:
-        """
-        Run the agentic conversation loop
-        Returns list of conversation messages including tool calls and results
-        """
-        conversation = []
-        
-        # Add user message
-        conversation.append({
-            'role': 'user',
-            'content': user_message,
-            'type': 'message'
-        })
-        
-        iteration = 0
-        while iteration < max_iterations:
-            iteration += 1
+        for iteration in range(max_iterations):
+            print(f"\n📍 Iteration {iteration + 1}/{max_iterations}:")
             
             # Get LLM response
-            llm_response = self.get_chat_completion([
-                {k: v for k, v in msg.items() if k in ['role', 'content']} 
-                for msg in conversation
-            ])
+            print("🤖 Getting LLM response...")
+            response = self.llm.chat_completion(messages)
+            print(f"📤 LLM response: {response[:200]}...")
             
-            # Check if this is a tool call or assistant message
-            tool_call = self._extract_tool_call(llm_response)
-            
-            if tool_call:
-                # Add tool call to conversation
-                conversation.append({
-                    'role': 'assistant',
-                    'content': llm_response,
-                    'type': 'tool_call',
-                    'tool_call': {
-                        'name': tool_call.name,
-                        'arguments': tool_call.arguments,
-                        'call_id': tool_call.call_id
-                    }
-                })
+            # Try to execute tool calls
+            print("🔍 Looking for tool calls...")
+            tool_messages = self._execute_tool_calls(response)
+            if tool_messages:
+                print(f"🛠️  Found and executed {len(tool_messages)} tool messages")
+                messages.extend(tool_messages)
                 
-                # Execute the tool
-                if tool_call.name in self.tools:
-                    tool = self.tools[tool_call.name]
-                    result = tool.call(**tool_call.arguments)
-                    
-                    # Add tool result to conversation
-                    conversation.append({
-                        'role': 'function',
-                        'content': result,
-                        'type': 'tool_result',
-                        'tool_call_id': tool_call.call_id,
-                        'tool_name': tool_call.name
+                if iteration == max_iterations - 1:
+                    print("⚠️ Hit max iterations with tool calls pending")
+                    # Add a final message explaining we hit the limit
+                    messages.append({
+                        "role": "assistant",
+                        "content": "I apologize, but I've hit the maximum number of conversation turns. Let me summarize what I found so far..."
                     })
                 else:
-                    # Tool not found
-                    conversation.append({
-                        'role': 'function',
-                        'content': f"Error: Tool '{tool_call.name}' not found",
-                        'type': 'tool_result',
-                        'tool_call_id': tool_call.call_id,
-                        'tool_name': tool_call.name
-                    })
-                
-                # Continue the loop to get next response
-                continue
+                    continue
             else:
-                # This is a regular assistant message - conversation ends
-                conversation.append({
-                    'role': 'assistant',
-                    'content': llm_response,
-                    'type': 'message'
-                })
+                # Regular message - add to history and end conversation
+                print("💬 No tool calls found, treating as regular message")
+                messages.append({"role": "assistant", "content": response})
                 break
-        
-        return conversation
+            
+        print(f"\n✅ Conversation complete with {len(messages)} total messages")
+        return messages
+
+    def _execute_tool_calls(self, response: str) -> Optional[List[Dict[str, str]]]:
+        """
+        Extract tool calls from response, validate and execute them.
+        Returns list of messages (tool calls and results) if valid tool calls found,
+        otherwise returns None.
+        """
+        try:
+            print(f"🔍 Checking response for JSON block...")
+            if "```json" in response:
+                # Extract JSON from code block
+                parts = response.split("```")
+                for part in parts:
+                    if part.strip().startswith("json"):
+                        json_str = part.replace("json", "").strip()
+                        print(f"📦 Found JSON: {json_str[:200]}...")
+                        
+                        tool_calls = ToolCallList.model_validate_json(json_str)
+                        print(f"✓ Validated {len(tool_calls.tool_calls)} tool calls")
+                        
+                        messages = []
+                        # Add the tool calls response
+                        messages.append({"role": "assistant", "content": response})
+                        
+                        # Execute each tool in sequence
+                        for tool_call in tool_calls.tool_calls:
+                            print(f"\n🛠️  Executing tool: {tool_call.name}")
+                            print(f"Arguments: {tool_call.arguments}")
+                            
+                            if tool_call.name in self.tools:
+                                tool = self.tools[tool_call.name]
+                                result = tool.call(**tool_call.arguments)
+                                print(f"Result: {result[:200]}...")
+                                messages.append({"role": "function", "content": result})
+                            else:
+                                print(f"❌ Tool {tool_call.name} not found!")
+                        
+                        return messages
+                
+                print("❌ No valid JSON found in code blocks")
+            else:
+                print("❌ No ```json block found in response")
+        except Exception as e:
+            print(f"❌ Error executing tool calls: {str(e)}")
+        return None
 
     def add_tool(self, tool: Tool):
         """Add a new tool to the agent"""
@@ -260,3 +209,22 @@ Always be helpful and use tools when appropriate to assist the user.
         if tool_name in self.tools:
             del self.tools[tool_name]
             self.system_instructions = self._build_system_instructions()
+    
+    def get_available_tools(self) -> List[str]:
+        """Get list of available tool names"""
+        return list(self.tools.keys())
+    
+    def has_tool(self, tool_name: str) -> bool:
+        """Check if agent has a specific tool"""
+        return tool_name in self.tools
+    
+    def get_tool_info(self, tool_name: str) -> Optional[Dict[str, Any]]:
+        """Get information about a specific tool"""
+        if tool_name in self.tools:
+            tool = self.tools[tool_name]
+            return {
+                'name': tool.name,
+                'description': tool.description,
+                'parameters': tool.parameters
+            }
+        return None

@@ -1,125 +1,129 @@
+"""Chat routes using the agent system with tools"""
+
 import json
-from fastapi import APIRouter
+from typing import Dict, List
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from ..models.chat import ChatMessage
-from ..utils.streaming_pipeline import process_shopping_query_streaming
-from ..utils.streaming_service import get_streaming_service
+from pydantic import BaseModel
+
+from ..modules.agent import Agent, LLM
+from ..utils.tools import get_tools
 from ..config import GEMINI_API_KEY
+from ..utils.debug_logger import debug_log
+
 router = APIRouter()
 
-# Simple in-memory storage for demo (replace with proper database later)
-chat_history = []
+# Pydantic models
+class ChatMessage(BaseModel):
+    message: str
+    conversation_id: str = None
+
+class ChatHistory(BaseModel):
+    conversation_id: str
+    messages: List[Dict[str, str]]
+
+# Store chat histories by conversation ID
+chat_histories: Dict[str, List[Dict[str, str]]] = {}
+
+def create_shopping_agent() -> Agent:
+    """Create an agent instance with our tools"""
+    if not GEMINI_API_KEY:
+        raise ValueError("GEMINI_API_KEY not found")
+        
+    debug_log("Creating new shopping agent...")
+    
+    # Create LLM
+    llm = LLM(model_name="gemini-2.0-flash-exp", api_key=GEMINI_API_KEY)
+    
+    # Create agent with our tools
+    agent = Agent(
+        name="Shopping Assistant",
+        description="A helpful assistant that can find products across e-commerce stores.",
+        tools=get_tools(),
+        llm=llm
+    )
+    
+    debug_log(f"Agent created with tools: {agent.get_available_tools()}")
+    return agent
 
 @router.post("/chat/stream")
 async def stream_chat(message: ChatMessage):
-    """
-    Stream chat updates in real-time as they happen
-    """
-    import time
-    entry_time = time.time()
-    print(f"🚀 ENTRY: stream_chat called with message: {message.message}")
-    
-    async def generate_stream():
-        generator_start = time.time()
-        print(f"🚀 GENERATOR: Starting generate_stream function at {time.strftime('%H:%M:%S.%f')[:-3]}")
-        print(f"🚀 GENERATOR: Time since entry: {generator_start - entry_time:.3f}s")
+    """Stream chat responses with product search capabilities"""
+    try:
+        debug_log("\n" + "="*50)
+        debug_log(f"New message: {message.message}")
+        debug_log(f"Conversation ID: {message.conversation_id}")
+        debug_log("="*50 + "\n")
         
-        try:
-            print(f"🚀 IMPORT: About to import streaming_service")
-            
-            # Clear any previous streaming state before starting new query
-            import_start = time.time()
-            streaming_service = get_streaming_service()
-            import_end = time.time()
-            print(f"🚀 SERVICE: Got streaming service in {import_end - import_start:.3f}s")
-            
-            clear_start = time.time()
-            streaming_service.clear_queue()
-            clear_end = time.time()
-            print(f"🚀 SERVICE: Cleared queue in {clear_end - clear_start:.3f}s")
-            
-            # Send immediate start signal to confirm connection
-            yield_start = time.time()
-            yield f"data: {json.dumps({'type': 'start', 'message': 'Connection established'})}\n\n"
-            yield_end = time.time()
-            print(f"🚀 YIELDED: Start signal sent in {yield_end - yield_start:.3f}s")
-            
-            # Process query with streaming callbacks
-            pipeline_start = time.time()
-            print(f"🚀 PIPELINE: About to call process_shopping_query_with_tools_streaming at {time.strftime('%H:%M:%S.%f')[:-3]}")
-            
-            async for update in process_shopping_query_with_tools_streaming(message.message, GEMINI_API_KEY):
-                update_time = time.time()
-                print(f"🚀 STREAM: Got update: {update.get('type', 'unknown')} at {time.strftime('%H:%M:%S.%f')[:-3]}")
-                yield f"data: {json.dumps(update)}\n\n"
-            
-            # Send completion
-            complete_start = time.time()
-            print(f"🚀 COMPLETE: Sending completion message")
-            yield f"data: {json.dumps({'type': 'complete'})}\n\n"
-            
-        except Exception as e:
-            print(f"🚀 ERROR: Exception in generate_stream: {e}")
-            import traceback
-            print(f"🚀 ERROR: Traceback: {traceback.format_exc()}")
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+        # Get or create chat history
+        history = chat_histories.get(message.conversation_id, [])
+        debug_log(f"Current history length: {len(history)}")
+        
+        # Create agent
+        agent = create_shopping_agent()
+        
+        async def generate_stream():
+            try:
+                # Send start signal
+                yield f"data: {json.dumps({'type': 'start'})}\n\n"
+                
+                # Add user message to history
+                history.append({
+                    "role": "user",
+                    "content": message.message
+                })
+                
+                # Run agent with full history context
+                debug_log("Running conversation...")
+                for msg in agent.run_conversation(message.message):
+                    # Add to history
+                    history.append(msg)
+                    
+                    # Only stream assistant messages that aren't tool calls
+                    if msg["role"] == "assistant" and "```json" not in msg["content"]:
+                        debug_log(f"Streaming message: {msg['content'][:100]}...")
+                        yield f"data: {json.dumps({'type': 'message', 'content': msg['content']})}\n\n"
+                
+                # Store updated history
+                chat_histories[message.conversation_id] = history
+                debug_log(f"Conversation complete. Final history length: {len(history)}")
+                
+                # Send completion
+                yield f"data: {json.dumps({'type': 'complete'})}\n\n"
+                
+            except Exception as e:
+                debug_log(f"Error in stream: {str(e)}")
+                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+        
+        return StreamingResponse(
+            generate_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "*",
+            }
+        )
+        
+    except Exception as e:
+        debug_log(f"Error in route: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/chat/history/{conversation_id}")
+async def get_chat_history(conversation_id: str):
+    """Get chat history for a specific conversation"""
+    if conversation_id not in chat_histories:
+        raise HTTPException(status_code=404, detail="Conversation not found")
     
-    response_start = time.time()
-    print(f"🚀 RETURN: Returning StreamingResponse at {time.strftime('%H:%M:%S.%f')[:-3]}")
-    print(f"🚀 RETURN: Time since entry: {response_start - entry_time:.3f}s")
-    
-    return StreamingResponse(
-        generate_stream(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "*",
-        }
+    return ChatHistory(
+        conversation_id=conversation_id,
+        messages=chat_histories[conversation_id]
     )
 
-
-@router.get("/chat/history")
-async def get_chat_history():
-    """
-    Get chat history
-    """
-    return {"messages": chat_history}
-
-
-async def process_shopping_query_with_tools_streaming(query: str, api_key: str):
-    """
-    Stream shopping query processing with real-time updates using the new agentic system
-    """
-    import time
-    wrapper_start = time.time()
-    print(f"🚀 WRAPPER: process_shopping_query_with_tools_streaming called with query: {query}")
-    print(f"🚀 WRAPPER: Started at {time.strftime('%H:%M:%S.%f')[:-3]}")
-    
-    try:
-        # Import the new streaming agent
-        from ..modules.streaming_agent import process_query_with_streaming_agent
-        
-        print(f"🚀 WRAPPER: Using new streaming agent for query: {query}")
-        
-        # Use the new streaming agent system
-        async for update in process_query_with_streaming_agent(query):
-            update_time = time.time()
-            print(f"🚀 AGENT: Got update: {update.get('type', 'unknown')} at {time.strftime('%H:%M:%S.%f')[:-3]}")
-            yield update
-                
-    except Exception as e:
-        print(f"🚀 WRAPPER: Exception in wrapper: {e}")
-        import traceback
-        print(f"🚀 WRAPPER: Traceback: {traceback.format_exc()}")
-        
-        # Fallback to original pipeline if agent fails
-        try:
-            print(f"🚀 FALLBACK: Falling back to original pipeline")
-            async for update in process_shopping_query_streaming(query, api_key):
-                print(f"🚀 FALLBACK: Got update: {update.get('type', 'unknown')}")
-                yield update
-        except Exception as fallback_e:
-            print(f"🚀 FALLBACK: Fallback also failed: {fallback_e}")
-            yield {"type": "error", "message": f"Both agent and fallback failed: {str(e)} | {str(fallback_e)}"}
+@router.delete("/chat/history/{conversation_id}")
+async def clear_chat_history(conversation_id: str):
+    """Clear chat history for a specific conversation"""
+    if conversation_id in chat_histories:
+        del chat_histories[conversation_id]
+    return {"status": "success"}
