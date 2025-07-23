@@ -4,13 +4,13 @@ Uses dedicated services for streaming and tool execution
 """
 
 import time
+import asyncio
+import concurrent.futures
 from typing import AsyncGenerator, Dict, Any, List
 from .gemini_response_service import get_gemini_response
 from .streaming_service import get_streaming_service
 from .tool_execution_service import get_tool_execution_service
-from .gemini_tools_converter import ShoppingContextVariables, get_structured_products_json
-from .progress_utils import get_and_clear_progress_messages
-
+from .gemini_tools_converter import ShoppingContextVariables
 
 
 async def process_shopping_query_streaming(
@@ -21,19 +21,26 @@ async def process_shopping_query_streaming(
     """
     Clean streaming pipeline with real-time product streaming during tool execution
     """
-    import asyncio
-    import concurrent.futures
+    print(f"🚀 PIPELINE: process_shopping_query_streaming ENTRY with query: {user_query}")
     
     start_time = time.time()
     print(f"🕐 STREAMING: Starting at {time.strftime('%H:%M:%S')}")
     
     # Initialize services
+    service_start = time.time()
+    print(f"🚀 PIPELINE: About to get streaming service")
     streaming_service = get_streaming_service()
+    print(f"🚀 PIPELINE: About to get tool execution service")
     tool_service = get_tool_execution_service()
+    service_end = time.time()
+    print(f"🔧 Service initialization: {service_end - service_start:.3f}s")
     
     # Set up streaming callback
+    callback_start = time.time()
     streaming_callback = streaming_service.create_streaming_callback()
     streaming_service.set_streaming_callback(streaming_callback)
+    callback_end = time.time()
+    print(f"🔧 Callback setup: {callback_end - callback_start:.3f}s")
     
     # Initialize conversation state
     counter = 0

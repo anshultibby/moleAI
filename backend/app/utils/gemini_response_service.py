@@ -78,16 +78,24 @@ def get_gemini_response(
     """
     Get response from Gemini with conversation history
     """
+    import time
+    
+    setup_start = time.time()
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    setup_end = time.time()
+    print(f"🔧 Gemini setup: {setup_end - setup_start:.3f}s")
     
     # Build conversation for Gemini
     conversation = []
     
     # Add system prompt
+    prompt_start = time.time()
     system_prompt = get_system_prompt()
     conversation.append({"role": "user", "content": f"SYSTEM: {system_prompt}"})
     conversation.append({"role": "assistant", "content": "I understand. I'm ready to help you find the best shopping deals using my tools and expertise."})
+    prompt_end = time.time()
+    print(f"🔧 System prompt build: {prompt_end - prompt_start:.3f}s")
     
     # Add conversation history
     for message in messages:
@@ -100,8 +108,12 @@ def get_gemini_response(
     if not messages or messages[-1]["content"] != query:
         conversation.append({"role": "user", "content": query})
     
-    # Generate response
+    # Generate response - THIS IS LIKELY THE SLOW PART
+    api_start = time.time()
+    print(f"🤖 Calling Gemini API with {len(conversation)} messages... {messages}")
     response = model.generate_content([msg["content"] for msg in conversation])
+    api_end = time.time()
+    print(f"🤖 Gemini API call: {api_end - api_start:.3f}s")
     
     # Add the AI response to messages
     ai_message = {"role": "assistant", "content": response.text}
