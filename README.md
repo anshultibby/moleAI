@@ -2,9 +2,9 @@
 
 An AI-powered chat agent that performs deep research to find shopping deals using FastAPI backend and Next.js frontend.
 
-## 🚀 Quick Start with Docker (Recommended)
+## 🚀 Quick Start with Docker
 
-The easiest way to run the application is using Docker Compose:
+The recommended way to run the application is using Docker Compose:
 
 ```bash
 # 1. Clone the repository
@@ -15,9 +15,9 @@ cd moleAI
 cp backend/env-example backend/.env
 cp frontend/env-example frontend/.env.local
 
-# 3. Get API credentials (email project owner)
-# Edit backend/.env with your API keys
-# Edit frontend/.env.local with your backend URL
+# 3. Get API credentials
+# Email the project owner for API keys and update backend/.env
+# The frontend/.env.local should work with default values for local development
 
 # 4. Start the application
 docker-compose up --build
@@ -28,15 +28,18 @@ docker-compose up --build -d
 
 The application will be available at:
 - **Frontend**: http://localhost:3005
-- **Backend API**: http://localhost:8005
-- **API Documentation**: http://localhost:8005/docs
+- **Backend API**: http://localhost:8000
+- **API Documentation**: http://localhost:8000/docs
 
 To stop the application:
 ```bash
 docker-compose down
 ```
 
-## 🔧 Manual Setup (Alternative)
+## 🔧 Manual Setup (Not Recommended)
+
+<details>
+<summary>Click to expand manual setup instructions</summary>
 
 ### Prerequisites
 - Python 3.11+
@@ -55,7 +58,7 @@ cp env-example .env
 # Edit .env file with your API credentials
 # (Email project owner for credentials)
 
-# Create virtual environment
+# Create and activate virtual environment
 python -m venv venv
 
 # Activate virtual environment
@@ -68,7 +71,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Start the backend server
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Backend will be available at: http://localhost:8000
@@ -82,18 +85,18 @@ cd frontend
 # Copy environment template
 cp env-example .env.local
 
-# Edit .env.local and set NEXT_PUBLIC_API_URL
-# For local development: http://localhost:8000
-# For production: your deployed backend URL
+# Edit .env.local and set NEXT_PUBLIC_API_URL=http://localhost:8000
 
 # Install dependencies
 npm install
 
 # Start development server
-npm run dev
+npm run dev -- --port 3005
 ```
 
-Frontend will be available at: http://localhost:3000
+Frontend will be available at: http://localhost:3005
+
+</details>
 
 ## 🔑 API Credentials
 
@@ -131,7 +134,7 @@ moleAI/
 │   │   └── types/         # TypeScript types
 │   ├── env-example        # Environment template
 │   ├── package.json       # Node dependencies
-│   └── Dockerfile        # Frontend container
+│   └── Dockerfile.dev     # Frontend container
 ├── docker-compose.yml     # Docker orchestration
 └── README.md             # This file
 ```
@@ -154,7 +157,7 @@ moleAI/
 
 ### Testing
 ```bash
-# Backend tests
+# Backend tests (run in backend directory)
 cd backend
 python test_*.py
 
@@ -163,14 +166,17 @@ cd frontend
 npm run lint
 ```
 
-### Production Build
+### Viewing Logs
 ```bash
-# Build for production
-docker-compose -f docker-compose.prod.yml up --build
+# View logs for all services
+docker-compose logs
 
-# Or manually:
-cd frontend && npm run build
-cd backend && pip install --no-dev
+# View logs for specific service
+docker-compose logs backend
+docker-compose logs frontend
+
+# Follow logs in real-time
+docker-compose logs -f
 ```
 
 ## 🚢 Deployment
@@ -201,7 +207,7 @@ NODE_ENV=production
 
 1. **Clone the repository**
 2. **Email project owner for API credentials**
-3. **Follow either Docker or Manual setup above**
+3. **Follow Docker setup above (recommended)**
 4. **Start chatting and finding deals!**
 
 ## 🤝 Contributing
