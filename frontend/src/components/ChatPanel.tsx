@@ -105,6 +105,20 @@ function MessageContent({ message, searchLinksData }: { message: Message, search
     )
   }
 
+  if (message.type === 'ephemeral') {
+    return (
+      <div className="text-sm leading-relaxed mb-6">
+        <div className="flex items-center mb-2">
+          <span className="text-lg mr-2">💭</span>
+        </div>
+        <div 
+          className="text-slate-400 dark:text-slate-500 ml-6 opacity-75 italic"
+          dangerouslySetInnerHTML={{ __html: makeLinksClickable(message.content || '') }}
+        />
+      </div>
+    )
+  }
+
   // Default assistant message content - plain text
   if (message.role === 'assistant') {
     return (

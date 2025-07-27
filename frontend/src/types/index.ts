@@ -2,7 +2,7 @@ export interface Message {
   role: 'user' | 'assistant'
   content?: string  // Made optional to handle streaming edge cases
   timestamp: string
-  type?: 'reasoning' | 'normal' | 'search_links' | 'progress'
+  type?: 'reasoning' | 'normal' | 'search_links' | 'progress' | 'ephemeral'
 }
 
 export interface Product {

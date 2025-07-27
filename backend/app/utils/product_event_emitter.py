@@ -35,6 +35,41 @@ class ProductEventEmitter:
                     debug_log(f"  → {product.get('product_name', 'Unknown')} from {product.get('store', 'Unknown')}")
             return new_products
     
+    def get_all_products(self) -> List[Dict]:
+        """Get all products currently in the conversation"""
+        with self._lock:
+            debug_log(f"Retrieved all {len(self._conversation_products)} conversation products")
+            return self._conversation_products.copy()
+    
+    def remove_products_by_name(self, product_names: List[str]) -> List[str]:
+        """Remove products by name and return list of actually removed product names"""
+        with self._lock:
+            if not product_names:
+                # Remove all products
+                removed_count = len(self._conversation_products)
+                removed_names = [p.get('product_name', 'Unknown') for p in self._conversation_products]
+                self._conversation_products.clear()
+                self._sent_products.clear()
+                debug_log(f"Cleared all {removed_count} products")
+                return removed_names
+            
+            # Remove specific products by name
+            removed_names = []
+            self._conversation_products = [
+                product for product in self._conversation_products
+                if not (product.get('product_name', '') in product_names and 
+                       removed_names.append(product.get('product_name', '')) or True)
+            ]
+            
+            # Also remove from sent products
+            self._sent_products = [
+                product for product in self._sent_products
+                if product.get('product_name', '') not in product_names
+            ]
+            
+            debug_log(f"Removed {len(removed_names)} products: {removed_names}")
+            return removed_names
+    
     def reset_conversation(self) -> None:
         """Reset for new conversation"""
         with self._lock:

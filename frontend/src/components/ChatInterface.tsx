@@ -107,6 +107,9 @@ export default function ChatInterface() {
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
+      
+      // Track ephemeral messages for this turn so we can hide them later
+      let ephemeralMessageIndices: number[] = []
 
       while (true) {
         const { done, value } = await reader.read()
@@ -125,17 +128,66 @@ export default function ChatInterface() {
               // Handle different types of streaming updates
               switch (data.type) {
                 case 'start':
-                  // Just indicate that streaming has started, no automatic message
+                  // Reset ephemeral tracking for new turn
+                  ephemeralMessageIndices = []
                   break
                 
                 case 'message':
                   if (data.content) {
+                    // This is a final assistant message, hide any ephemeral messages from this turn
+                    if (ephemeralMessageIndices.length > 0) {
+                      setMessages(prev => {
+                        const newMessages = [...prev]
+                        // Remove ephemeral messages (in reverse order to maintain indices)
+                        ephemeralMessageIndices.reverse().forEach(index => {
+                          if (index < newMessages.length && newMessages[index].type === 'ephemeral') {
+                            newMessages.splice(index, 1)
+                          }
+                        })
+                        return newMessages
+                      })
+                      ephemeralMessageIndices = []
+                    }
+                    
                     const message: Message = {
                       role: 'assistant',
                       content: data.content,
                       timestamp: new Date().toISOString()
+                      // Note: deliberately NOT setting type to 'ephemeral' for non-tool-call messages
                     }
                     setMessages(prev => [...prev, message])
+                  }
+                  break
+                
+                case 'ephemeral':
+                  if (data.content) {
+                    const ephemeralMessage: Message = {
+                      role: 'assistant',
+                      content: data.content,
+                      timestamp: new Date().toISOString(),
+                      type: 'ephemeral'
+                    }
+                    
+                    setMessages(prev => {
+                      const newMessages = [...prev]
+                      
+                      // Remove previous ephemeral messages from this turn
+                      if (ephemeralMessageIndices.length > 0) {
+                        ephemeralMessageIndices.reverse().forEach(index => {
+                          if (index < newMessages.length && newMessages[index].type === 'ephemeral') {
+                            newMessages.splice(index, 1)
+                          }
+                        })
+                      }
+                      
+                      // Add the new ephemeral message
+                      newMessages.push(ephemeralMessage)
+                      
+                      // Update tracking to point to the new ephemeral message
+                      ephemeralMessageIndices = [newMessages.length - 1]
+                      
+                      return newMessages
+                    })
                   }
                   break
                 

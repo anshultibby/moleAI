@@ -18,7 +18,7 @@ from .registry import get_tools
 
 # Individual tool functions (for direct import if needed)
 from .search_tools import discover_stores, fetch_products
-from .product_tools import add_product
+from .product_tools import display_product, get_displayed_products, remove_displayed_products
 
 __all__ = [
     # Core classes
@@ -44,5 +44,7 @@ __all__ = [
     # Individual tools
     "discover_stores",
     "fetch_products", 
-    "add_product"
+    "display_product",
+    "get_displayed_products",
+    "remove_displayed_products"
 ] 
