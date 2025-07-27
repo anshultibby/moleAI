@@ -1,245 +1,54 @@
 'use client'
 
-import { useState } from 'react'
-import axios from 'axios'
+import { useState, useEffect } from 'react'
 import ChatPanel from './ChatPanel'
 import ProductPanel from './ProductPanel'
 import SearchLinksPanel from './SearchLinksPanel'
 import ReasoningDisplay from './ReasoningDisplay'
-import { Message, Product, ChatResponse, SearchLinksData } from '../types'
+import { useChat } from '../hooks/useChat'
+import { useProducts } from '../hooks/useProducts'
 
 export default function ChatInterface() {
-  const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [allProducts, setAllProducts] = useState<Product[]>([])
-  const [searchLinksData, setSearchLinksData] = useState<SearchLinksData[]>([])
-  const [reasoningData, setReasoningData] = useState<any[]>([])
-  const [selectedPriceBucket, setSelectedPriceBucket] = useState('')
-  const [selectedBrand, setSelectedBrand] = useState('')
+  const [isMounted, setIsMounted] = useState(false)
   
   // New state for mobile-friendly toggle system
   const [activeView, setActiveView] = useState<'products' | 'chat'>('products')
   const [isChatExpanded, setIsChatExpanded] = useState(false)
   
-  // Conversation ID to maintain context across messages
-  const [conversationId] = useState(() => `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`)
+  // Use custom hooks for state management
+  const chat = useChat()
+  const products = useProducts()
 
-  const removeProduct = (productId: string) => {
-    setAllProducts(prev => prev.filter(p => p.id !== productId))
-  }
-
-  const removeSearchLinks = (searchLinksId: string) => {
-    setSearchLinksData(prev => prev.filter(s => s.id !== searchLinksId))
-  }
-
-  const clearAllProducts = () => {
-    setAllProducts([])
-    setSearchLinksData([])
-    setReasoningData([])
-    setSelectedPriceBucket('')
-    setSelectedBrand('')
-    // Note: We don't reset conversationId here as it's managed by useState
-    // Products will be cleared on next new conversation
-  }
+  // Ensure component is mounted on client side to prevent hydration issues
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const handleLogout = () => {
     sessionStorage.removeItem('shopmole_authenticated')
     window.location.reload()
   }
 
-  // Filter out duplicate products based on name and store
-  const getUniqueProducts = (products: Product[]): Product[] => {
-    const seen = new Set<string>()
-    return products.filter(product => {
-      const key = `${product.product_name || product.name}-${product.store}-${product.price}`
-      if (seen.has(key)) {
-        console.log(`Duplicate product filtered out: ${key}`)
-        return false
-      }
-      seen.add(key)
-      return true
-    })
-  }
-
-  const sendMessage = async () => {
-    if (!input.trim() || isLoading) return
-
-    // Only clear filters, not products (products persist throughout conversation)
-    setSearchLinksData([])
-    setReasoningData([])
-    setSelectedPriceBucket('')
-    setSelectedBrand('')
-
-    const userMessage: Message = {
-      role: 'user',
-      content: input,
-      timestamp: new Date().toISOString()
-    }
-
-    setMessages(prev => [...prev, userMessage])
+  const handleSendMessage = async () => {
+    if (!input.trim()) return
+    
+    // Clear filters when sending new message
+    products.clearFilters()
+    
+    // Send message and handle product updates
+    await chat.sendMessage(input, products.addProduct)
     setInput('')
-    setIsLoading(true)
-
-    try {
-      // Use streaming endpoint for real-time updates
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      console.log('Attempting to connect to backend at:', apiUrl)
-      
-      const response = await fetch(`${apiUrl}/api/chat/stream`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: input,
-          conversation_id: conversationId
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      if (!response.body) {
-        throw new Error('No response body')
-      }
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      
-      // Track ephemeral messages for this turn so we can hide them later
-      let ephemeralMessageIndices: number[] = []
-
-      while (true) {
-        const { done, value } = await reader.read()
-        
-        if (done) break
-
-        const chunk = decoder.decode(value)
-        const lines = chunk.split('\n')
-        
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6))
-              console.log('Streaming update:', data)
-              
-              // Handle different types of streaming updates
-              switch (data.type) {
-                case 'start':
-                  // Reset ephemeral tracking for new turn
-                  ephemeralMessageIndices = []
-                  break
-                
-                case 'message':
-                  if (data.content) {
-                    // This is a final assistant message, hide any ephemeral messages from this turn
-                    if (ephemeralMessageIndices.length > 0) {
-                      setMessages(prev => {
-                        const newMessages = [...prev]
-                        // Remove ephemeral messages (in reverse order to maintain indices)
-                        ephemeralMessageIndices.reverse().forEach(index => {
-                          if (index < newMessages.length && newMessages[index].type === 'ephemeral') {
-                            newMessages.splice(index, 1)
-                          }
-                        })
-                        return newMessages
-                      })
-                      ephemeralMessageIndices = []
-                    }
-                    
-                    const message: Message = {
-                      role: 'assistant',
-                      content: data.content,
-                      timestamp: new Date().toISOString()
-                      // Note: deliberately NOT setting type to 'ephemeral' for non-tool-call messages
-                    }
-                    setMessages(prev => [...prev, message])
-                  }
-                  break
-                
-                case 'ephemeral':
-                  if (data.content) {
-                    const ephemeralMessage: Message = {
-                      role: 'assistant',
-                      content: data.content,
-                      timestamp: new Date().toISOString(),
-                      type: 'ephemeral'
-                    }
-                    
-                    setMessages(prev => {
-                      const newMessages = [...prev]
-                      
-                      // Remove previous ephemeral messages from this turn
-                      if (ephemeralMessageIndices.length > 0) {
-                        ephemeralMessageIndices.reverse().forEach(index => {
-                          if (index < newMessages.length && newMessages[index].type === 'ephemeral') {
-                            newMessages.splice(index, 1)
-                          }
-                        })
-                      }
-                      
-                      // Add the new ephemeral message
-                      newMessages.push(ephemeralMessage)
-                      
-                      // Update tracking to point to the new ephemeral message
-                      ephemeralMessageIndices = [newMessages.length - 1]
-                      
-                      return newMessages
-                    })
-                  }
-                  break
-                
-                case 'product':
-                  if (data.product) {
-                    // Ensure we have all required fields with fallbacks
-                    const product: Product = {
-                      ...data.product,
-                      product_name: data.product.product_name || data.product.name || data.product.title || 'Unknown Product',
-                      store: data.product.store || data.product.store_name || 'Unknown Store',
-                      price: data.product.price || 'Price not available',
-                      image_url: data.product.image_url || '',
-                      product_url: data.product.product_url || '',
-                      description: data.product.description || '',
-                      id: data.product.id || `${(data.product.store || data.product.store_name || 'unknown')}-${(data.product.product_name || data.product.name || data.product.title || 'unknown')}`.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-                    }
-                    
-                    setAllProducts(prev => [...prev, product])
-                  }
-                  break
-                
-                case 'error':
-                  const errorMessage: Message = {
-                    role: 'assistant',
-                    content: `Sorry, I encountered an error: ${data.error}`,
-                    timestamp: new Date().toISOString()
-                  }
-                  setMessages(prev => [...prev, errorMessage])
-                  break
-              }
-              
-            } catch (e) {
-              console.error('Error parsing streaming data:', e)
-            }
-          }
-        }
-      }
-
-    } catch (error) {
-      console.error('Error with streaming:', error)
-      const errorMessage: Message = {
-        role: 'assistant',
-        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        timestamp: new Date().toISOString()
-      }
-      setMessages(prev => [...prev, errorMessage])
-    } finally {
-      setIsLoading(false)
-    }
   }
 
-  const uniqueProducts = getUniqueProducts(allProducts)
+  // Don't render until mounted to prevent hydration issues
+  if (!isMounted) {
+    return (
+      <div className="h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center">
+        <div className="text-slate-600 dark:text-slate-400">Loading...</div>
+      </div>
+    )
+  }
 
   return (
     <div className="h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex flex-col">
@@ -284,7 +93,7 @@ export default function ChatInterface() {
                 Chat
               </button>
               <span className="text-xs text-slate-500 dark:text-slate-400">
-                {uniqueProducts.length}
+                {products.uniqueProducts.length}
               </span>
             </div>
 
@@ -300,9 +109,9 @@ export default function ChatInterface() {
                   }`}
                 >
                   <span>Chat</span>
-                  {messages.length > 0 && (
+                  {chat.messages.length > 0 && (
                     <span className="bg-green-500 text-white text-xs px-1 py-0.5 rounded-full min-w-[1rem] h-4 flex items-center justify-center">
-                      {messages.filter(m => m.role === 'assistant').length}
+                      {chat.messages.filter(m => m.role === 'assistant').length}
                     </span>
                   )}
                 </button>
@@ -316,9 +125,9 @@ export default function ChatInterface() {
                   }`}
                 >
                   <span>Products</span>
-                  {uniqueProducts.length > 0 && (
+                  {products.uniqueProducts.length > 0 && (
                     <span className="bg-indigo-500 text-white text-xs px-1 py-0.5 rounded-full min-w-[1rem] h-4 flex items-center justify-center">
-                      {uniqueProducts.length}
+                      {products.uniqueProducts.length}
                     </span>
                   )}
                 </button>
@@ -338,12 +147,14 @@ export default function ChatInterface() {
           {isChatExpanded && (
             <div className="w-[380px] flex-shrink-0 border-r border-slate-200 dark:border-slate-700 h-full">
               <ChatPanel
-                messages={messages}
+                messages={chat.messages}
                 input={input}
-                isLoading={isLoading}
-                searchLinksData={searchLinksData}
+                isLoading={chat.isLoading}
+                searchLinksData={products.searchLinksData}
+                ephemeralHistory={chat.ephemeralHistory}
+                currentTurnId={chat.currentTurnId}
                 onInputChange={setInput}
-                onSendMessage={sendMessage}
+                onSendMessage={handleSendMessage}
               />
             </div>
           )}
@@ -351,19 +162,19 @@ export default function ChatInterface() {
           {/* Products Panel with independent scrolling */}
           <div className="flex-1 min-w-0 h-full">
             <ProductPanel
-              products={uniqueProducts}
-              selectedPriceBucket={selectedPriceBucket}
-              selectedBrand={selectedBrand}
-              onPriceBucketChange={setSelectedPriceBucket}
-              onBrandChange={setSelectedBrand}
-              onClearAll={clearAllProducts}
-              onRemoveProduct={removeProduct}
+              products={products.uniqueProducts}
+              selectedPriceBucket={products.selectedPriceBucket}
+              selectedBrand={products.selectedBrand}
+              onPriceBucketChange={products.setSelectedPriceBucket}
+              onBrandChange={products.setSelectedBrand}
+              onClearAll={products.clearAllProducts}
+              onRemoveProduct={products.removeProduct}
               isExpanded={!isChatExpanded}
               onToggleExpand={() => setIsChatExpanded(!isChatExpanded)}
               input={input}
-              isLoading={isLoading}
+              isLoading={chat.isLoading}
               onInputChange={setInput}
-              onSendMessage={sendMessage}
+              onSendMessage={handleSendMessage}
             />
           </div>
         </div>
@@ -373,30 +184,32 @@ export default function ChatInterface() {
           {activeView === 'products' ? (
             <div className="w-full h-full">
               <ProductPanel
-                products={uniqueProducts}
-                selectedPriceBucket={selectedPriceBucket}
-                selectedBrand={selectedBrand}
-                onPriceBucketChange={setSelectedPriceBucket}
-                onBrandChange={setSelectedBrand}
-                onClearAll={clearAllProducts}
-                onRemoveProduct={removeProduct}
+                products={products.uniqueProducts}
+                selectedPriceBucket={products.selectedPriceBucket}
+                selectedBrand={products.selectedBrand}
+                onPriceBucketChange={products.setSelectedPriceBucket}
+                onBrandChange={products.setSelectedBrand}
+                onClearAll={products.clearAllProducts}
+                onRemoveProduct={products.removeProduct}
                 isExpanded={true}
                 onToggleExpand={() => {}}
                 input={input}
-                isLoading={isLoading}
+                isLoading={chat.isLoading}
                 onInputChange={setInput}
-                onSendMessage={sendMessage}
+                onSendMessage={handleSendMessage}
               />
             </div>
           ) : (
             <div className="w-full h-full">
               <ChatPanel
-                messages={messages}
+                messages={chat.messages}
                 input={input}
-                isLoading={isLoading}
-                searchLinksData={searchLinksData}
+                isLoading={chat.isLoading}
+                searchLinksData={products.searchLinksData}
+                ephemeralHistory={chat.ephemeralHistory}
+                currentTurnId={chat.currentTurnId}
                 onInputChange={setInput}
-                onSendMessage={sendMessage}
+                onSendMessage={handleSendMessage}
               />
             </div>
           )}

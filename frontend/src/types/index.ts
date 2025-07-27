@@ -3,6 +3,7 @@ export interface Message {
   content?: string  // Made optional to handle streaming edge cases
   timestamp: string
   type?: 'reasoning' | 'normal' | 'search_links' | 'progress' | 'ephemeral'
+  turnId?: string  // To associate with thinking panels
 }
 
 export interface Product {

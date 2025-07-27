@@ -115,8 +115,25 @@ def get_gemini_response(
     api_end = time.time()
     print(f"🤖 Gemini API call: {api_end - api_start:.3f}s")
     
+    # Extract text from response, handling complex responses
+    response_text = ""
+    try:
+        response_text = response.text
+    except ValueError as e:
+        print(f"⚠️ Complex response detected, extracting from parts: {str(e)}")
+        if response.candidates and len(response.candidates) > 0:
+            candidate = response.candidates[0]
+            if candidate.content and candidate.content.parts:
+                text_parts = []
+                for part in candidate.content.parts:
+                    if hasattr(part, 'text') and part.text:
+                        text_parts.append(part.text)
+                if text_parts:
+                    response_text = ''.join(text_parts)
+                    print(f"✓ Extracted text from {len(text_parts)} parts")
+    
     # Add the AI response to messages
-    ai_message = {"role": "assistant", "content": response.text}
+    ai_message = {"role": "assistant", "content": response_text}
     messages.append(ai_message)
     
     # Mock response object to match expected interface
@@ -132,4 +149,4 @@ def get_gemini_response(
         def __init__(self, text):
             self.content = text
     
-    return MockResponse(response.text), messages 
+    return MockResponse(response_text), messages 

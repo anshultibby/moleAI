@@ -92,17 +92,28 @@ def clean_ephemeral_text(text: str) -> str:
     """
     if not text:
         return text
-
+    
     patterns_to_remove = [
         "TOOL_RESULT:",
         "TOOL_CALL:",
         "FUNCTION_CALL:",
-        "TOOL:"
+        "TOOL:",
+        "```json",
+        "```",
     ]
     
+    # Remove unwanted patterns from the beginning
     for pattern in patterns_to_remove:
         if text.startswith(pattern):
             text = text[len(pattern):].strip()
+    
+    # Remove trailing code block markers
+    if text.endswith("```"):
+        text = text[:-3].strip()
+    
+    # If text is empty or just whitespace after cleaning, return empty
+    if not text.strip():
+        return ""
     
     return text
 

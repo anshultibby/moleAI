@@ -1,142 +1,17 @@
 import { useState, useRef, useEffect } from 'react'
 import { Message, SearchLinksData } from '../types'
+import MessageContent from './MessageContent'
+import ThinkingPanel from './ThinkingPanel'
 
 interface ChatPanelProps {
   messages: Message[]
   input: string
   isLoading: boolean
   searchLinksData: SearchLinksData[]
+  ephemeralHistory: {[turnId: string]: string[]}
+  currentTurnId: string | null
   onInputChange: (value: string) => void
   onSendMessage: () => void
-}
-
-// Helper function to make links clickable in text and handle italic formatting
-function makeLinksClickable(text: string) {
-  // Check if text is undefined or null
-  if (!text || typeof text !== 'string') {
-    return '';
-  }
-  
-  // First handle markdown-style links [text](url)
-  let result = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-600 underline">$1</a>')
-  
-  // Handle italic text with asterisks *text*
-  result = result.replace(/\*([^*]+)\*/g, '<em class="italic text-slate-700 dark:text-slate-300">$1</em>')
-  
-  // Handle bold text with double asterisks **text**
-  result = result.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-slate-800 dark:text-slate-200">$1</strong>')
-  
-  return result
-}
-
-// Component for rendering different message types
-function MessageContent({ message, searchLinksData }: { message: Message, searchLinksData: SearchLinksData[] }) {
-  if (message.type === 'reasoning') {
-    return (
-      <div className="text-sm leading-relaxed mb-6">
-        <div className="flex items-center mb-2">
-          <span className="text-lg mr-2">🧠</span>
-          <span className="font-medium text-blue-600 dark:text-blue-400 text-sm">AI Reasoning</span>
-        </div>
-        <div 
-          className="text-slate-700 dark:text-slate-300 ml-6"
-          dangerouslySetInnerHTML={{ __html: message.content || '' }}
-        />
-      </div>
-    )
-  }
-
-  if (message.type === 'search_links') {
-    return (
-      <div className="text-sm leading-relaxed mb-6">
-        <div className="flex items-center mb-2">
-          <span className="text-lg mr-2">🔍</span>
-          <span className="font-medium text-green-600 dark:text-green-400 text-sm">Search Results</span>
-        </div>
-        <div className="text-slate-700 dark:text-slate-300 mb-3 ml-6">{message.content}</div>
-        
-        {/* Compact link tabs */}
-        <div className="flex flex-wrap gap-2 ml-6">
-          {searchLinksData.flatMap((linkData: SearchLinksData) => 
-            linkData.links.slice(0, 6).map((link, linkIndex: number) => (
-              <button
-                key={`${linkData.id}-${linkIndex}`}
-                onClick={() => {
-                  try {
-                    // Validate URL before opening
-                    const url = new URL(link.url)
-                    if (url.protocol === 'http:' || url.protocol === 'https:') {
-                      window.open(link.url, '_blank', 'noopener,noreferrer')
-                    } else {
-                      console.warn('Invalid URL protocol:', link.url)
-                    }
-                  } catch (error) {
-                    console.warn('Invalid URL:', link.url, error)
-                    // Try fallback to homepage if available
-                    if (link.domain) {
-                      window.open(`https://${link.domain}`, '_blank', 'noopener,noreferrer')
-                    }
-                  }
-                }}
-                className="px-2 py-1 text-xs bg-green-50 dark:bg-slate-700 border border-green-200 dark:border-slate-600 rounded hover:bg-green-100 dark:hover:bg-slate-600 transition-colors"
-                title={link.title || `Visit ${link.domain}`}
-              >
-                {link.domain ? link.domain.replace('.myshopify.com', '').replace('www.', '') : 'Store'}
-              </button>
-            ))
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  if (message.type === 'progress') {
-    return (
-      <div className="text-sm leading-relaxed mb-6">
-        <div className="flex items-center mb-2">
-          <span className="text-lg mr-2">⚡</span>
-          <span className="font-medium text-orange-600 dark:text-orange-400 text-sm">Progress Update</span>
-        </div>
-        <div 
-          className="text-slate-600 dark:text-slate-400 ml-6"
-          dangerouslySetInnerHTML={{ __html: makeLinksClickable(message.content || '') }}
-        />
-      </div>
-    )
-  }
-
-  if (message.type === 'ephemeral') {
-    return (
-      <div className="text-sm leading-relaxed mb-6">
-        <div className="flex items-center mb-2">
-          <span className="text-lg mr-2">💭</span>
-        </div>
-        <div 
-          className="text-slate-400 dark:text-slate-500 ml-6 opacity-75 italic"
-          dangerouslySetInnerHTML={{ __html: makeLinksClickable(message.content || '') }}
-        />
-      </div>
-    )
-  }
-
-  // Default assistant message content - plain text
-  if (message.role === 'assistant') {
-    return (
-      <div className="text-sm leading-relaxed text-slate-800 dark:text-slate-200 mb-6">
-        <div 
-          dangerouslySetInnerHTML={{ __html: makeLinksClickable(message.content || '') }}
-        />
-      </div>
-    )
-  }
-
-  // User message content (in bubble)
-  return (
-    <div 
-      className="text-sm leading-relaxed text-white"
-      dangerouslySetInnerHTML={{ __html: message.content || '' }}
-    />
-  )
 }
 
 export default function ChatPanel({
@@ -144,6 +19,8 @@ export default function ChatPanel({
   input,
   isLoading,
   searchLinksData,
+  ephemeralHistory,
+  currentTurnId,
   onInputChange,
   onSendMessage
 }: ChatPanelProps) {
@@ -163,7 +40,8 @@ export default function ChatPanel({
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
       const scrollHeight = textareaRef.current.scrollHeight
-      const maxHeight = window.innerWidth >= 640 ? 120 : 80 // Different max heights for mobile vs desktop
+      // Use client-side only window reference to avoid hydration mismatch
+      const maxHeight = typeof window !== 'undefined' && window.innerWidth >= 640 ? 120 : 80
       textareaRef.current.style.height = Math.min(scrollHeight, maxHeight) + 'px'
     }
   }, [input])
@@ -225,16 +103,36 @@ export default function ChatPanel({
             </div>
           )}
 
-          {/* Messages with new design - no avatars, user bubbles, assistant plain text */}
+          {/* Messages with new design - includes thinking panels */}
           <div className="space-y-4">
             {messages.map((message, index) => (
               <div key={index}>
                 {message.role === 'user' ? (
-                  // User message as bubble, right-aligned
-                  <div className="flex justify-end mb-4">
-                    <div className="max-w-xs sm:max-w-sm bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-3 rounded-2xl shadow-sm">
-                      <MessageContent message={message} searchLinksData={searchLinksData} />
+                  <div>
+                    {/* User message as bubble, right-aligned */}
+                    <div className="flex justify-end mb-4">
+                      <div className="max-w-xs sm:max-w-sm bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-3 rounded-2xl shadow-sm">
+                        <MessageContent message={message} searchLinksData={searchLinksData} />
+                      </div>
                     </div>
+                    
+                    {/* Show thinking panel for the next assistant message if it exists */}
+                    {index + 1 < messages.length && messages[index + 1].role === 'assistant' && messages[index + 1].turnId && (
+                      <ThinkingPanel 
+                        turnId={messages[index + 1].turnId!}
+                        ephemeralMessages={ephemeralHistory[messages[index + 1].turnId!] || []}
+                        isActive={false}
+                      />
+                    )}
+                    
+                    {/* Show active thinking panel if this is the last user message and we're loading */}
+                    {index === messages.length - 1 && currentTurnId && (
+                      <ThinkingPanel 
+                        turnId={currentTurnId}
+                        ephemeralMessages={ephemeralHistory[currentTurnId] || []}
+                        isActive={true}
+                      />
+                    )}
                   </div>
                 ) : (
                   // Assistant message as plain text on background
@@ -254,7 +152,6 @@ export default function ChatPanel({
                     <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                     <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                   </div>
-                  <span className="text-sm font-medium">Finding deals...</span>
                 </div>
               </div>
             )}

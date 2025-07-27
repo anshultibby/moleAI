@@ -42,7 +42,31 @@ class LLM:
                 print("🚀 Sending to Gemini...")
                 response = self.client.generate_content(conversation_text)
                 print(f"📥 Got response: {response}...")
-                return response.text
+                
+                # Handle complex responses with multiple parts
+                try:
+                    # Try simple text accessor first
+                    return response.text
+                except ValueError as e:
+                    # If response.text fails, extract text from parts
+                    print(f"⚠️ Complex response detected, extracting from parts: {str(e)}")
+                    if response.candidates and len(response.candidates) > 0:
+                        candidate = response.candidates[0]
+                        if candidate.content and candidate.content.parts:
+                            # Combine all text parts
+                            text_parts = []
+                            for part in candidate.content.parts:
+                                if hasattr(part, 'text') and part.text:
+                                    text_parts.append(part.text)
+                            if text_parts:
+                                combined_text = ''.join(text_parts)
+                                print(f"✓ Extracted text from {len(text_parts)} parts: {combined_text[:100]}...")
+                                return combined_text
+                    
+                    # Fallback if we can't extract text
+                    print(f"❌ Could not extract text from response: {response}")
+                    return "Error: Could not extract text from complex response"
+                
         except Exception as e:
             print(f"❌ Error in LLM: {str(e)}")
             return f"Error getting LLM response: {str(e)}"
@@ -319,8 +343,8 @@ You can also:
 3. When replying to user use conversational language and be friendly and helpful.
 4. In the reply to the user dont reiterate what you have found if you showed it using display_product.
 5. Make sure all products you find will match what user is looking for, we wanna avoid false positives.
-6. Since you have a mechanism to display intermediate results to the user, you can go on for a bit longer and keep searching. 
-The user will be engaaged looking at the initial results and will be more patient even if you were to take a while.
+6. Since you have a mechanism to display intermediate results to the user, keep searching and adding products to the right side for a while.
+especially important if you havent found enough products yet.
 7. You can always search for new stores with a variation of the query or get more items from the stores you have found.
 8. CRITICAL: When you give any conversational response (without tool calls), you MUST include <stop> at the end. This includes:
    - When you've found sufficient products and are done searching

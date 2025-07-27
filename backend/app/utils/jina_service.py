@@ -98,8 +98,22 @@ class JinaScrapingService:
                 )
             )
             
-            # Parse LLM response
-            llm_output = response.text.strip()
+            # Extract text from response, handling complex responses
+            llm_output = ""
+            try:
+                llm_output = response.text.strip()
+            except ValueError as e:
+                print(f"   ⚠️ Complex response detected, extracting from parts: {str(e)}")
+                if response.candidates and len(response.candidates) > 0:
+                    candidate = response.candidates[0]
+                    if candidate.content and candidate.content.parts:
+                        text_parts = []
+                        for part in candidate.content.parts:
+                            if hasattr(part, 'text') and part.text:
+                                text_parts.append(part.text)
+                        if text_parts:
+                            llm_output = ''.join(text_parts).strip()
+                            print(f"   ✓ Extracted text from {len(text_parts)} parts")
             
             # Extract JSON from response
             products = self._parse_llm_response(llm_output)
