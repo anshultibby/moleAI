@@ -7,6 +7,7 @@ export function useChat() {
   const [ephemeralHistory, setEphemeralHistory] = useState<{[turnId: string]: string[]}>({})
   const [currentTurnId, setCurrentTurnId] = useState<string | null>(null)
   const [conversationId, setConversationId] = useState<string>('')
+  const [hasStartedConversation, setHasStartedConversation] = useState(false)
 
   // Generate conversationId only on client side to avoid hydration mismatch
   useEffect(() => {
@@ -19,6 +20,9 @@ export function useChat() {
     onProductRemoved?: (productId: string) => void
   ) => {
     if (!input.trim() || isLoading || !conversationId) return
+
+    // Mark conversation as started
+    setHasStartedConversation(true)
 
     // Create a unique turn ID for this conversation turn
     const turnId = `turn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -146,11 +150,22 @@ export function useChat() {
     }
   }
 
+  const resetConversation = () => {
+    setMessages([])
+    setEphemeralHistory({})
+    setCurrentTurnId(null)
+    setHasStartedConversation(false)
+    // Generate new conversation ID
+    setConversationId(`conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`)
+  }
+
   return {
     messages,
     isLoading,
     ephemeralHistory,
     currentTurnId,
-    sendMessage
+    hasStartedConversation,
+    sendMessage,
+    resetConversation
   }
 } 

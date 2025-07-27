@@ -95,27 +95,50 @@ def clean_ephemeral_text(text: str) -> str:
     
     patterns_to_remove = [
         "TOOL_RESULT:",
-        "TOOL_CALL:",
+        "TOOL_CALL:", 
         "FUNCTION_CALL:",
         "TOOL:",
+        "🔧 TOOL:",  # Debug output format
+        "🛠️  Executing tool:",  # Another debug format
         "```json",
         "```",
     ]
     
-    # Remove unwanted patterns from the beginning
-    for pattern in patterns_to_remove:
-        if text.startswith(pattern):
-            text = text[len(pattern):].strip()
+    # Remove unwanted patterns from the beginning (multiple passes for nested patterns)
+    cleaned = text
+    changed = True
+    while changed:
+        changed = False
+        for pattern in patterns_to_remove:
+            if cleaned.startswith(pattern):
+                cleaned = cleaned[len(pattern):].strip()
+                changed = True
+                break
     
     # Remove trailing code block markers
-    if text.endswith("```"):
-        text = text[:-3].strip()
+    if cleaned.endswith("```"):
+        cleaned = cleaned[:-3].strip()
+    
+    # Remove any lines that start with debug patterns
+    lines = cleaned.split('\n')
+    filtered_lines = []
+    for line in lines:
+        line_stripped = line.strip()
+        # Skip lines that are just debug output
+        if any(line_stripped.startswith(pattern.strip()) for pattern in patterns_to_remove):
+            continue
+        # Skip lines that contain tool execution patterns
+        if ("Executing" in line and "tool" in line.lower()) or "TOOL:" in line:
+            continue
+        filtered_lines.append(line)
+    
+    cleaned = '\n'.join(filtered_lines).strip()
     
     # If text is empty or just whitespace after cleaning, return empty
-    if not text.strip():
+    if not cleaned.strip():
         return ""
     
-    return text
+    return cleaned
 
 
 def execute_tool_calls(tool_calls: ToolCallList, available_tools: Dict[str, Tool]) -> List[Dict[str, str]]:

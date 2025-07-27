@@ -5,6 +5,7 @@ import ChatPanel from './ChatPanel'
 import ProductPanel from './ProductPanel'
 import SearchLinksPanel from './SearchLinksPanel'
 import ReasoningDisplay from './ReasoningDisplay'
+import WelcomePage from './WelcomePage'
 import { useChat } from '../hooks/useChat'
 import { useProducts } from '../hooks/useProducts'
 
@@ -13,8 +14,8 @@ export default function ChatInterface() {
   const [isMounted, setIsMounted] = useState(false)
   
   // New state for mobile-friendly toggle system
-  const [activeView, setActiveView] = useState<'products' | 'chat'>('products')
-  const [isChatExpanded, setIsChatExpanded] = useState(false)
+  const [activeView, setActiveView] = useState<'products' | 'chat'>('chat')
+  const [isChatExpanded, setIsChatExpanded] = useState(true) // Start with chat expanded
   
   // Use custom hooks for state management
   const chat = useChat()
@@ -30,6 +31,14 @@ export default function ChatInterface() {
     window.location.reload()
   }
 
+  const handleStartConversation = async (query: string) => {
+    // Clear filters when starting new conversation
+    products.clearFilters()
+    
+    // Send message and handle product updates
+    await chat.sendMessage(query, products.addProduct, products.removeProductById)
+  }
+
   const handleSendMessage = async () => {
     if (!input.trim()) return
     
@@ -41,6 +50,15 @@ export default function ChatInterface() {
     setInput('')
   }
 
+  const handleNewSearch = () => {
+    // Reset everything for a new search
+    chat.resetConversation()
+    products.clearAllProducts()
+    setInput('')
+    setActiveView('chat')
+    setIsChatExpanded(true)
+  }
+
   // Don't render until mounted to prevent hydration issues
   if (!isMounted) {
     return (
@@ -48,6 +66,11 @@ export default function ChatInterface() {
         <div className="text-slate-600 dark:text-slate-400">Loading...</div>
       </div>
     )
+  }
+
+  // Show welcome page if no conversation has started
+  if (!chat.hasStartedConversation) {
+    return <WelcomePage onStartConversation={handleStartConversation} />
   }
 
   return (
@@ -68,6 +91,18 @@ export default function ChatInterface() {
           {/* Compact toggles */}
           <div className="flex items-center space-x-2">
             
+            {/* New Search Button */}
+            <button
+              onClick={handleNewSearch}
+              className="px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded transition-colors flex items-center space-x-1"
+              title="New Search"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span className="hidden sm:inline">New</span>
+            </button>
+
             {/* Logout Button */}
             <button
               onClick={handleLogout}

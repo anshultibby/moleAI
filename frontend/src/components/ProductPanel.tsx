@@ -18,6 +18,7 @@ interface ProductPanelProps {
   isLoading?: boolean
   onInputChange?: (value: string) => void
   onSendMessage?: () => void
+  showInput?: boolean // New prop to control input visibility
 }
 
 export default function ProductPanel({
@@ -33,7 +34,8 @@ export default function ProductPanel({
   input = '',
   isLoading = false,
   onInputChange,
-  onSendMessage
+  onSendMessage,
+  showInput = false
 }: ProductPanelProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -176,14 +178,14 @@ export default function ProductPanel({
               </div>
               
               <h3 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-200 mb-3">
-                Welcome to MoleAI
+                Products will appear here
               </h3>
               <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-lg leading-relaxed px-4 mb-6">
-                Ask me to find amazing deals that match your style preferences
+                Use the chat to search for products
               </p>
               
-              {/* Text input box */}
-              {onInputChange && onSendMessage ? (
+              {/* Text input box - only show if showInput is true */}
+              {showInput && onInputChange && onSendMessage ? (
                 <div className="w-full mb-6">
                   <div className="relative">
                     <textarea

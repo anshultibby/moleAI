@@ -233,7 +233,7 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
         {/* Price - Second priority */}
         <div className="mb-3">
           <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">
-            ${product.price}
+            {product.price.startsWith('$') ? product.price : `$${product.price}`}
           </p>
         </div>
         
