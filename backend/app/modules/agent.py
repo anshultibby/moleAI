@@ -1,41 +1,10 @@
 import json
-from typing import List, Dict, Any, Optional, Callable
-from dataclasses import dataclass
-from pydantic import BaseModel
+from typing import List, Dict, Any, Optional
 import google.generativeai as genai
 
 from ..config import GEMINI_API_KEY
-
-
-class ToolCall(BaseModel):
-    name: str
-    arguments: Dict[str, Any]
-
-class ToolCallList(BaseModel):
-    tool_calls: List[ToolCall]
-
-
-@dataclass
-class Tool:
-    """A function that can be called by the agent"""
-    name: str
-    description: str
-    function: Callable
-    parameters: Dict[str, Any] = None
-    
-    def call(self, **kwargs) -> str:
-        """Execute the tool function with given arguments"""
-        try:
-            if self.parameters:
-                # Validate parameters if defined
-                for param, config in self.parameters.items():
-                    if config.get('required', False) and param not in kwargs:
-                        raise ValueError(f"Required parameter '{param}' missing")
-            
-            result = self.function(**kwargs)
-            return str(result) if result is not None else "Function executed successfully"
-        except Exception as e:
-            return f"Error executing {self.name}: {str(e)}"
+from ..tools import Tool
+from ..tools.execution import process_tool_response
 
 
 class LLM:
@@ -103,6 +72,12 @@ class Agent:
 Available tools:
 {chr(10).join(tool_descriptions)}
 
+IMPORTANT WORKFLOW:
+1. To help users find products: use find_stores to discover relevant stores, then fetch_products to get product data
+2. To display products to users: use add_product for each specific item you want to show them
+3. fetch_products returns data for your review - it does NOT display products to the user
+4. Only add_product actually displays products in the user's interface
+
 When using tools, respond with the following JSON format:
 {{
     "tool_calls": [
@@ -112,26 +87,47 @@ When using tools, respond with the following JSON format:
 }}
 """
 
-    def run_conversation(self, user_message: str, max_iterations: int = 10) -> List[Dict[str, str]]:
-        """Run the conversation and return the message history"""
-        print(f"\n🔄 Starting new conversation (max {max_iterations} iterations)...")
-        messages = [
-            {"role": "system", "content": self.system_instructions},
-            {"role": "user", "content": user_message}
-        ]
-        print(f"📝 System instructions length: {len(self.system_instructions)}")
+    def run_conversation(self, user_message: str = None, conversation_history: List[Dict[str, str]] = None, max_iterations: int = 10) -> List[Dict[str, str]]:
+        """
+        Run the conversation with existing history or start a new one.
+        
+        Args:
+            user_message: New user message (required for new conversations)
+            conversation_history: Existing conversation history (optional)
+            max_iterations: Maximum number of iterations for tool calling
+            
+        Returns:
+            List of all messages in the conversation
+        """
+        print(f"\n🔄 Starting conversation (max {max_iterations} iterations)...")
+        
+        # Initialize messages with existing history or create new conversation
+        if conversation_history:
+            # Use existing history - it should already include system message and all previous messages
+            messages = conversation_history.copy()
+            print(f"📚 Using existing history with {len(messages)} messages")
+            
+            # Add new user message if provided
+            if user_message:
+                messages.append({"role": "user", "content": user_message})
+                print(f"➕ Added new user message")
+        else:
+            # New conversation - start with system message and user message
+            if not user_message:
+                raise ValueError("user_message is required for new conversations")
+            messages = [
+                {"role": "system", "content": self.system_instructions},
+                {"role": "user", "content": user_message}
+            ]
+            print(f"🆕 Created new conversation")
         
         for iteration in range(max_iterations):
-            print(f"\n📍 Iteration {iteration + 1}/{max_iterations}:")
-            
-            # Get LLM response
-            print("🤖 Getting LLM response...")
+            print(f"\n🔄 Iteration {iteration + 1}/{max_iterations}")
+
             response = self.llm.chat_completion(messages)
-            print(f"📤 LLM response: {response[:200]}...")
             
-            # Try to execute tool calls
-            print("🔍 Looking for tool calls...")
-            tool_messages = self._execute_tool_calls(response)
+            # Try to process as tool calls
+            tool_messages = process_tool_response(response, self.tools)
             if tool_messages:
                 print(f"🛠️  Found and executed {len(tool_messages)} tool messages")
                 messages.extend(tool_messages)
@@ -146,58 +142,13 @@ When using tools, respond with the following JSON format:
                 else:
                     continue
             else:
-                # Regular message - add to history and end conversation
-                print("💬 No tool calls found, treating as regular message")
+                # Regular assistant message - add to history and end conversation
+                print("💬 No tool calls found, treating as regular assistant message")
                 messages.append({"role": "assistant", "content": response})
                 break
             
         print(f"\n✅ Conversation complete with {len(messages)} total messages")
         return messages
-
-    def _execute_tool_calls(self, response: str) -> Optional[List[Dict[str, str]]]:
-        """
-        Extract tool calls from response, validate and execute them.
-        Returns list of messages (tool calls and results) if valid tool calls found,
-        otherwise returns None.
-        """
-        try:
-            print(f"🔍 Checking response for JSON block...")
-            if "```json" in response:
-                # Extract JSON from code block
-                parts = response.split("```")
-                for part in parts:
-                    if part.strip().startswith("json"):
-                        json_str = part.replace("json", "").strip()
-                        print(f"📦 Found JSON: {json_str[:200]}...")
-                        
-                        tool_calls = ToolCallList.model_validate_json(json_str)
-                        print(f"✓ Validated {len(tool_calls.tool_calls)} tool calls")
-                        
-                        messages = []
-                        # Add the tool calls response
-                        messages.append({"role": "assistant", "content": response})
-                        
-                        # Execute each tool in sequence
-                        for tool_call in tool_calls.tool_calls:
-                            print(f"\n🛠️  Executing tool: {tool_call.name}")
-                            print(f"Arguments: {tool_call.arguments}")
-                            
-                            if tool_call.name in self.tools:
-                                tool = self.tools[tool_call.name]
-                                result = tool.call(**tool_call.arguments)
-                                print(f"Result: {result[:200]}...")
-                                messages.append({"role": "function", "content": result})
-                            else:
-                                print(f"❌ Tool {tool_call.name} not found!")
-                        
-                        return messages
-                
-                print("❌ No valid JSON found in code blocks")
-            else:
-                print("❌ No ```json block found in response")
-        except Exception as e:
-            print(f"❌ Error executing tool calls: {str(e)}")
-        return None
 
     def add_tool(self, tool: Tool):
         """Add a new tool to the agent"""

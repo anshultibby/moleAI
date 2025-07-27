@@ -21,6 +21,9 @@ export default function ChatInterface() {
   // New state for mobile-friendly toggle system
   const [activeView, setActiveView] = useState<'products' | 'chat'>('products')
   const [isChatExpanded, setIsChatExpanded] = useState(false)
+  
+  // Conversation ID to maintain context across messages
+  const [conversationId] = useState(() => `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`)
 
   const removeProduct = (productId: string) => {
     setAllProducts(prev => prev.filter(p => p.id !== productId))
@@ -36,6 +39,8 @@ export default function ChatInterface() {
     setReasoningData([])
     setSelectedPriceBucket('')
     setSelectedBrand('')
+    // Note: We don't reset conversationId here as it's managed by useState
+    // Products will be cleared on next new conversation
   }
 
   const handleLogout = () => {
@@ -60,8 +65,7 @@ export default function ChatInterface() {
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return
 
-    // Clear previous results before starting new query
-    setAllProducts([])
+    // Only clear filters, not products (products persist throughout conversation)
     setSearchLinksData([])
     setReasoningData([])
     setSelectedPriceBucket('')
@@ -88,7 +92,8 @@ export default function ChatInterface() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: input
+          message: input,
+          conversation_id: conversationId
         })
       })
 
@@ -141,15 +146,18 @@ export default function ChatInterface() {
                 
                 case 'product':
                   if (data.product) {
-                    // Use the backend-provided ID or generate one if missing
+                    // Ensure we have all required fields with fallbacks
                     const product: Product = {
                       ...data.product,
-                      // Ensure we have a product_name
                       product_name: data.product.product_name || data.product.name || data.product.title || 'Unknown Product',
-                      // Use provided ID or generate one
-                      id: data.product.id || `${data.product.store}-${data.product.product_name || data.product.name || data.product.title}`.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+                      store: data.product.store || data.product.store_name || 'Unknown Store',
+                      price: data.product.price || 'Price not available',
+                      image_url: data.product.image_url || '',
+                      product_url: data.product.product_url || '',
+                      description: data.product.description || '',
+                      id: data.product.id || `${(data.product.store || data.product.store_name || 'unknown')}-${(data.product.product_name || data.product.name || data.product.title || 'unknown')}`.toLowerCase().replace(/[^a-z0-9]+/g, '-')
                     }
-                    console.log('Adding product:', product)
+                    
                     setAllProducts(prev => [...prev, product])
                   }
                   break

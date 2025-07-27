@@ -23,8 +23,10 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
 
   // Extract store name from URL
   const getStoreName = () => {
-    if (product.store && product.store !== 'Unknown Store' && product.store !== 'unknown') {
-      return product.store
+    // Try different possible store field names
+    const store = product.store || product.store_name || ''
+    if (store && store !== 'Unknown Store' && store !== 'unknown' && store.trim()) {
+      return store
     }
     
     // Extract from product URL
@@ -166,11 +168,11 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
 
   return (
     <div 
-      className="group bg-white dark:bg-slate-800 rounded-xl shadow-sm hover:shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-200 cursor-pointer w-full flex flex-col relative active:scale-95 sm:active:scale-100 product-card"
+      className="group bg-white dark:bg-slate-800 rounded-xl shadow-sm hover:shadow-md border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-200 cursor-pointer w-full flex flex-col h-[330px] relative hover:scale-[1.02] active:scale-95"
       onClick={handleCardClick}
     >
       {/* Image section - Fixed height */}
-      <div className="relative bg-gray-50 dark:bg-slate-700 product-card-image flex-shrink-0 h-[200px] sm:h-[250px]">
+      <div className="relative bg-gray-50 dark:bg-slate-700 flex-shrink-0 h-[180px]">
         {imageUrl ? (
           <>
             <Image
@@ -219,26 +221,26 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
         )}
       </div>
 
-      {/* Content section - Fixed height with flex layout */}
-      <div className="p-3 sm:p-3.5 flex flex-col justify-between product-card-content min-h-[100px]">
-        {/* Store name */}
-        <div className="flex-shrink-0">
-          <p className="text-xs text-slate-500 dark:text-slate-400 truncate font-medium">
-            {storeName}
-          </p>
-        </div>
-        
-        {/* Product name - Takes up available space with consistent height */}
-        <div className="flex-1 flex items-start py-1 min-h-[36px] sm:min-h-[40px]">
-          <h3 className="font-semibold text-slate-900 dark:text-white text-sm line-clamp-2 leading-tight">
+      {/* Content section - Clean layout */}
+      <div className="p-4 flex flex-col h-[150px] bg-white dark:bg-slate-800">
+        {/* Product name - Most important, at top */}
+        <div className="mb-3 h-[44px] flex items-start">
+          <h3 className="font-semibold text-slate-900 dark:text-white text-sm leading-tight line-clamp-2">
             {displayName}
           </h3>
         </div>
         
-        {/* Price - Fixed at bottom */}
-        <div className="flex-shrink-0">
-          <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400 truncate">
-            {product.price || 'Price on request'}
+        {/* Price - Second priority */}
+        <div className="mb-3">
+          <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">
+            ${product.price}
+          </p>
+        </div>
+        
+        {/* Store name - Can get cut off, least priority */}
+        <div className="mt-auto">
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wide truncate">
+            {storeName}
           </p>
         </div>
       </div>

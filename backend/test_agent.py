@@ -3,7 +3,8 @@
 Simple test script for the Agent system
 """
 
-from app.modules.agent import Agent, Tool, LLM
+from app.modules.agent import Agent, LLM
+from app.tools import Tool
 
 
 def simple_add(a: int, b: int) -> int:

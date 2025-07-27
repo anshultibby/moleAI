@@ -7,7 +7,7 @@ from .shopify_products_service import ShopifyProductsService
 
 def create_tools() -> List[Dict[str, Any]]:
     """Create the store discovery and product fetch tools"""
-    from ..modules.agent import Tool
+    from ..tools import Tool
     
     # Store Discovery Tool
     def discover_stores(**kwargs):

@@ -7,9 +7,10 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from ..modules.agent import Agent, LLM
-from ..utils.tools import get_tools
+from ..tools import get_tools
 from ..config import GEMINI_API_KEY
 from ..utils.debug_logger import debug_log
+from ..utils.product_event_emitter import get_product_emitter
 
 router = APIRouter()
 
@@ -31,40 +32,7 @@ class StreamMessage(BaseModel):
 # Store chat histories by conversation ID
 chat_histories: Dict[str, List[Dict[str, str]]] = {}
 
-def extract_json_from_message(content: str) -> Optional[Dict]:
-    """Extract JSON data from a message containing ```json blocks"""
-    try:
-        if "```json" in content:
-            # Extract everything between ```json and ```
-            json_str = content.split("```json")[1].split("```")[0].strip()
-            data = json.loads(json_str)
-            debug_log(f"Extracted JSON data: {json.dumps(data)[:200]}...")
-            return data
-    except Exception as e:
-        debug_log(f"Error extracting JSON: {str(e)}")
-    return None
 
-def is_tool_call(content: str) -> bool:
-    """Check if a message is a tool call"""
-    try:
-        if "```json" in content:
-            json_data = extract_json_from_message(content)
-            return json_data is not None and "tool_calls" in json_data
-    except Exception as e:
-        debug_log(f"Error checking tool call: {str(e)}")
-    return False
-
-def extract_products_from_tool_response(content: str) -> Optional[Dict]:
-    """Extract product data from a tool response"""
-    try:
-        if "```json" in content:
-            json_data = extract_json_from_message(content)
-            if json_data and "deals_found" in json_data:
-                debug_log(f"Found product data: {json.dumps(json_data)[:200]}...")
-                return json_data
-    except Exception as e:
-        debug_log(f"Error extracting product data: {str(e)}")
-    return None
 
 def create_shopping_agent() -> Agent:
     """Create an agent instance with our tools"""
@@ -96,60 +64,62 @@ async def stream_chat(message: ChatMessage):
         debug_log(f"Conversation ID: {message.conversation_id}")
         debug_log("="*50 + "\n")
         
-        # Get or create chat history
-        history = chat_histories.get(message.conversation_id, [])
-        debug_log(f"Current history length: {len(history)}")
+        # Get existing chat history or start with system message
+        existing_history = chat_histories.get(message.conversation_id, [])
+        debug_log(f"Existing history length: {len(existing_history)}")
         
         # Create agent
         agent = create_shopping_agent()
         
         async def generate_stream():
             try:
+                # Only reset product emitter for brand new conversations (no existing history)
+                if not existing_history:
+                    debug_log("New conversation detected - resetting product emitter")
+                    get_product_emitter().reset_conversation()
+                
                 # Send start signal
                 yield f"data: {json.dumps(StreamMessage(type='start').dict())}\n\n"
                 
-                # Add user message to history
-                history.append({
-                    "role": "user",
-                    "content": message.message
-                })
+                # Run agent with conversation history and new message
+                if existing_history:
+                    # Continue existing conversation
+                    debug_log("Continuing existing conversation with history...")
+                    updated_messages = agent.run_conversation(
+                        user_message=message.message,
+                        conversation_history=existing_history
+                    )
+                else:
+                    # Start new conversation
+                    debug_log("Starting new conversation...")
+                    updated_messages = agent.run_conversation(user_message=message.message)
                 
-                # Run agent with full history context
-                debug_log("Running conversation...")
-                for msg in agent.run_conversation(message.message):
-                    # Add to history
-                    history.append(msg)
+                # Process new messages (everything after the existing history)
+                start_index = len(existing_history)
+                new_messages = updated_messages[start_index:]
+                debug_log(f"Processing {len(new_messages)} new messages...")
+                
+                for msg in new_messages:
+                    debug_log(f"Processing message: {msg['role']} - {msg['content'][:100]}...")
                     
                     if msg["role"] == "assistant":
-                        debug_log(f"Processing assistant message: {msg['content'][:200]}...")
-                        
-                        # Skip tool calls
-                        if is_tool_call(msg["content"]):
-                            debug_log("Skipping tool call message")
-                            continue
-                            
-                        # Check for product data
-                        product_data = extract_products_from_tool_response(msg["content"])
-                        if product_data:
-                            # Stream each product
-                            for product in product_data["deals_found"]:
-                                debug_log(f"Streaming product: {json.dumps(product)[:200]}...")
-                                stream_msg = StreamMessage(type='product', product=product)
-                                yield f"data: {json.dumps(stream_msg.dict())}\n\n"
-                            
-                            # Stream the response message if present
-                            if "response" in product_data:
-                                debug_log(f"Streaming product response: {product_data['response'][:100]}...")
-                                yield f"data: {json.dumps(StreamMessage(type='message', content=product_data['response']).dict())}\n\n"
-                        else:
-                            # If no product data, check if it's a regular message
-                            if not "```json" in msg["content"]:
-                                debug_log(f"Streaming regular message: {msg['content'][:100]}...")
-                                yield f"data: {json.dumps(StreamMessage(type='message', content=msg['content']).dict())}\n\n"
+                        # Stream assistant messages directly to user
+                        debug_log(f"Streaming assistant message: {msg['content'][:100]}...")
+                        yield f"data: {json.dumps(StreamMessage(type='message', content=msg['content']).dict())}\n\n"
+                    
+                    # Check for new products from the event emitter after each message
+                    new_products = get_product_emitter().get_new_products()
+                    for product in new_products:
+                        debug_log(f"Streaming product from event: {product.get('product_name', 'Unknown')}")
+                        stream_msg = StreamMessage(type='product', product=product)
+                        yield f"data: {json.dumps(stream_msg.dict())}\n\n"
+                    
+                    # Note: We don't stream 'tool' or 'system' or 'user' messages to the frontend
+                    # These are internal conversation management messages
                 
-                # Store updated history
-                chat_histories[message.conversation_id] = history
-                debug_log(f"Conversation complete. Final history length: {len(history)}")
+                # Store updated conversation history
+                chat_histories[message.conversation_id] = updated_messages
+                debug_log(f"Conversation complete. Final history length: {len(updated_messages)}")
                 
                 # Send completion
                 yield f"data: {json.dumps(StreamMessage(type='complete').dict())}\n\n"

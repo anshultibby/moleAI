@@ -10,6 +10,7 @@ export interface Product {
   name?: string  // Alternative name field
   price: string
   store: string
+  store_name?: string  // Alternative store field
   image_url?: string
   product_url?: string
   description?: string

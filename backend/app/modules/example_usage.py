@@ -2,7 +2,8 @@
 Example usage of the Agent system with OpenAI Swarm-style agentic loop
 """
 
-from .agent import Agent, Tool, LLM
+from .agent import Agent, LLM
+from ..tools import Tool
 from ..config import GEMINI_API_KEY
 
 def get_weather(location: str) -> str:

@@ -23,7 +23,7 @@ async def search_products(query: str, max_results: int = 10) -> List[Dict[str, A
 
 def create_product_search_tool():
     """Create a Tool instance for product search"""
-    from ..modules.agent import Tool
+    from ..tools import Tool
     
     def sync_product_search(**kwargs):
         """Synchronous wrapper for async product search"""

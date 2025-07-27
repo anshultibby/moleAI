@@ -6,7 +6,9 @@ Integrates with the existing streaming pipeline to provide real-time agentic loo
 import asyncio
 import time
 from typing import AsyncGenerator, Dict, Any, List
-from .agent import Agent, Tool, LLM, ToolCall, ToolCallList
+from .agent import Agent, LLM
+from ..tools import Tool
+from ..tools.base import ToolCall, ToolCallList
 
 class StreamingAgent(Agent):
     """
