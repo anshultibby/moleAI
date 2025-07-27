@@ -58,36 +58,53 @@ class Agent:
         self.llm = llm
         self.system_instructions = self._build_system_instructions()
 
-    def _build_system_instructions(self) -> str:
-        """Build system instructions including tool descriptions"""
+    def _build_tool_prompt(self) -> str:
+        """Build tool prompt"""
         tool_descriptions = []
         for tool in self.tools.values():
             desc = f"- {tool.name}: {tool.description}"
             if tool.parameters:
                 desc += f"\n  Parameters: {json.dumps(tool.parameters, indent=2)}"
             tool_descriptions.append(desc)
+        return "\n".join(tool_descriptions)
 
-        return f"""You are {self.name}: {self.description}
 
-Available tools:
-{chr(10).join(tool_descriptions)}
+    def _build_system_instructions(self) -> str:
+        """Build system instructions including tool descriptions"""
 
-IMPORTANT WORKFLOW:
+        tool_prompt = self._build_tool_prompt()
+        system_prompt = f"""
+You are an expert shopping assistant. You help users find products on the internet 
+and display them according to their preferences and requirements.
+
+You have the following tools available to do this:
+{tool_prompt}
+
+The ui you operate in as follows:
+there are two sections on the page. Left side is the chat window, right side is a display of products that get populated slowly.
+When you call the add_product tool, the product will be displayed on the right side.
+So you have two ways to communicate with the user. Via text on the chat window and via product cards in the right side.
+
+Guidelines:
 1. To help users find products: use find_stores to discover relevant stores, then fetch_products to get product data
 2. To display products to users: use add_product for each specific item you want to show them
-3. fetch_products returns data for your review - it does NOT display products to the user
-4. Only add_product actually displays products in the user's interface
-
-When using tools, respond with the following JSON format:
+3. When using tools, respond with the following JSON format:
 {{
     "tool_calls": [
         {{"name": "tool_name", "arguments": {{"param1": "value1"}}}},
         {{"name": "tool_name2", "arguments": {{"param2": "value2"}}}}
     ]
 }}
+4. When replying to user use conversational language and be friendly and helpful.
+5. In the reply to the user dont reiterate what you have found if you showed it using add product.
+5. Make sure all products you find will match what user is looking for, we wanna avoid false positives.
+6. Since you have a mechanism to display intermediate results to the user, you can go on for a bit longer and keep searching. 
+The user will be engaaged looking at the initial results and will be more patient even if you were to take a while.
+7. You can always search for new stores with a variation of the query or get more items from the stores you have found.
 """
+        return system_prompt
 
-    def run_conversation(self, user_message: str = None, conversation_history: List[Dict[str, str]] = None, max_iterations: int = 10) -> List[Dict[str, str]]:
+    def run_conversation(self, user_message: str = None, conversation_history: List[Dict[str, str]] = None, max_iterations: int = 40) -> List[Dict[str, str]]:
         """
         Run the conversation with existing history or start a new one.
         

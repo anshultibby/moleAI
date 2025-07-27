@@ -12,21 +12,19 @@ def extract_tool_calls_from_response(response: str) -> Optional[ToolCallList]:
     """
     try:
         print(f"🔍 Checking response for JSON block...")
-        if "```json" in response:
+        if "{" in response:
             # Extract JSON from code block
-            parts = response.split("```")
-            for part in parts:
-                if part.strip().startswith("json"):
-                    json_str = part.replace("json", "").strip()
-                    print(f"📦 Found JSON: {json_str[:200]}...")
+            json_start = response.find("{")
+            json_end = response.rfind("}") + 1
+            json_str = response[json_start:json_end]
+            print(f"📦 Found JSON: {json_str[:200]}...")
                     
-                    tool_calls = ToolCallList.model_validate_json(json_str)
-                    print(f"✓ Validated {len(tool_calls.tool_calls)} tool calls")
-                    return tool_calls
+            tool_calls = ToolCallList.model_validate_json(json_str)
+            print(f"✓ Validated {len(tool_calls.tool_calls)} tool calls")
+            return tool_calls
             
-            print("❌ No valid JSON found in code blocks")
         else:
-            print("❌ No ```json block found in response")
+            print("❌ No JSON found in response")
     except Exception as e:
         print(f"❌ Error extracting tool calls: {str(e)}")
     return None

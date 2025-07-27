@@ -33,13 +33,13 @@ function makeLinksClickable(text: string) {
 function MessageContent({ message, searchLinksData }: { message: Message, searchLinksData: SearchLinksData[] }) {
   if (message.type === 'reasoning') {
     return (
-      <div className="text-xs sm:text-sm leading-relaxed">
-        <div className="flex items-center mb-1 sm:mb-2">
-          <span className="text-base sm:text-lg mr-1 sm:mr-2">🧠</span>
-          <span className="font-semibold text-blue-700 dark:text-blue-300 text-xs sm:text-sm">AI Reasoning</span>
+      <div className="text-sm leading-relaxed mb-6">
+        <div className="flex items-center mb-2">
+          <span className="text-lg mr-2">🧠</span>
+          <span className="font-medium text-blue-600 dark:text-blue-400 text-sm">AI Reasoning</span>
         </div>
         <div 
-          className="text-slate-700 dark:text-slate-300"
+          className="text-slate-700 dark:text-slate-300 ml-6"
           dangerouslySetInnerHTML={{ __html: message.content || '' }}
         />
       </div>
@@ -48,15 +48,15 @@ function MessageContent({ message, searchLinksData }: { message: Message, search
 
   if (message.type === 'search_links') {
     return (
-      <div className="text-xs sm:text-sm leading-relaxed">
-        <div className="flex items-center mb-1 sm:mb-2">
-          <span className="text-base sm:text-lg mr-1 sm:mr-2">🔍</span>
-          <span className="font-semibold text-green-700 dark:text-green-300 text-xs sm:text-sm">Search Results</span>
+      <div className="text-sm leading-relaxed mb-6">
+        <div className="flex items-center mb-2">
+          <span className="text-lg mr-2">🔍</span>
+          <span className="font-medium text-green-600 dark:text-green-400 text-sm">Search Results</span>
         </div>
-        <div className="text-slate-700 dark:text-slate-300 mb-2 sm:mb-3">{message.content}</div>
+        <div className="text-slate-700 dark:text-slate-300 mb-3 ml-6">{message.content}</div>
         
         {/* Compact link tabs */}
-        <div className="flex flex-wrap gap-1 sm:gap-2">
+        <div className="flex flex-wrap gap-2 ml-6">
           {searchLinksData.flatMap((linkData: SearchLinksData) => 
             linkData.links.slice(0, 6).map((link, linkIndex: number) => (
               <button
@@ -78,7 +78,7 @@ function MessageContent({ message, searchLinksData }: { message: Message, search
                     }
                   }
                 }}
-                className="px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs bg-white dark:bg-slate-600 border border-green-300 dark:border-slate-400 rounded hover:bg-green-100 dark:hover:bg-slate-500 transition-colors"
+                className="px-2 py-1 text-xs bg-green-50 dark:bg-slate-700 border border-green-200 dark:border-slate-600 rounded hover:bg-green-100 dark:hover:bg-slate-600 transition-colors"
                 title={link.title || `Visit ${link.domain}`}
               >
                 {link.domain ? link.domain.replace('.myshopify.com', '').replace('www.', '') : 'Store'}
@@ -92,26 +92,35 @@ function MessageContent({ message, searchLinksData }: { message: Message, search
 
   if (message.type === 'progress') {
     return (
-      <div className="text-xs sm:text-sm leading-relaxed">
-        <div className="flex items-center mb-1 sm:mb-2">
-          <span className="text-base sm:text-lg mr-1 sm:mr-2">⚡</span>
-          <span className="font-semibold text-orange-700 dark:text-orange-300 text-xs sm:text-sm">Progress Update</span>
+      <div className="text-sm leading-relaxed mb-6">
+        <div className="flex items-center mb-2">
+          <span className="text-lg mr-2">⚡</span>
+          <span className="font-medium text-orange-600 dark:text-orange-400 text-sm">Progress Update</span>
         </div>
         <div 
-          className="text-slate-600 dark:text-slate-400"
+          className="text-slate-600 dark:text-slate-400 ml-6"
           dangerouslySetInnerHTML={{ __html: makeLinksClickable(message.content || '') }}
         />
       </div>
     )
   }
 
-  // Default message content
+  // Default assistant message content - plain text
+  if (message.role === 'assistant') {
+    return (
+      <div className="text-sm leading-relaxed text-slate-800 dark:text-slate-200 mb-6">
+        <div 
+          dangerouslySetInnerHTML={{ __html: makeLinksClickable(message.content || '') }}
+        />
+      </div>
+    )
+  }
+
+  // User message content (in bubble)
   return (
     <div 
-      className="text-xs sm:text-sm leading-relaxed text-slate-900 dark:text-slate-100"
-      dangerouslySetInnerHTML={{ 
-        __html: message.role === 'assistant' ? makeLinksClickable(message.content || '') : (message.content || '')
-      }}
+      className="text-sm leading-relaxed text-white"
+      dangerouslySetInnerHTML={{ __html: message.content || '' }}
     />
   )
 }
@@ -157,7 +166,7 @@ export default function ChatPanel({
     <div className="h-full flex flex-col bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-r border-slate-200/60 dark:border-slate-600/60">
       {/* Chat Messages - Fixed spacing and layout with independent scrolling */}
       <div className="flex-1 overflow-y-auto scrollbar-thin mobile-scroll bg-gradient-to-b from-slate-50/50 to-white dark:from-slate-800/50 dark:to-slate-900 min-h-0">
-        <div className="max-w-2xl mx-auto px-3 sm:px-4 py-4 sm:py-2">
+        <div className="max-w-2xl mx-auto px-4 py-6">
           {messages.length === 0 && (
             <div className="text-center pt-12 pb-8">
               {/* Enhanced empty state with better visuals */}
@@ -192,9 +201,9 @@ export default function ChatPanel({
                       onClick={() => onInputChange(suggestion)}
                     >
                       <div className="w-2 h-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"></div>
-                                        <span className="text-slate-700 dark:text-slate-300 text-sm font-medium">
-                    &quot;{suggestion}&quot;
-                  </span>
+                      <span className="text-slate-700 dark:text-slate-300 text-sm font-medium">
+                        &quot;{suggestion}&quot;
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -202,55 +211,36 @@ export default function ChatPanel({
             </div>
           )}
 
-          {/* Messages with proper spacing */}
-          <div className="space-y-4 sm:space-y-6">
+          {/* Messages with new design - no avatars, user bubbles, assistant plain text */}
+          <div className="space-y-4">
             {messages.map((message, index) => (
-              <div key={index} className="flex items-start space-x-2 sm:space-x-3">
-                {/* Avatar */}
-                <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex-shrink-0 flex items-center justify-center ${
-                  message.role === 'user' 
-                    ? 'bg-slate-300 dark:bg-slate-600' 
-                    : 'bg-gradient-to-br from-indigo-500 to-purple-600'
-                }`}>
-                  <span className="text-xs sm:text-sm">
-                    {message.role === 'user' ? '👤' : '🤖'}
-                  </span>
-                </div>
-
-                {/* Message Content */}
-                <div className="flex-1 min-w-0">
-                  <div className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl ${
-                    message.role === 'user'
-                      ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white ml-auto max-w-xs sm:max-w-sm'
-                      : message.type === 'reasoning'
-                      ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-600 border border-blue-200 dark:border-slate-500'
-                      : message.type === 'search_links'
-                      ? 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-slate-700 dark:to-slate-600 border border-green-200 dark:border-slate-500'
-                      : message.type === 'progress'
-                      ? 'bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-slate-700 dark:to-slate-600 border border-orange-200 dark:border-slate-500'
-                      : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 shadow-sm'
-                  }`}>
+              <div key={index}>
+                {message.role === 'user' ? (
+                  // User message as bubble, right-aligned
+                  <div className="flex justify-end mb-4">
+                    <div className="max-w-xs sm:max-w-sm bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-3 rounded-2xl shadow-sm">
+                      <MessageContent message={message} searchLinksData={searchLinksData} />
+                    </div>
+                  </div>
+                ) : (
+                  // Assistant message as plain text on background
+                  <div className="mb-6">
                     <MessageContent message={message} searchLinksData={searchLinksData} />
                   </div>
-                </div>
+                )}
               </div>
             ))}
 
             {/* Loading indicator */}
             {isLoading && (
-              <div className="flex items-start space-x-2 sm:space-x-3">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
-                  <span className="text-xs sm:text-sm">🤖</span>
-                </div>
-                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-sm">
-                  <div className="flex items-center space-x-2 sm:space-x-3">
-                    <div className="flex space-x-1">
-                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-indigo-500 rounded-full animate-bounce"></div>
-                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                    </div>
-                    <span className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium">Finding deals...</span>
+              <div className="mb-6">
+                <div className="flex items-center space-x-3 text-slate-600 dark:text-slate-400">
+                  <div className="flex space-x-1">
+                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                   </div>
+                  <span className="text-sm font-medium">Finding deals...</span>
                 </div>
               </div>
             )}

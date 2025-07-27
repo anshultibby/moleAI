@@ -125,12 +125,7 @@ export default function ChatInterface() {
               // Handle different types of streaming updates
               switch (data.type) {
                 case 'start':
-                  const startMessage: Message = {
-                    role: 'assistant',
-                    content: 'Let me help you with that...',
-                    timestamp: new Date().toISOString()
-                  }
-                  setMessages(prev => [...prev, startMessage])
+                  // Just indicate that streaming has started, no automatic message
                   break
                 
                 case 'message':
