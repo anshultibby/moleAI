@@ -37,7 +37,7 @@ export default function ChatInterface() {
     products.clearFilters()
     
     // Send message and handle product updates
-    await chat.sendMessage(input, products.addProduct)
+    await chat.sendMessage(input, products.addProduct, products.removeProductById)
     setInput('')
   }
 

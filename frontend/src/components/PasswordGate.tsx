@@ -11,14 +11,6 @@ export default function PasswordGate({ onAuthenticated }: PasswordGateProps) {
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  // Check if user is already authenticated
-  useEffect(() => {
-    const isAuthenticated = sessionStorage.getItem('shopmole_authenticated')
-    if (isAuthenticated === 'true') {
-      onAuthenticated()
-    }
-  }, [onAuthenticated])
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)

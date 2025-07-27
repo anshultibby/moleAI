@@ -22,9 +22,10 @@ class ChatHistory(BaseModel):
     messages: List[Dict[str, str]]
 
 class StreamMessage(BaseModel):
-    type: str  # 'start' | 'message' | 'ephemeral' | 'product' | 'complete' | 'error'
+    type: str  # 'start' | 'message' | 'ephemeral' | 'product' | 'product_removal' | 'complete' | 'error'
     content: Optional[str] = None
     product: Optional[Dict] = None
+    product_id: Optional[str] = None  # For product removals
     error: Optional[str] = None
 
 # Store chat histories by conversation ID
@@ -98,6 +99,13 @@ async def stream_chat(message: ChatMessage):
                     for product in new_products:
                         debug_log(f"Streaming product from event: {product.get('product_name', 'Unknown')}")
                         stream_msg = StreamMessage(type='product', product=product)
+                        yield f"data: {json.dumps(stream_msg.dict())}\n\n"
+                    
+                    # Check for removed products and send removal events
+                    removed_product_ids = get_product_emitter().get_removed_product_ids()
+                    for product_id in removed_product_ids:
+                        debug_log(f"Streaming product removal: {product_id}")
+                        stream_msg = StreamMessage(type='product_removal', product_id=product_id)
                         yield f"data: {json.dumps(stream_msg.dict())}\n\n"
                 
                 # Store updated conversation history

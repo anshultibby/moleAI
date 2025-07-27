@@ -15,7 +15,8 @@ export function useChat() {
 
   const sendMessage = async (
     input: string,
-    onProductReceived: (product: Product) => void
+    onProductReceived: (product: Product) => void,
+    onProductRemoved?: (productId: string) => void
   ) => {
     if (!input.trim() || isLoading || !conversationId) return
 
@@ -107,6 +108,12 @@ export function useChat() {
                       id: data.product.id || `${(data.product.store || data.product.store_name || 'unknown')}-${(data.product.product_name || data.product.name || data.product.title || 'unknown')}`.toLowerCase().replace(/[^a-z0-9]+/g, '-')
                     }
                     onProductReceived(product)
+                  }
+                  break
+                
+                case 'product_removal':
+                  if (data.product_id && onProductRemoved) {
+                    onProductRemoved(data.product_id)
                   }
                   break
                 

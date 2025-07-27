@@ -30,6 +30,11 @@ export function useProducts() {
     setAllProducts(prev => prev.filter(p => p.id !== productId))
   }
 
+  const removeProductById = (productId: string) => {
+    console.log(`Removing product by ID: ${productId}`)
+    setAllProducts(prev => prev.filter(p => p.id !== productId))
+  }
+
   const removeSearchLinks = (searchLinksId: string) => {
     setSearchLinksData(prev => prev.filter(s => s.id !== searchLinksId))
   }
@@ -60,6 +65,7 @@ export function useProducts() {
     selectedBrand,
     addProduct,
     removeProduct,
+    removeProductById,
     removeSearchLinks,
     clearAllProducts,
     clearFilters,

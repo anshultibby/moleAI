@@ -83,7 +83,7 @@ export default function ChatPanel({
                 <div className="space-y-3 text-left">
                   {[
                     "Find me elegant black dresses under $100",
-                    "Show me trendy winter coats",
+                    "Show me running shoes under $100",
                     "I need a formal outfit for a wedding",
                     "What are the best deals on denim jackets?"
                   ].map((suggestion, index) => (

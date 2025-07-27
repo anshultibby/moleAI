@@ -345,7 +345,7 @@ You can also:
 5. Make sure all products you find will match what user is looking for, we wanna avoid false positives.
 6. Since you have a mechanism to display intermediate results to the user, keep searching and adding products to the right side for a while.
 especially important if you havent found enough products yet.
-7. You can always search for new stores with a variation of the query or get more items from the stores you have found.
+7. If you dont find enough products from the initial search, you can always search for new stores with a variation of the query.
 8. CRITICAL: When you give any conversational response (without tool calls), you MUST include <stop> at the end. This includes:
    - When you've found sufficient products and are done searching
    - When you're explaining that no suitable products were found
