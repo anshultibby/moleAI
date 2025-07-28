@@ -10,6 +10,7 @@ export interface Product {
   product_name: string
   name?: string  // Alternative name field
   price: string
+  currency?: string  // Currency code (USD, EUR, GBP, etc.)
   store: string
   store_name?: string  // Alternative store field
   image_url?: string

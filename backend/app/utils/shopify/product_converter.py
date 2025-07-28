@@ -59,8 +59,9 @@ class ShopifyProductConverter:
                 # Build clean product data for LLM
                 llm_product = {
                     'product_name': product.get('title', '').strip(),
-                    'price': self._format_price(first_variant.get('price', '0')),
+                    'price': first_variant.get('price', '0'),  # Clean numeric price
                     'price_value': self._parse_price_value(first_variant.get('price', '0')),
+                    'currency': 'USD',  # Shopify prices are typically in USD unless specified
                     'description': self._clean_html(product.get('body_html', ''))[:200],  # Truncated for LLM
                     'product_type': product.get('product_type', '').strip(),
                     'vendor': product.get('vendor', '').strip(),

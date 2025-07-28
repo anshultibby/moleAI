@@ -233,7 +233,21 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
         {/* Price - Second priority */}
         <div className="mb-3">
           <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">
-            {product.price.startsWith('$') ? product.price : `$${product.price}`}
+            {(() => {
+              const currency = product.currency || 'USD';
+              const currencySymbols: Record<string, string> = {
+                'USD': '$',
+                'EUR': '€',
+                'GBP': '£',
+                'JPY': '¥',
+                'INR': '₹',
+                'CAD': '$',
+                'AUD': '$'
+              };
+              
+              const symbol = currencySymbols[currency] || currency;
+              return `${symbol}${product.price}`;
+            })()}
           </p>
         </div>
         

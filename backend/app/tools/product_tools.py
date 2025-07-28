@@ -30,6 +30,7 @@ def display_product(
         product_data = {
             "product_name": product_name,
             "price": price,
+            "currency": "USD",  # Default to USD, could be made a parameter in the future
             "store": store,
             "image_url": image_url or "",
             "product_url": product_url or "",

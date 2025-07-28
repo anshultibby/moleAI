@@ -220,6 +220,7 @@ async def search_product(args: Dict[str, Any], context: ShoppingContextVariables
                     'product_name': product.get('product_name', 'Unknown Product'),
                     'price': product.get('price', 'Price not available'),
                     'price_value': product.get('price_value', 0),
+                    'currency': product.get('currency', 'USD'),
                     'image_url': product.get('image_url', ''),
                     'product_url': product.get('product_url', ''),
                     'store': product.get('store_name', 'Unknown Store'),  # Frontend expects 'store' field
@@ -280,6 +281,7 @@ async def search_product(args: Dict[str, Any], context: ShoppingContextVariables
                 'product_name': product.get('product_name', 'Unknown Product'),
                 'price': product.get('price', 'Price not available'),
                 'price_value': product.get('price_value', 0),
+                'currency': product.get('currency', 'USD'),
                 'image_url': product.get('image_url', ''),
                 'product_url': product.get('product_url', ''),
                 'store': product.get('store_name', 'Unknown Store'),  # Frontend expects 'store' field
@@ -806,11 +808,25 @@ def get_structured_products_json(context: ShoppingContextVariables) -> List[Dict
             # Use store_name first, then store as fallback
             store = deal.get('store_name') or deal.get('store') or 'Unknown Store'
             
+            # Extract currency and clean price
+            currency = deal.get('currency', 'USD')
+            price_value = deal.get('price_value', 0)
+            
+            # Create clean numeric price (remove currency symbols)
+            clean_price = str(price_value) if price_value > 0 else deal.get('price', 'Price not available')
+            if isinstance(clean_price, str) and clean_price != 'Price not available':
+                # Remove currency symbols and codes from price string
+                import re
+                clean_price = re.sub(r'[€$£¥₹]\s*', '', clean_price)
+                clean_price = re.sub(r'\s+(USD|EUR|GBP|JPY|INR|CAD)$', '', clean_price)
+                clean_price = clean_price.strip()
+            
             product = {
                 "id": f"{product_name}_{hash(product_url)}"[:50],
                 "product_name": product_name,
                 "name": product_name,
-                "price": deal.get('price', 'Price not available'),
+                "price": clean_price,
+                "currency": currency,
                 "store": store,
                 "image_url": deal.get('image_url', ''),
                 "product_url": product_url,
