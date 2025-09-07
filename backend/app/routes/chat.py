@@ -9,10 +9,13 @@ from pydantic import BaseModel
 
 from app.modules.agent import Agent
 from app.models import (
-    Message, ThinkingResponse, ToolCallsResponse, AssistantResponse
+    Message, ThinkingResponse, ToolCallsResponse, AssistantResponse, 
+    OpenAIResponse, ResponseOutputMessage
 )
 from app.config import OPENAI_API_KEY
 from app.prompts import BASIC_ASSISTANT_PROMPT
+# Import tool definitions to register them
+import app.tools.definitions
 
 router = APIRouter()
 
@@ -30,10 +33,8 @@ def get_or_create_agent(conversation_id: str) -> Agent:
         agents[conversation_id] = Agent(
             system_prompt=BASIC_ASSISTANT_PROMPT,
             model="gpt-5",
-            tools=None,  # No tools for now
             reasoning_effort="medium",
-            api_key=OPENAI_API_KEY,
-            tool_functions={}
+            api_key=OPENAI_API_KEY
         )
     
     return agents[conversation_id]
@@ -65,31 +66,57 @@ async def stream_chat(request: ChatRequest):
                         
                         if isinstance(result, ThinkingResponse):
                             # Stream thinking content as ephemeral messages for the thinking panel
-                            for content_item in result.content:
-                                yield f"data: {json.dumps({
-                                    'type': 'ephemeral',
-                                    'content': content_item
-                                })}\n\n"
+                            if result.content:
+                                for content_item in result.content:
+                                    stream_data = {
+                                        'type': 'ephemeral',
+                                        'content': content_item
+                                    }
+                                    yield f"data: {json.dumps(stream_data)}\n\n"
+                            
+                            # Also stream summary if available
+                            if result.summary:
+                                for summary_item in result.summary:
+                                    stream_data = {
+                                        'type': 'ephemeral',
+                                        'content': f"Summary: {summary_item}"
+                                    }
+                                    yield f"data: {json.dumps(stream_data)}\n\n"
                             
                         elif isinstance(result, ToolCallsResponse):
-                            # This shouldn't happen since we have no tools, but handle it
-                            print("Unexpected tool calls received")
+                            # This shouldn't happen as the agent handles tool calls internally
+                            # and continues the conversation automatically
+                            pass
                             
                         elif isinstance(result, AssistantResponse):
-                            # Stream the assistant response
+                            # Stream the assistant response using typed models
                             response_text = ""
-                            if hasattr(result.response, 'output_text'):
-                                response_text = result.response.output_text
-                            elif hasattr(result.response, 'output') and result.response.output:
-                                # Extract text from output items
-                                for item in result.response.output:
-                                    if hasattr(item, 'content') and isinstance(item.content, str):
-                                        response_text += item.content
                             
-                            yield f"data: {json.dumps({
+                            # Extract text from typed response
+                            if isinstance(result.response, OpenAIResponse):
+                                for output_item in result.response.output:
+                                    if isinstance(output_item, ResponseOutputMessage):
+                                        for content_item in output_item.content:
+                                            response_text += content_item.text
+                            else:
+                                # Fallback for untyped response
+                                if hasattr(result.response, 'output_text'):
+                                    response_text = result.response.output_text
+                                elif hasattr(result.response, 'output') and result.response.output:
+                                    for item in result.response.output:
+                                        if hasattr(item, 'type') and item.type == "message":
+                                            if hasattr(item, 'content') and item.content:
+                                                for content_item in item.content:
+                                                    if hasattr(content_item, 'text'):
+                                                        response_text += content_item.text
+                                                    elif isinstance(content_item, str):
+                                                        response_text += content_item
+                            
+                            message_data = {
                                 'type': 'message',
                                 'content': response_text
-                            })}\n\n"
+                            }
+                            yield f"data: {json.dumps(message_data)}\n\n"
                             
                             # End the conversation since we don't expect user input in streaming
                             conversation.send(None)
@@ -106,7 +133,8 @@ async def stream_chat(request: ChatRequest):
                 print(f"Error in stream: {str(e)}")
                 import traceback
                 traceback.print_exc()
-                yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+                error_data = {'type': 'error', 'error': str(e)}
+                yield f"data: {json.dumps(error_data)}\n\n"
         
         return StreamingResponse(
             generate_stream(),

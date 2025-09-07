@@ -1,0 +1,164 @@
+"""Tool decorator for converting functions into OpenAI-compatible tools"""
+
+import json
+import inspect
+from typing import Any, Dict, List, Optional, Callable, get_type_hints, get_origin, get_args
+from functools import wraps
+from app.tools.registry import tool_registry
+from app.models.chat import Tool
+
+
+def _python_type_to_json_schema(py_type: Any, description: str = "") -> Dict[str, Any]:
+    """Convert Python type hints to JSON schema format"""
+    
+    # Handle Optional types (Union[T, None])
+    origin = get_origin(py_type)
+    if origin is not None:
+        args = get_args(py_type)
+        
+        # Handle Optional[T] which is Union[T, None]
+        if origin is type(None) or (hasattr(py_type, '__module__') and py_type.__module__ == 'typing'):
+            if len(args) == 2 and type(None) in args:
+                # This is Optional[T]
+                non_none_type = args[0] if args[1] is type(None) else args[1]
+                return _python_type_to_json_schema(non_none_type, description)
+        
+        # Handle List[T]
+        if origin is list:
+            if args:
+                item_schema = _python_type_to_json_schema(args[0])
+                return {
+                    "type": "array",
+                    "items": item_schema,
+                    "description": description
+                }
+            else:
+                return {"type": "array", "description": description}
+    
+    # Handle basic types
+    if py_type is str:
+        return {"type": "string", "description": description}
+    elif py_type is int:
+        return {"type": "integer", "description": description}
+    elif py_type is float:
+        return {"type": "number", "description": description}
+    elif py_type is bool:
+        return {"type": "boolean", "description": description}
+    elif py_type is list:
+        return {"type": "array", "description": description}
+    elif py_type is dict:
+        return {"type": "object", "description": description}
+    else:
+        # Default to string for unknown types
+        return {"type": "string", "description": description}
+
+
+
+
+class ToolFunction:
+    """Represents a tool function with OpenAI compatibility"""
+    
+    def __init__(self, func: Callable, name: str = None, description: str = None):
+        self.func = func
+        self.name = name or func.__name__
+        self.description = description or ""
+        self.signature = inspect.signature(func)
+        self.type_hints = get_type_hints(func)
+    
+    def to_openai_format(self) -> Tool:
+        """Convert the function to OpenAI function calling format"""
+        
+        properties = {}
+        required = []
+        
+        for param_name, param in self.signature.parameters.items():
+            # Skip 'self' parameter
+            if param_name == 'self':
+                continue
+                
+            # Get type hint
+            param_type = self.type_hints.get(param_name, str)
+            
+            # Convert to JSON schema
+            param_schema = _python_type_to_json_schema(param_type, f"The {param_name} parameter")
+            properties[param_name] = param_schema
+            
+            # Check if parameter is required (no default value and not Optional)
+            if param.default is inspect.Parameter.empty:
+                # Check if it's Optional type
+                origin = get_origin(param_type)
+                if origin is not None:
+                    args = get_args(param_type)
+                    # If it's Union[T, None] (Optional), it's not required
+                    if not (len(args) == 2 and type(None) in args):
+                        required.append(param_name)
+                else:
+                    required.append(param_name)
+        
+        return Tool(
+            name=self.name,
+            description=self.description,
+            parameters={
+                "type": "object",
+                "properties": properties,
+                "required": required,
+                "additionalProperties": False
+            },
+            strict=True
+        )
+    
+    def execute(self, **kwargs) -> Any:
+        """Execute the function with given parameters"""
+        try:
+            # Validate parameters against signature
+            bound_args = self.signature.bind(**kwargs)
+            bound_args.apply_defaults()
+            
+            # Execute the function
+            result = self.func(**bound_args.arguments)
+            return result
+            
+        except TypeError as e:
+            raise ValueError(f"Invalid parameters for {self.name}: {str(e)}")
+        except Exception as e:
+            raise RuntimeError(f"Error executing {self.name}: {str(e)}")
+
+
+def tool(name: str = None, description: str = None):
+    """
+    Decorator to convert a function into an OpenAI-compatible tool.
+    
+    Args:
+        name: Optional custom name for the tool (defaults to function name)
+        description: Optional custom description (defaults to first line of docstring)
+    
+    Example:
+        @tool(name="get_weather", description="Get current weather for a location")
+        def get_weather(location: str, units: str = "celsius") -> str:
+            '''Get weather information for a location
+            
+            location: City and country e.g. Bogotá, Colombia
+            units: Temperature units (celsius or fahrenheit)
+            '''
+            # Implementation here
+            pass
+    """
+    def decorator(func: Callable) -> Callable:
+        # Create tool function wrapper
+        tool_func = ToolFunction(func, name, description)
+        
+        # Register the tool
+        tool_registry.register(tool_func.name, tool_func)
+        
+        # Return the original function with tool metadata
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        
+        # Attach tool metadata to the wrapper
+        wrapper._tool_func = tool_func
+        wrapper._is_tool = True
+        
+        return wrapper
+    
+    return decorator

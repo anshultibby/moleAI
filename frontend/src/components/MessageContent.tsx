@@ -1,6 +1,6 @@
 import { Message, SearchLinksData } from '../types'
 
-// Helper function to make links clickable in text and handle italic formatting
+// Helper function to make links clickable in text and handle formatting including line breaks
 function makeLinksClickable(text: string) {
   // Check if text is undefined or null
   if (!text || typeof text !== 'string') {
@@ -15,6 +15,9 @@ function makeLinksClickable(text: string) {
   
   // Handle bold text with double asterisks **text**
   result = result.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-slate-800 dark:text-slate-200">$1</strong>')
+  
+  // Convert line breaks to HTML <br/> tags
+  result = result.replace(/\n/g, '<br/>')
   
   return result
 }
@@ -34,7 +37,7 @@ export default function MessageContent({ message, searchLinksData }: MessageCont
         </div>
         <div 
           className="text-slate-700 dark:text-slate-300 ml-6"
-          dangerouslySetInnerHTML={{ __html: message.content || '' }}
+          dangerouslySetInnerHTML={{ __html: makeLinksClickable(message.content || '') }}
         />
       </div>
     )
@@ -114,7 +117,7 @@ export default function MessageContent({ message, searchLinksData }: MessageCont
   return (
     <div 
       className="text-sm leading-relaxed text-white"
-      dangerouslySetInnerHTML={{ __html: message.content || '' }}
+      dangerouslySetInnerHTML={{ __html: makeLinksClickable(message.content || '') }}
     />
   )
 } 

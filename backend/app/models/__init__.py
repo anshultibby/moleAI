@@ -17,7 +17,13 @@ from .chat import (
     ToolCallsResponse,
     AssistantResponse,
     AgentResponse,
-    InputMessage
+    InputMessage,
+    OpenAIResponse,
+    OpenAIResponseBase,
+    ResponseOutputItem,
+    ResponseReasoningItem,
+    ResponseOutputMessage,
+    ResponseOutputText
 )
 
 __all__ = [
@@ -38,5 +44,11 @@ __all__ = [
     "ToolCallsResponse", 
     "AssistantResponse",
     "AgentResponse",
-    "InputMessage"
+    "InputMessage",
+    "OpenAIResponse",
+    "OpenAIResponseBase",
+    "ResponseOutputItem",
+    "ResponseReasoningItem", 
+    "ResponseOutputMessage",
+    "ResponseOutputText"
 ]

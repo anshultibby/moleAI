@@ -92,6 +92,86 @@ AgentResponse = Union[ThinkingResponse, ToolCallsResponse, AssistantResponse]
 # Type alias for input messages
 InputMessage = Union[Message, ToolCall, ToolCallOutput, ReasoningOutput]
 
+# OpenAI Response Models (based on actual API response structure)
+class ResponseOutputText(BaseModel):
+    annotations: List[Any] = []
+    text: str
+    type: Literal["output_text"] = "output_text"
+    logprobs: List[Any] = []
+
+class ResponseOutputMessage(BaseModel):
+    id: str
+    content: List[ResponseOutputText]
+    role: Literal["assistant"] = "assistant"
+    status: Literal["completed"] = "completed"
+    type: Literal["message"] = "message"
+
+class ResponseReasoningItem(BaseModel):
+    id: str
+    summary: List[str] = []
+    type: Literal["reasoning"] = "reasoning"
+    content: Optional[str] = None
+    encrypted_content: Optional[str] = None
+    status: Optional[str] = None
+
+# Union type for all output items
+ResponseOutputItem = Union[ResponseReasoningItem, ResponseOutputMessage]
+
+class InputTokensDetails(BaseModel):
+    cached_tokens: int = 0
+
+class OutputTokensDetails(BaseModel):
+    reasoning_tokens: int = 0
+
+class ResponseUsage(BaseModel):
+    input_tokens: int
+    input_tokens_details: InputTokensDetails
+    output_tokens: int
+    output_tokens_details: OutputTokensDetails
+    total_tokens: int
+
+class Reasoning(BaseModel):
+    effort: str = "medium"
+    generate_summary: Optional[bool] = None
+    summary: Optional[str] = None
+
+class OpenAIResponseBase(BaseModel):
+    """Base model containing all the OpenAI response metadata fields"""
+    id: str
+    created_at: float
+    error: Optional[Any] = None
+    incomplete_details: Optional[Any] = None
+    instructions: Optional[Any] = None
+    metadata: Dict[str, Any] = {}
+    model: str
+    object: Literal["response"] = "response"
+    parallel_tool_calls: bool = True
+    temperature: float = 1.0
+    tool_choice: str = "auto"
+    tools: List[Any] = []
+    top_p: float = 1.0
+    background: bool = False
+    conversation: Optional[Any] = None
+    max_output_tokens: Optional[int] = None
+    max_tool_calls: Optional[int] = None
+    previous_response_id: Optional[str] = None
+    prompt: Optional[Any] = None
+    prompt_cache_key: Optional[str] = None
+    reasoning: Optional[Reasoning] = None
+    safety_identifier: Optional[str] = None
+    service_tier: str = "default"
+    status: Literal["completed"] = "completed"
+    text: Optional[Any] = None
+    top_logprobs: int = 0
+    truncation: str = "disabled"
+    usage: ResponseUsage
+    user: Optional[str] = None
+    store: bool = True
+
+class OpenAIResponse(OpenAIResponseBase):
+    """Clean OpenAI response model with just the essential output field"""
+    output: List[ResponseOutputItem]
+
 # OpenAI Responses Request (for responses.create API)
 class OpenAIRequest(BaseModel):
     model: str

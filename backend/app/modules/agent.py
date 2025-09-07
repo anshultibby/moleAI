@@ -12,25 +12,30 @@ from app.models import (
     ThinkingResponse,
     ToolCallsResponse,
     AssistantResponse,
-    AgentResponse
+    AgentResponse,
+    OpenAIResponse,
+    ResponseReasoningItem,
+    ResponseOutputMessage
 )
+from app.tools import tool_registry
+
+from loguru import logger
 
 
 class Agent:
     def __init__(self, 
                  system_prompt: str, 
                  model: str, 
-                 tools: Optional[List[Tool]] = None,
                  reasoning_effort: str = "medium",
-                 api_key: Optional[str] = None,
-                 tool_functions: Optional[Dict[str, Callable]] = None):
+                 api_key: Optional[str] = None):
         self.system_prompt = system_prompt
         self.model = model
-        self.tools = tools or []
         self.reasoning_effort = reasoning_effort
         self.message_history: List[InputMessage] = []
         self.client = OpenAI(api_key=api_key)
-        self.tool_functions = tool_functions or {}
+        
+        # Always use registry tools
+        self.tools = tool_registry.to_openai_format()
         
         # Add system message to history
         system_message = Message(
@@ -39,7 +44,7 @@ class Agent:
         )
         self.message_history.append(system_message)
 
-    def step(self, input_message: InputMessage):
+    def step(self, input_message: InputMessage) -> OpenAIResponse:
         """Add an input message and call the OpenAI responses API"""
         self.message_history.append(input_message)
         
@@ -61,9 +66,17 @@ class Agent:
             api_params["reasoning"] = {"effort": self.reasoning_effort}
         
         # Call OpenAI responses API
-        response = self.client.responses.create(**api_params)
+        raw_response = self.client.responses.create(**api_params)
         
-        return response
+        # Parse response using Pydantic model for type safety
+        try:
+            response = OpenAIResponse.parse_obj(raw_response.dict())
+            return response
+        except Exception as e:
+            logger.error(f"Failed to parse OpenAI response: {e}")
+            logger.debug(f"Raw response: {raw_response}")
+            # Return raw response as fallback
+            return raw_response
         
     
     def add_to_history(self, message: InputMessage):
@@ -71,14 +84,14 @@ class Agent:
         self.message_history.append(message)
     
     def execute_tool_call(self, tool_call: ToolCall) -> str:
-        """Execute a tool call and return the result"""
-        if tool_call.name not in self.tool_functions:
-            return f"Error: Tool '{tool_call.name}' not found"
+        """Execute a tool call using the tool registry"""
+        if not tool_registry.has_tool(tool_call.name):
+            return f"Error: Tool '{tool_call.name}' not found in registry"
         
         try:
-            # Parse arguments and call the function
+            # Parse arguments and execute using registry
             args = tool_call.parse_arguments()
-            result = self.tool_functions[tool_call.name](**args)
+            result = tool_registry.execute_tool(tool_call.name, **args)
             return str(result)
         except Exception as e:
             return f"Error executing {tool_call.name}: {str(e)}"
@@ -101,49 +114,76 @@ class Agent:
             response = self.step(current_message)
             
             # First, yield any thinking/reasoning content
-            if hasattr(response, 'output') and response.output:
-                for output_item in response.output:
-                    if hasattr(output_item, 'type') and output_item.type == "reasoning":
+            logger.info(f"Response: {response}")
+            for output_item in response.output:
+                if isinstance(output_item, ResponseReasoningItem):
+                    # Handle reasoning content extraction with type safety
+                    reasoning_content = []
+                    reasoning_summary = None
+                    
+                    # Try to extract content from various possible fields
+                    if output_item.content:
+                        reasoning_content = [output_item.content]
+                    elif output_item.encrypted_content:
+                        # Handle encrypted content if available
+                        reasoning_content = [f"[Encrypted reasoning content available but not accessible]"]
+                    
+                    # Extract summary if available
+                    if output_item.summary:
+                        reasoning_summary = output_item.summary
+                    
+                    # Only yield if we have some content or summary
+                    if reasoning_content or reasoning_summary:
                         yield ThinkingResponse(
-                            content=output_item.content if hasattr(output_item, 'content') else [str(output_item)],
-                            summary=output_item.summary if hasattr(output_item, 'summary') else None,
+                            content=reasoning_content,
+                            summary=reasoning_summary,
                             response=response
                         )
+                    else:
+                        # Log when reasoning is empty but don't yield empty content
+                        logger.info(f"Reasoning item found but no accessible content: {output_item}")
+                        logger.debug(f"Reasoning item details - content: {output_item.content}, "
+                                   f"encrypted_content: {output_item.encrypted_content}, "
+                                   f"summary: {output_item.summary}, "
+                                   f"status: {output_item.status}")
             
-            # Check if response has tool calls
+            # Check if response has tool calls or assistant messages
             has_tool_calls = False
+            has_assistant_message = False
             tool_calls = []
             tool_outputs = []
             
-            if hasattr(response, 'output') and response.output:
-                for output_item in response.output:
-                    if hasattr(output_item, 'type') and output_item.type == "function_call":
-                        has_tool_calls = True
-                        
-                        # Create ToolCall object
-                        tool_call = ToolCall(
-                            id=output_item.id,
-                            call_id=output_item.call_id,
-                            name=output_item.name,
-                            arguments=output_item.arguments
-                        )
-                        
-                        # Execute the tool call
-                        result = self.execute_tool_call(tool_call)
-                        
-                        # Create tool call output
-                        tool_output = ToolCallOutput(
-                            call_id=tool_call.call_id,
-                            output=result
-                        )
-                        
-                        # Add both tool call and output to history
-                        self.add_to_history(tool_call)
-                        self.add_to_history(tool_output)
-                        
-                        # Collect both calls and outputs
-                        tool_calls.append(tool_call)
-                        tool_outputs.append(tool_output)
+            for output_item in response.output:
+                if hasattr(output_item, 'type') and output_item.type == "function_call":
+                    has_tool_calls = True
+                    
+                    # Create ToolCall object
+                    tool_call = ToolCall(
+                        id=output_item.id,
+                        call_id=output_item.call_id,
+                        name=output_item.name,
+                        arguments=output_item.arguments
+                    )
+                    
+                    # Execute the tool call
+                    result = self.execute_tool_call(tool_call)
+                    
+                    # Create tool call output
+                    tool_output = ToolCallOutput(
+                        call_id=tool_call.call_id,
+                        output=result
+                    )
+                    
+                    # Add both tool call and output to history
+                    self.add_to_history(tool_call)
+                    self.add_to_history(tool_output)
+                    
+                    # Collect both calls and outputs
+                    tool_calls.append(tool_call)
+                    tool_outputs.append(tool_output)
+                    
+                elif isinstance(output_item, ResponseOutputMessage):
+                    has_assistant_message = True
             
             if has_tool_calls:
                 # Yield both tool calls and their results
@@ -156,8 +196,18 @@ class Agent:
                 # Continue with empty message to get next response
                 current_message = None
                 
+            elif has_assistant_message:
+                # Has assistant message - yield the response and wait for user input
+                yield AssistantResponse(response=response)
+                
+                # Wait for next user input
+                current_message = yield
+                
+                if current_message is None:
+                    break
             else:
-                # No tool calls - yield the response and wait for user input
+                # No tool calls or assistant messages - this shouldn't happen normally
+                logger.warning(f"Response has no tool calls or assistant messages: {response}")
                 yield AssistantResponse(response=response)
                 
                 # Wait for next user input
