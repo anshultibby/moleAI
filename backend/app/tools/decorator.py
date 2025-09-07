@@ -4,6 +4,7 @@ import json
 import inspect
 from typing import Any, Dict, List, Optional, Callable, get_type_hints, get_origin, get_args
 from functools import wraps
+from loguru import logger
 from app.tools.registry import tool_registry
 from app.models.chat import Tool
 
@@ -83,6 +84,9 @@ class ToolFunction:
             param_schema = _python_type_to_json_schema(param_type, f"The {param_name} parameter")
             properties[param_name] = param_schema
             
+            # Debug logging
+            logger.debug(f"Parameter '{param_name}': type={param_type}, default={param.default}, empty={param.default is inspect.Parameter.empty}")
+            
             # Check if parameter is required (no default value and not Optional)
             if param.default is inspect.Parameter.empty:
                 # Check if it's Optional type
@@ -92,10 +96,16 @@ class ToolFunction:
                     # If it's Union[T, None] (Optional), it's not required
                     if not (len(args) == 2 and type(None) in args):
                         required.append(param_name)
+                        logger.debug(f"Parameter '{param_name}' marked as REQUIRED (no default, not Optional)")
+                    else:
+                        logger.debug(f"Parameter '{param_name}' marked as OPTIONAL (Optional type)")
                 else:
                     required.append(param_name)
+                    logger.debug(f"Parameter '{param_name}' marked as REQUIRED (no default)")
+            else:
+                logger.debug(f"Parameter '{param_name}' marked as OPTIONAL (has default: {param.default})")
         
-        return Tool(
+        tool_schema = Tool(
             name=self.name,
             description=self.description,
             parameters={
@@ -104,8 +114,13 @@ class ToolFunction:
                 "required": required,
                 "additionalProperties": False
             },
-            strict=True
+            strict=False
         )
+        
+        # Log the generated schema for debugging
+        logger.info(f"Generated OpenAI tool schema for '{self.name}': {json.dumps(tool_schema.model_dump(), indent=2)}")
+        
+        return tool_schema
     
     def execute(self, **kwargs) -> Any:
         """Execute the function with given parameters"""

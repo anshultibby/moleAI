@@ -21,8 +21,11 @@ from .chat import (
     OpenAIResponse,
     OpenAIResponseBase,
     ResponseOutputItem,
+    InputReasoningItem,
+    InputFunctionToolCall,
     ResponseReasoningItem,
     ResponseOutputMessage,
+    ResponseFunctionToolCall,
     ResponseOutputText
 )
 
@@ -61,8 +64,11 @@ __all__ = [
     "OpenAIResponse",
     "OpenAIResponseBase",
     "ResponseOutputItem",
+    "InputReasoningItem",
+    "InputFunctionToolCall",
     "ResponseReasoningItem", 
     "ResponseOutputMessage",
+    "ResponseFunctionToolCall",
     "ResponseOutputText",
     
     # Search models

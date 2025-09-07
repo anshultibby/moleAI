@@ -11,26 +11,16 @@ from app.modules.serp import search_jina, SearchError
 )
 def search_web_with_content(
     query: str,
-    num_results: Optional[int] = 5,
-    provider: Optional[str] = "google"
+    num_results: int = 3,
+    provider: str = "google"
 ) -> Dict[str, Any]:
-    """
-    Search the web and get full content of result pages using Jina AI.
-    
-    Args:
-        query: The search query string
-        num_results: Number of results to return (1-20, default: 5)
-        provider: Search provider - "google", "bing", or "reader" (default: "google")
-    
-    Returns:
-        Dictionary containing search results with full page content, links, and images
-    """
     try:
         if not query or not query.strip():
             return {"error": "Query cannot be empty"}
         
-        if num_results < 1 or num_results > 20:
-            return {"error": "num_results must be between 1 and 20"}
+        # Cap num_results at 3
+        if num_results < 1 or num_results > 3:
+            return {"error": "num_results must be between 1 and 3"}
         
         # Use the comprehensive search function that reads full content
         results = search_jina(
@@ -49,4 +39,4 @@ def search_web_with_content(
     except SearchError as e:
         return {"error": f"Search error: {str(e)}"}
     except Exception as e:
-        return {"error": f"Unexpected error: {str(e)}"}}
+        return {"error": f"Unexpected error: {str(e)}"}

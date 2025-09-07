@@ -89,9 +89,6 @@ class AssistantResponse(BaseModel):
 # Union type for all agent responses
 AgentResponse = Union[ThinkingResponse, ToolCallsResponse, AssistantResponse]
 
-# Type alias for input messages
-InputMessage = Union[Message, ToolCall, ToolCallOutput, ReasoningOutput]
-
 # OpenAI Response Models (based on actual API response structure)
 class ResponseOutputText(BaseModel):
     annotations: List[Any] = []
@@ -106,6 +103,22 @@ class ResponseOutputMessage(BaseModel):
     status: Literal["completed"] = "completed"
     type: Literal["message"] = "message"
 
+# Input-compatible versions (for sending to API)
+class InputReasoningItem(BaseModel):
+    id: str
+    summary: List[str] = []
+    type: Literal["reasoning"] = "reasoning"
+    content: Optional[str] = None
+    encrypted_content: Optional[str] = None
+
+class InputFunctionToolCall(BaseModel):
+    arguments: str
+    call_id: str
+    name: str
+    type: Literal["function_call"] = "function_call"
+    id: str
+
+# Response versions (from API responses)
 class ResponseReasoningItem(BaseModel):
     id: str
     summary: List[str] = []
@@ -113,9 +126,37 @@ class ResponseReasoningItem(BaseModel):
     content: Optional[str] = None
     encrypted_content: Optional[str] = None
     status: Optional[str] = None
+    
+    def to_input_format(self) -> "InputReasoningItem":
+        """Convert to input-compatible format by removing status field"""
+        return InputReasoningItem(
+            id=self.id,
+            summary=self.summary,
+            type=self.type,
+            content=self.content,
+            encrypted_content=self.encrypted_content
+        )
+
+class ResponseFunctionToolCall(BaseModel):
+    arguments: str
+    call_id: str
+    name: str
+    type: Literal["function_call"] = "function_call"
+    id: str
+    status: str
+    
+    def to_input_format(self) -> "InputFunctionToolCall":
+        """Convert to input-compatible format by removing status field"""
+        return InputFunctionToolCall(
+            arguments=self.arguments,
+            call_id=self.call_id,
+            name=self.name,
+            type=self.type,
+            id=self.id
+        )
 
 # Union type for all output items
-ResponseOutputItem = Union[ResponseReasoningItem, ResponseOutputMessage]
+ResponseOutputItem = Union[ResponseReasoningItem, ResponseOutputMessage, ResponseFunctionToolCall]
 
 class InputTokensDetails(BaseModel):
     cached_tokens: int = 0
@@ -171,6 +212,9 @@ class OpenAIResponseBase(BaseModel):
 class OpenAIResponse(OpenAIResponseBase):
     """Clean OpenAI response model with just the essential output field"""
     output: List[ResponseOutputItem]
+
+# Type alias for input messages (defined after all classes to avoid forward reference issues)
+InputMessage = Union[Message, ToolCall, ToolCallOutput, ReasoningOutput, InputReasoningItem, InputFunctionToolCall]
 
 # OpenAI Responses Request (for responses.create API)
 class OpenAIRequest(BaseModel):

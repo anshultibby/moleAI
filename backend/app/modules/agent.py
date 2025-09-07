@@ -1,6 +1,7 @@
 from typing import List, Optional, Generator, Dict, Any, Callable
 from openai import OpenAI
 import json
+from loguru import logger
 from app.models import (
     OpenAIRequest, 
     ToolCall, 
@@ -15,11 +16,10 @@ from app.models import (
     AgentResponse,
     OpenAIResponse,
     ResponseReasoningItem,
-    ResponseOutputMessage
+    ResponseOutputMessage,
+    ResponseFunctionToolCall
 )
 from app.tools import tool_registry
-
-from loguru import logger
 
 
 class Agent:
@@ -48,10 +48,16 @@ class Agent:
         """Add an input message and call the OpenAI responses API"""
         self.message_history.append(input_message)
         
+        # Clean up any None values that might have accumulated
+        self.clean_message_history()
+        
         # Convert models to dict format for API call
         input_data = []
-        for msg in self.message_history:
-            input_data.append(msg.dict())
+        for i, msg in enumerate(self.message_history):
+            if msg is not None:
+                input_data.append(msg.dict())
+            else:
+                logger.warning(f"Found None message at index {i} in message_history, skipping. History length: {len(self.message_history)}")
         
         # Prepare API call parameters
         api_params = {
@@ -81,7 +87,19 @@ class Agent:
     
     def add_to_history(self, message: InputMessage):
         """Add a message to the conversation history"""
+        if message is None:
+            logger.error("Attempted to add None message to history")
+            return
         self.message_history.append(message)
+    
+    def clean_message_history(self):
+        """Remove any None values from message history"""
+        original_length = len(self.message_history)
+        self.message_history = [msg for msg in self.message_history if msg is not None]
+        cleaned_count = original_length - len(self.message_history)
+        if cleaned_count > 0:
+            logger.warning(f"Cleaned {cleaned_count} None messages from history")
+    
     
     def execute_tool_call(self, tool_call: ToolCall) -> str:
         """Execute a tool call using the tool registry"""
@@ -153,6 +171,17 @@ class Agent:
             tool_calls = []
             tool_outputs = []
             
+            # First, add all reasoning items to history to maintain OpenAI's required structure
+            reasoning_items = []
+            for output_item in response.output:
+                if isinstance(output_item, ResponseReasoningItem):
+                    reasoning_items.append(output_item)
+                    # Add reasoning items to history as they are required by OpenAI
+                    input_item = output_item.to_input_format()
+                    logger.debug(f"Converting reasoning item to input format: {input_item}")
+                    self.add_to_history(input_item)
+            
+            # Then process function calls
             for output_item in response.output:
                 if hasattr(output_item, 'type') and output_item.type == "function_call":
                     has_tool_calls = True
@@ -174,8 +203,10 @@ class Agent:
                         output=result
                     )
                     
-                    # Add both tool call and output to history
-                    self.add_to_history(tool_call)
+                    # Add the function call item to history (not individual ToolCall/ToolCallOutput)
+                    input_item = output_item.to_input_format()
+                    logger.debug(f"Converting function call to input format: {input_item}")
+                    self.add_to_history(input_item)
                     self.add_to_history(tool_output)
                     
                     # Collect both calls and outputs
