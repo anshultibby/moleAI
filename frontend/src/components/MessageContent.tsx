@@ -1,4 +1,5 @@
 import { Message, SearchLinksData } from '../types'
+import ProductGrid from './ProductGrid'
 
 // Helper function to make links clickable in text and handle formatting including line breaks
 function makeLinksClickable(text: string) {
@@ -25,9 +26,29 @@ function makeLinksClickable(text: string) {
 interface MessageContentProps {
   message: Message
   searchLinksData: SearchLinksData[]
+  onRemoveProduct?: (id: string) => void
 }
 
-export default function MessageContent({ message, searchLinksData }: MessageContentProps) {
+export default function MessageContent({ message, searchLinksData, onRemoveProduct }: MessageContentProps) {
+  // Handle product grid messages
+  if (message.type === 'product_grid' && message.products) {
+    return (
+      <div className="mb-6">
+        {message.content && (
+          <div 
+            className="text-slate-700 dark:text-slate-300 mb-4"
+            dangerouslySetInnerHTML={{ __html: makeLinksClickable(message.content) }}
+          />
+        )}
+        <ProductGrid 
+          products={message.products}
+          title={message.productGridTitle}
+          onRemoveProduct={onRemoveProduct}
+        />
+      </div>
+    )
+  }
+
   if (message.type === 'reasoning') {
     return (
       <div className="text-sm leading-relaxed mb-6">

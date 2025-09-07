@@ -160,10 +160,10 @@ export default function ProductPanel({
   }
 
   return (
-    <div className="h-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm flex flex-col">
+    <div className="h-full bg-white dark:bg-slate-900 flex flex-col">
 
       {/* Enhanced Products Display with independent scrolling */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin mobile-scroll bg-gradient-to-b from-slate-50/30 to-white dark:from-slate-800/30 dark:to-slate-900 min-h-0">
+      <div className="flex-1 overflow-y-auto scrollbar-thin mobile-scroll bg-white dark:bg-slate-900 min-h-0">
         {products.length === 0 ? (
           <div className="h-full flex items-center justify-center p-8">
             <div className="text-center max-w-md w-full">

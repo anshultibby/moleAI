@@ -168,8 +168,11 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
 
   return (
     <div 
-      className="group bg-white dark:bg-slate-800 rounded-xl shadow-sm hover:shadow-md border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-200 cursor-pointer w-full flex flex-col h-[330px] relative hover:scale-[1.02] active:scale-95"
+      className="group bg-white dark:bg-slate-800 rounded-xl shadow-lg hover:shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-300 cursor-pointer w-full flex flex-col h-[330px] relative hover:scale-110 hover:-translate-y-3 active:scale-105 hover:border-indigo-300 dark:hover:border-indigo-600"
       onClick={handleCardClick}
+      style={{
+        transformOrigin: 'center center'
+      }}
     >
       {/* Image section - Fixed height */}
       <div className="relative bg-gray-50 dark:bg-slate-700 flex-shrink-0 h-[180px]">

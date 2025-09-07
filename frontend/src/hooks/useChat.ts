@@ -90,6 +90,21 @@ export function useChat() {
                   }
                   break
                 
+                case 'product_grid':
+                  if (data.products) {
+                    const message: Message = {
+                      role: 'assistant',
+                      content: data.content || '',
+                      timestamp: new Date().toISOString(),
+                      type: 'product_grid',
+                      products: data.products,
+                      productGridTitle: data.productGridTitle,
+                      turnId: turnId
+                    }
+                    setMessages(prev => [...prev, message])
+                  }
+                  break
+                
                 case 'ephemeral':
                   if (data.content && data.content.trim().length > 0) {
                     setEphemeralHistory(prev => ({

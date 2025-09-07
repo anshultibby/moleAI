@@ -12,6 +12,7 @@ interface ChatPanelProps {
   currentTurnId: string | null
   onInputChange: (value: string) => void
   onSendMessage: () => void
+  onRemoveProduct?: (id: string) => void
 }
 
 export default function ChatPanel({
@@ -22,7 +23,8 @@ export default function ChatPanel({
   ephemeralHistory,
   currentTurnId,
   onInputChange,
-  onSendMessage
+  onSendMessage,
+  onRemoveProduct
 }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -112,7 +114,7 @@ export default function ChatPanel({
                     {/* User message as bubble, right-aligned */}
                     <div className="flex justify-end mb-4">
                       <div className="max-w-xs sm:max-w-sm bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-3 rounded-2xl shadow-sm">
-                        <MessageContent message={message} searchLinksData={searchLinksData} />
+                        <MessageContent message={message} searchLinksData={searchLinksData} onRemoveProduct={onRemoveProduct} />
                       </div>
                     </div>
                     
@@ -137,7 +139,7 @@ export default function ChatPanel({
                 ) : (
                   // Assistant message as plain text on background
                   <div className="mb-6">
-                    <MessageContent message={message} searchLinksData={searchLinksData} />
+                    <MessageContent message={message} searchLinksData={searchLinksData} onRemoveProduct={onRemoveProduct} />
                   </div>
                 )}
               </div>
