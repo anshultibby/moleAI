@@ -26,7 +26,20 @@ from .chat import (
     ResponseOutputText
 )
 
+from .search_models import (
+    TokenUsage,
+    SearchMetadata,
+    PageMetadata,
+    ExternalResources,
+    SearchResult,
+    JinaSearchResponse,
+    SearchSummary,
+    parse_search_response,
+    load_search_response_from_file
+)
+
 __all__ = [
+    # Chat models
     "TextContent",
     "ImageContent", 
     "Message", 
@@ -50,5 +63,16 @@ __all__ = [
     "ResponseOutputItem",
     "ResponseReasoningItem", 
     "ResponseOutputMessage",
-    "ResponseOutputText"
+    "ResponseOutputText",
+    
+    # Search models
+    "TokenUsage",
+    "SearchMetadata",
+    "PageMetadata",
+    "ExternalResources",
+    "SearchResult",
+    "JinaSearchResponse",
+    "SearchSummary",
+    "parse_search_response",
+    "load_search_response_from_file"
 ]
