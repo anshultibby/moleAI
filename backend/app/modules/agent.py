@@ -110,6 +110,13 @@ class Agent:
             # Parse arguments and execute using registry
             args = tool_call.parse_arguments()
             result = tool_registry.execute_tool(tool_call.name, **args)
+            
+            # Store the raw result for special handling
+            self._last_tool_result = {
+                'tool_name': tool_call.name,
+                'result': result
+            }
+            
             return str(result)
         except Exception as e:
             return f"Error executing {tool_call.name}: {str(e)}"

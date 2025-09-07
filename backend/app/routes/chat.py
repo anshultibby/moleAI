@@ -84,8 +84,28 @@ async def stream_chat(request: ChatRequest):
                                     yield f"data: {json.dumps(stream_data)}\n\n"
                             
                         elif isinstance(result, ToolCallsResponse):
-                            # This shouldn't happen as the agent handles tool calls internally
-                            # and continues the conversation automatically
+                            # Handle special tool results like display_items
+                            for tool_output in result.tool_outputs:
+                                if any(tc.name == "display_items" for tc in result.tool_calls if tc.call_id == tool_output.call_id):
+                                    # Parse display_items result and stream individual products
+                                    try:
+                                        import ast
+                                        # Parse the tool output string back to dict
+                                        output_str = tool_output.output
+                                        if isinstance(output_str, str):
+                                            # Try to parse as dict
+                                            result_dict = ast.literal_eval(output_str)
+                                            if isinstance(result_dict, dict) and result_dict.get('success') and 'items' in result_dict:
+                                                # Stream each product individually
+                                                for item in result_dict['items']:
+                                                    product_data = {
+                                                        'type': 'product',
+                                                        'product': item
+                                                    }
+                                                    yield f"data: {json.dumps(product_data)}\n\n"
+                                    except Exception as e:
+                                        print(f"Error parsing display_items result: {e}")
+                            # Continue processing normally
                             pass
                             
                         elif isinstance(result, AssistantResponse):
