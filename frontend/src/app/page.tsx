@@ -31,11 +31,13 @@ export default function Home() {
 
   return (
     <main>
-      {isAuthenticated ? (
+      {/* Temporarily disabled for site verification */}
+      {/* {isAuthenticated ? (
         <ChatInterface />
       ) : (
         <PasswordGate onAuthenticated={handleAuthenticated} />
-      )}
+      )} */}
+      <ChatInterface />
     </main>
   )
 } 
