@@ -79,7 +79,7 @@ export default function WelcomePage({ onStartConversation }: WelcomePageProps) {
               Find Amazing Deals with AI
             </h2>
             <p className="text-base text-slate-600 dark:text-slate-400 leading-relaxed max-w-2xl mx-auto">
-              Describe what you&apos;re looking for and I&apos;ll search across multiple stores to find the best deals that match your style and budget.
+              Describe what you&#39;re looking for and I&#39;ll search across multiple stores to find the best deals that match your style and budget.
             </p>
           </div>
 
@@ -136,7 +136,7 @@ export default function WelcomePage({ onStartConversation }: WelcomePageProps) {
                 >
                   <div className="w-1.5 h-1.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full group-hover:scale-125 transition-transform"></div>
                   <span className="text-slate-700 dark:text-slate-300 text-xs font-medium text-left flex-1">
-                    &ldquo;{suggestion}&rdquo;
+                    &#34;{suggestion}&#34;
                   </span>
                 </div>
               ))}
@@ -146,7 +146,7 @@ export default function WelcomePage({ onStartConversation }: WelcomePageProps) {
           {/* Footer note */}
           <div className="mt-8 pt-6 border-t border-slate-200/50 dark:border-slate-700/50">
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              I&apos;ll search across multiple stores and show you the best deals in real-time
+              I&#39;ll search across multiple stores and show you the best deals in real-time
             </p>
           </div>
         </div>
