@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Literal, Dict, Any, Optional, List, Union
 import json
 
@@ -34,7 +34,7 @@ class ToolCall(BaseModel):
 class ToolCallOutput(BaseModel):
     type: Literal["function_call_output"] = "function_call_output"
     call_id: str
-    output: str
+    output: str  # OpenAI API requires string output
 
 # Tool Choice Models
 class ForcedFunctionChoice(BaseModel):
@@ -81,6 +81,7 @@ class ToolCallsResponse(BaseModel):
     tool_calls: List[ToolCall]
     tool_outputs: List[ToolCallOutput]
     response: Any  # Full OpenAI response object
+    raw_tool_results: Optional[Dict[str, Any]] = Field(default=None, exclude=True)  # Internal use only, never serialize
 
 class AssistantResponse(BaseModel):
     type: Literal["assistant_response"] = "assistant_response"

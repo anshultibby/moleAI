@@ -41,13 +41,13 @@ class ToolRegistry:
         """Convert all registered tools to OpenAI function calling format"""
         return [tool.to_openai_format() for tool in self._tools.values()]
     
-    def execute_tool(self, name: str, **kwargs) -> Any:
-        """Execute a registered tool by name with given parameters"""
+    def execute_tool(self, name: str, context_vars: Dict[str, Any] = None, **kwargs) -> Any:
+        """Execute a registered tool by name with given parameters and context variables"""
         tool = self.get_tool(name)
         if not tool:
             raise ValueError(f"Tool '{name}' not found in registry")
         
-        return tool.execute(**kwargs)
+        return tool.execute(context_vars=context_vars, **kwargs)
     
     def has_tool(self, name: str) -> bool:
         """Check if a tool is registered"""

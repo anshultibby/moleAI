@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://www.macys.com/shop/womens/all-womens-shoes/high-heels/Color_normal/Black?id=71123",
+    "direct_html_length": 2376868,
+    "jina_html_length": 0,
+    "direct_results": {
+      "shopify": null,
+      "js_framework": null,
+      "json_ld": null
+    },
+    "jina_results": {
+      "shopify": null,
+      "js_framework": null,
+      "json_ld": null
+    }
+  },
+  {
+    "url": "https://www.misslola.com/collections/black-heels?srsltid=AfmBOorF4bM4jkCQ3W8XBChyKcMj2crxY3Sq7MUuyUWa9pPguboJXz3_",
+    "direct_html_length": 576717,
+    "jina_html_length": 758224,
+    "direct_results": {
+      "shopify": null,
+      "js_framework": null,
+      "json_ld": null
+    },
+    "jina_results": {
+      "shopify": null,
+      "js_framework": null,
+      "json_ld": null
+    }
+  },
+  {
+    "url": "https://www.dsw.com/category/womens/shoes/heels?color=Black",
+    "direct_html_length": 13146,
+    "jina_html_length": 298383,
+    "direct_results": {
+      "shopify": null,
+      "js_framework": null,
+      "json_ld": null
+    },
+    "jina_results": {
+      "shopify": null,
+      "js_framework": null,
+      "json_ld": null
+    }
+  }
+]

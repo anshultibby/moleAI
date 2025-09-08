@@ -2,8 +2,15 @@
 
 import os
 import requests
-from typing import Dict, Any, Optional, List
+import json
+import re
+import hashlib
+from typing import Dict, Any, Optional, List, Union
 from loguru import logger
+import extruct
+from bs4 import BeautifulSoup
+
+from app.models.resource import Resource, ResourceMetadata
 
 
 class ScraperError(Exception):
@@ -28,7 +35,7 @@ class JinaAIScraper:
         self.base_url = "https://r.jina.ai"
         self.timeout = 30
     
-    def scrape_url(self, url: str, format: str = "markdown") -> Dict[str, Any]:
+    def scrape_url(self, url: str, format: str = "markdown", wait_for_js: bool = True) -> Resource:
         """
         Scrape content from a single URL using Jina AI Reader
         
@@ -37,7 +44,7 @@ class JinaAIScraper:
             format: Output format ("markdown", "text", "html")
         
         Returns:
-            Dictionary containing scraped content and metadata
+            Resource object containing scraped content and metadata
         """
         if not url or not url.strip():
             raise ValueError("URL cannot be empty")
@@ -54,6 +61,11 @@ class JinaAIScraper:
             "X-Return-Format": format
         }
         
+        # Add JavaScript loading options
+        if wait_for_js:
+            headers["X-Respond-Timing"] = "mutation-idle"  # Wait for DOM mutations to settle
+            headers["X-Timeout"] = "30"  # 30 second timeout
+        
         try:
             logger.info(f"Scraping URL with Jina AI: {url}")
             
@@ -63,23 +75,25 @@ class JinaAIScraper:
             # Jina AI Reader returns the content directly as text
             content = response.text
             
-            # Extract some basic metadata from response headers
-            metadata = {
-                "url": url,
-                "status_code": response.status_code,
-                "content_length": len(content),
-                "format": format,
-                "headers": dict(response.headers)
-            }
+            # Create Resource object
+            resource_id = hashlib.md5(url.encode()).hexdigest()
             
-            result = {
-                "content": content,
-                "metadata": metadata,
-                "success": True
-            }
+            # Determine content type based on format
+            content_type = "html" if format == "html" else "text"
+            
+            resource_metadata = ResourceMetadata(
+                content_type=content_type,
+                length=len(content)
+            )
+            
+            resource = Resource(
+                id=resource_id,
+                content=content,
+                metadata=resource_metadata
+            )
             
             logger.info(f"Successfully scraped content from {url} ({len(content)} characters)")
-            return result
+            return resource
             
         except requests.exceptions.RequestException as e:
             error_msg = f"Failed to scrape {url}: {str(e)}"
@@ -90,7 +104,7 @@ class JinaAIScraper:
             logger.error(error_msg)
             raise ScraperError(error_msg)
     
-    def scrape_multiple_urls(self, urls: List[str], format: str = "markdown") -> List[Dict[str, Any]]:
+    def scrape_multiple_urls(self, urls: List[str], format: str = "markdown") -> List[Resource]:
         """
         Scrape content from multiple URLs
         
@@ -99,7 +113,7 @@ class JinaAIScraper:
             format: Output format ("markdown", "text", "html")
         
         Returns:
-            List of dictionaries containing scraped content and metadata
+            List of Resource objects containing scraped content and metadata
         """
         if not urls:
             raise ValueError("URLs list cannot be empty")
@@ -113,18 +127,27 @@ class JinaAIScraper:
             except ScraperError as e:
                 # Continue with other URLs even if one fails
                 logger.warning(f"Failed to scrape {url}: {e}")
-                results.append({
-                    "content": "",
-                    "metadata": {"url": url, "error": str(e)},
-                    "success": False
-                })
+                # Create empty resource for failed scrapes
+                resource_id = hashlib.md5(url.encode()).hexdigest()
+                content_type = "html" if format == "html" else "text"
+                
+                failed_resource = Resource(
+                    id=resource_id,
+                    content={format: ""},
+                    metadata=ResourceMetadata(
+                        content_type=content_type,
+                        length=0
+                    )
+                )
+                results.append(failed_resource)
         
-        logger.info(f"Completed scraping {len(urls)} URLs, {sum(1 for r in results if r['success'])} successful")
+        successful_count = sum(1 for r in results if len(list(r.content.values())[0]) > 0)
+        logger.info(f"Completed scraping {len(urls)} URLs, {successful_count} successful")
         return results
 
 
 # Convenience functions for backward compatibility and simple usage
-def scrape_url(url: str, format: str = "markdown") -> Dict[str, Any]:
+def scrape_url(url: str, format: str = "markdown") -> Resource:
     """
     Convenience function to scrape a single URL using default client
     
@@ -133,13 +156,13 @@ def scrape_url(url: str, format: str = "markdown") -> Dict[str, Any]:
         format: Output format ("markdown", "text", "html")
     
     Returns:
-        Dictionary containing scraped content and metadata
+        Resource object containing scraped content and metadata
     """
     scraper = JinaAIScraper()
     return scraper.scrape_url(url, format)
 
 
-def scrape_multiple_urls(urls: List[str], format: str = "markdown") -> List[Dict[str, Any]]:
+def scrape_multiple_urls(urls: List[str], format: str = "markdown") -> List[Resource]:
     """
     Convenience function to scrape multiple URLs using default client
     
@@ -148,7 +171,11 @@ def scrape_multiple_urls(urls: List[str], format: str = "markdown") -> List[Dict
         format: Output format ("markdown", "text", "html")
     
     Returns:
-        List of dictionaries containing scraped content and metadata
+        List of Resource objects containing scraped content and metadata
     """
     scraper = JinaAIScraper()
     return scraper.scrape_multiple_urls(urls, format)
+
+
+
+

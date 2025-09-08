@@ -126,6 +126,36 @@ export function useChat() {
                       description: data.product.description || '',
                       id: data.product.id || `${(data.product.store || data.product.store_name || 'unknown')}-${(data.product.product_name || data.product.name || data.product.title || 'unknown')}`.toLowerCase().replace(/[^a-z0-9]+/g, '-')
                     }
+                    
+                    // Add product to streaming products message or create new one
+                    setMessages(prev => {
+                      const lastMessage = prev[prev.length - 1]
+                      
+                      // If the last message is a streaming_products message from the same turn, add to it
+                      if (lastMessage && 
+                          lastMessage.type === 'streaming_products' && 
+                          lastMessage.turnId === turnId) {
+                        const updatedMessage = {
+                          ...lastMessage,
+                          products: [...(lastMessage.products || []), product]
+                        }
+                        return [...prev.slice(0, -1), updatedMessage]
+                      } else {
+                        // Create new streaming products message
+                        const streamingMessage: Message = {
+                          role: 'assistant',
+                          content: '',
+                          timestamp: new Date().toISOString(),
+                          type: 'streaming_products',
+                          products: [product],
+                          productGridTitle: 'Products Found',
+                          turnId: turnId
+                        }
+                        return [...prev, streamingMessage]
+                      }
+                    })
+                    
+                    // Also call the callback for the separate product list
                     onProductReceived(product)
                   }
                   break

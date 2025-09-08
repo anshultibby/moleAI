@@ -73,8 +73,8 @@ class ToolFunction:
         required = []
         
         for param_name, param in self.signature.parameters.items():
-            # Skip 'self' parameter
-            if param_name == 'self':
+            # Skip 'self' parameter and context_vars parameter
+            if param_name == 'self' or param_name == 'context_vars':
                 continue
                 
             # Get type hint
@@ -83,9 +83,6 @@ class ToolFunction:
             # Convert to JSON schema
             param_schema = _python_type_to_json_schema(param_type, f"The {param_name} parameter")
             properties[param_name] = param_schema
-            
-            # Debug logging
-            logger.debug(f"Parameter '{param_name}': type={param_type}, default={param.default}, empty={param.default is inspect.Parameter.empty}")
             
             # Check if parameter is required (no default value and not Optional)
             if param.default is inspect.Parameter.empty:
@@ -96,14 +93,8 @@ class ToolFunction:
                     # If it's Union[T, None] (Optional), it's not required
                     if not (len(args) == 2 and type(None) in args):
                         required.append(param_name)
-                        logger.debug(f"Parameter '{param_name}' marked as REQUIRED (no default, not Optional)")
-                    else:
-                        logger.debug(f"Parameter '{param_name}' marked as OPTIONAL (Optional type)")
                 else:
                     required.append(param_name)
-                    logger.debug(f"Parameter '{param_name}' marked as REQUIRED (no default)")
-            else:
-                logger.debug(f"Parameter '{param_name}' marked as OPTIONAL (has default: {param.default})")
         
         tool_schema = Tool(
             name=self.name,
@@ -117,14 +108,24 @@ class ToolFunction:
             strict=False
         )
         
-        # Log the generated schema for debugging
-        logger.info(f"Generated OpenAI tool schema for '{self.name}': {json.dumps(tool_schema.model_dump(), indent=2)}")
-        
         return tool_schema
     
-    def execute(self, **kwargs) -> Any:
-        """Execute the function with given parameters"""
+    def execute(self, context_vars: Dict[str, Any] = None, **kwargs) -> Any:
+        """Execute the function with given parameters and context variables"""
         try:
+            context_vars = context_vars or {}
+            
+            # Check if the function accepts context_vars parameter
+            function_params = set(self.signature.parameters.keys())
+            
+            # If function accepts context_vars, pass it as a named parameter
+            if 'context_vars' in function_params:
+                kwargs['context_vars'] = context_vars
+            
+            # Remove any extra parameters that the function doesn't accept
+            # (for backward compatibility with old _agent parameter)
+            kwargs = {k: v for k, v in kwargs.items() if k in function_params}
+            
             # Validate parameters against signature
             bound_args = self.signature.bind(**kwargs)
             bound_args.apply_defaults()
@@ -146,6 +147,7 @@ def tool(name: str = None, description: str = None):
     Args:
         name: Optional custom name for the tool (defaults to function name)
         description: Optional custom description (defaults to first line of docstring)
+        Context variables are passed directly when calling the tool
     
     Example:
         @tool(name="get_weather", description="Get current weather for a location")

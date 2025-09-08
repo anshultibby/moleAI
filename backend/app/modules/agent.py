@@ -2,14 +2,11 @@ from typing import List, Optional, Generator, Dict, Any, Callable
 from openai import OpenAI
 import json
 from loguru import logger
-from app.models import (
-    OpenAIRequest, 
+from app.models.chat import (
     ToolCall, 
     ToolCallOutput, 
     Message, 
     InputMessage,
-    Tool,
-    ReasoningConfig,
     ThinkingResponse,
     ToolCallsResponse,
     AssistantResponse,
@@ -17,8 +14,8 @@ from app.models import (
     OpenAIResponse,
     ResponseReasoningItem,
     ResponseOutputMessage,
-    ResponseFunctionToolCall
 )
+from app.models.resource import Resource
 from app.tools import tool_registry
 
 
@@ -34,6 +31,15 @@ class Agent:
         self.message_history: List[InputMessage] = []
         self.client = OpenAI(api_key=api_key)
         
+        # Initialize resource storage
+        self.resources: Dict[str, Resource] = {}
+        
+        # Define context variables that will be available to tools
+        self.context_vars = {
+            'resources': self.resources,
+            'conversation_id': getattr(self, 'conversation_id', None)
+        }
+        
         # Always use registry tools
         self.tools = tool_registry.to_openai_format()
         
@@ -46,7 +52,16 @@ class Agent:
 
     def step(self, input_message: InputMessage) -> OpenAIResponse:
         """Add an input message and call the OpenAI responses API"""
-        self.message_history.append(input_message)
+        if input_message is not None:
+            self.message_history.append(input_message)
+            
+            # Log what we're sending to OpenAI
+            if hasattr(input_message, 'content') and input_message.content:
+                logger.info(f"→ Sending {input_message.role}: {input_message.content[:200]}{'...' if len(input_message.content) > 200 else ''}")
+            else:
+                logger.info(f"→ Sending {input_message.role} message")
+        else:
+            logger.info("→ Continuing conversation after tool execution")
         
         # Clean up any None values that might have accumulated
         self.clean_message_history()
@@ -57,7 +72,7 @@ class Agent:
             if msg is not None:
                 input_data.append(msg.dict())
             else:
-                logger.warning(f"Found None message at index {i} in message_history, skipping. History length: {len(self.message_history)}")
+                logger.warning(f"Skipping None message at index {i}")
         
         # Prepare API call parameters
         api_params = {
@@ -77,10 +92,37 @@ class Agent:
         # Parse response using Pydantic model for type safety
         try:
             response = OpenAIResponse.parse_obj(raw_response.dict())
+            # Log what OpenAI returned with content
+            logger.info(f"← OpenAI response ({len(response.output)} items):")
+            for i, output_item in enumerate(response.output):
+                if isinstance(output_item, ResponseReasoningItem):
+                    # Handle reasoning items specially to show their content
+                    # Debug: Print the raw reasoning object structure
+                    logger.debug(f"Raw reasoning object: {output_item.dict()}")
+                    
+                    reasoning_parts = []
+                    if output_item.content:
+                        reasoning_parts.append(f"content: {output_item.content[:300]}{'...' if len(output_item.content) > 300 else ''}")
+                    if output_item.encrypted_content:
+                        reasoning_parts.append(f"encrypted_content: [encrypted]")
+                    if output_item.summary:
+                        summary_text = " | ".join(output_item.summary)
+                        reasoning_parts.append(f"summary: {summary_text[:200]}{'...' if len(summary_text) > 200 else ''}")
+                    
+                    reasoning_display = " | ".join(reasoning_parts) if reasoning_parts else "[no content]"
+                    logger.info(f"  [{i+1}] reasoning: {reasoning_display}")
+                    
+                    # Additional debug info
+                    logger.debug(f"Reasoning fields - content: {bool(output_item.content)}, encrypted_content: {bool(output_item.encrypted_content)}, summary: {bool(output_item.summary)}, status: {output_item.status}")
+                elif hasattr(output_item, 'content') and output_item.content:
+                    logger.info(f"  [{i+1}] {output_item.type if hasattr(output_item, 'type') else 'message'}: {output_item.content[:200]}{'...' if len(output_item.content) > 200 else ''}")
+                elif hasattr(output_item, 'name'):
+                    logger.info(f"  [{i+1}] function_call: {output_item.name}({output_item.arguments if hasattr(output_item, 'arguments') else ''})")
+                else:
+                    logger.info(f"  [{i+1}] {type(output_item).__name__}")
             return response
         except Exception as e:
             logger.error(f"Failed to parse OpenAI response: {e}")
-            logger.debug(f"Raw response: {raw_response}")
             # Return raw response as fallback
             return raw_response
         
@@ -91,6 +133,12 @@ class Agent:
             logger.error("Attempted to add None message to history")
             return
         self.message_history.append(message)
+        
+        # Log tool results being sent
+        if hasattr(message, 'output') and message.output:
+            logger.info(f"→ Sending tool result: {message.output}")
+        elif hasattr(message, 'role') and message.role == 'tool':
+            logger.info(f"→ Sending tool message")
     
     def clean_message_history(self):
         """Remove any None values from message history"""
@@ -98,7 +146,7 @@ class Agent:
         self.message_history = [msg for msg in self.message_history if msg is not None]
         cleaned_count = original_length - len(self.message_history)
         if cleaned_count > 0:
-            logger.warning(f"Cleaned {cleaned_count} None messages from history")
+            logger.warning(f"Removed {cleaned_count} None messages from history")
     
     
     def execute_tool_call(self, tool_call: ToolCall) -> str:
@@ -109,7 +157,9 @@ class Agent:
         try:
             # Parse arguments and execute using registry
             args = tool_call.parse_arguments()
-            result = tool_registry.execute_tool(tool_call.name, **args)
+            
+            # Use agent's context variables for tool execution
+            result = tool_registry.execute_tool(tool_call.name, context_vars=self.context_vars, **args)
             
             # Store the raw result for special handling
             self._last_tool_result = {
@@ -117,6 +167,7 @@ class Agent:
                 'result': result
             }
             
+            # OpenAI API requires string output, but we store the original for special handling
             return str(result)
         except Exception as e:
             return f"Error executing {tool_call.name}: {str(e)}"
@@ -139,7 +190,6 @@ class Agent:
             response = self.step(current_message)
             
             # First, yield any thinking/reasoning content
-            logger.info(f"Response: {response}")
             for output_item in response.output:
                 if isinstance(output_item, ResponseReasoningItem):
                     # Handle reasoning content extraction with type safety
@@ -164,19 +214,13 @@ class Agent:
                             summary=reasoning_summary,
                             response=response
                         )
-                    else:
-                        # Log when reasoning is empty but don't yield empty content
-                        logger.info(f"Reasoning item found but no accessible content: {output_item}")
-                        logger.debug(f"Reasoning item details - content: {output_item.content}, "
-                                   f"encrypted_content: {output_item.encrypted_content}, "
-                                   f"summary: {output_item.summary}, "
-                                   f"status: {output_item.status}")
             
             # Check if response has tool calls or assistant messages
             has_tool_calls = False
             has_assistant_message = False
             tool_calls = []
             tool_outputs = []
+            raw_tool_results = {}  # Store original structured results
             
             # First, add all reasoning items to history to maintain OpenAI's required structure
             reasoning_items = []
@@ -185,7 +229,6 @@ class Agent:
                     reasoning_items.append(output_item)
                     # Add reasoning items to history as they are required by OpenAI
                     input_item = output_item.to_input_format()
-                    logger.debug(f"Converting reasoning item to input format: {input_item}")
                     self.add_to_history(input_item)
             
             # Then process function calls
@@ -204,6 +247,10 @@ class Agent:
                     # Execute the tool call
                     result = self.execute_tool_call(tool_call)
                     
+                    # Store raw result for special handling (before string conversion)
+                    if hasattr(self, '_last_tool_result') and self._last_tool_result:
+                        raw_tool_results[tool_call.call_id] = self._last_tool_result['result']
+                    
                     # Create tool call output
                     tool_output = ToolCallOutput(
                         call_id=tool_call.call_id,
@@ -212,7 +259,6 @@ class Agent:
                     
                     # Add the function call item to history (not individual ToolCall/ToolCallOutput)
                     input_item = output_item.to_input_format()
-                    logger.debug(f"Converting function call to input format: {input_item}")
                     self.add_to_history(input_item)
                     self.add_to_history(tool_output)
                     
@@ -228,7 +274,8 @@ class Agent:
                 yield ToolCallsResponse(
                     tool_calls=tool_calls,
                     tool_outputs=tool_outputs,
-                    response=response
+                    response=response,
+                    raw_tool_results=raw_tool_results
                 )
                 
                 # Continue with empty message to get next response
@@ -259,3 +306,4 @@ class Agent:
     
     def get_system_prompt(self) -> str:
         return self.system_prompt
+    

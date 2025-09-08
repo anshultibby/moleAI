@@ -13,16 +13,16 @@ export default function ProductGrid({ products, title, onRemoveProduct }: Produc
   }
 
   return (
-    <div className="my-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+    <div className="my-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
       {title && (
-        <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 flex items-center">
+        <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-3 flex items-center">
           <span className="mr-2">🛍️</span>
           {title}
         </h3>
       )}
       
-      {/* Responsive grid that works well in chat */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {/* Optimized responsive grid - more columns, tighter spacing */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3">
         {products.map((product, index) => (
           <div 
             key={product.id || index} 

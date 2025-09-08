@@ -60,7 +60,7 @@ export default function ChatPanel({
     <div className="h-full flex flex-col bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-r border-slate-200/60 dark:border-slate-600/60">
       {/* Chat Messages - Fixed spacing and layout with independent scrolling */}
       <div className="flex-1 overflow-y-auto scrollbar-thin mobile-scroll bg-gradient-to-b from-slate-50/50 to-white dark:from-slate-800/50 dark:to-slate-900 min-h-0">
-        <div className="max-w-2xl mx-auto px-4 py-6">
+        <div className="max-w-6xl mx-auto px-3 py-4">
           {messages.length === 0 && (
             <div className="text-center pt-12 pb-8">
               {/* Enhanced empty state with better visuals */}

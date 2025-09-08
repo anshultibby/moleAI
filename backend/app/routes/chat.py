@@ -33,7 +33,7 @@ def get_or_create_agent(conversation_id: str) -> Agent:
         agents[conversation_id] = Agent(
             system_prompt=BASIC_ASSISTANT_PROMPT,
             model="gpt-5",
-            reasoning_effort="medium",
+            reasoning_effort="low",
             api_key=OPENAI_API_KEY
         )
     
@@ -84,26 +84,55 @@ async def stream_chat(request: ChatRequest):
                                     yield f"data: {json.dumps(stream_data)}\n\n"
                             
                         elif isinstance(result, ToolCallsResponse):
-                            # Handle special tool results like display_items
+                            # Handle special tool results like display_items and add_product
                             for tool_output in result.tool_outputs:
-                                if any(tc.name == "display_items" for tc in result.tool_calls if tc.call_id == tool_output.call_id):
-                                    # Parse display_items result and stream as product grid message
+                                # Find the corresponding tool call
+                                tool_call = next((tc for tc in result.tool_calls if tc.call_id == tool_output.call_id), None)
+                                
+                                if tool_call and tool_call.name == "display_items":
+                                    # Parse display_items result
                                     try:
                                         import ast
-                                        # Parse the tool output string back to dict
-                                        output_str = tool_output.output
-                                        if isinstance(output_str, str):
-                                            # Try to parse as dict
-                                            result_dict = ast.literal_eval(output_str)
-                                            if isinstance(result_dict, dict) and result_dict.get('success') and 'items' in result_dict:
-                                                # Stream as product grid message
-                                                grid_message = {
-                                                    'type': 'product_grid',
-                                                    'content': result_dict.get('message', ''),
-                                                    'products': result_dict['items'],
-                                                    'productGridTitle': result_dict.get('title', 'Product Recommendations')
-                                                }
-                                                yield f"data: {json.dumps(grid_message)}\n\n"
+                                        import asyncio
+                                        
+                                        # First try to get the raw structured result
+                                        result_dict = None
+                                        if result.raw_tool_results and tool_output.call_id in result.raw_tool_results:
+                                            result_dict = result.raw_tool_results[tool_output.call_id]
+                                        
+                                        # Fallback to parsing the string output
+                                        if not result_dict:
+                                            output_str = tool_output.output
+                                            if isinstance(output_str, str):
+                                                try:
+                                                    result_dict = ast.literal_eval(output_str)
+                                                except (ValueError, SyntaxError):
+                                                    try:
+                                                        result_dict = json.loads(output_str)
+                                                    except json.JSONDecodeError:
+                                                        result_dict = {}
+                                        
+                                        if isinstance(result_dict, dict) and result_dict.get('success') and 'items' in result_dict:
+                                                # Check if we should stream products individually
+                                                if result_dict.get('stream_products', False):
+                                                    # Stream each product individually with a small delay for better UX
+                                                    for product in result_dict['items']:
+                                                        product_message = {
+                                                            'type': 'product',
+                                                            'product': product
+                                                        }
+                                                        yield f"data: {json.dumps(product_message)}\n\n"
+                                                        # Small delay between products for streaming effect
+                                                        await asyncio.sleep(0.3)
+                                                else:
+                                                    # Stream as product grid message (all at once)
+                                                    grid_message = {
+                                                        'type': 'product_grid',
+                                                        'content': result_dict.get('message', ''),
+                                                        'products': result_dict['items'],
+                                                        'productGridTitle': result_dict.get('title', 'Product Recommendations')
+                                                    }
+                                                    yield f"data: {json.dumps(grid_message)}\n\n"
                                     except Exception as e:
                                         print(f"Error parsing display_items result: {e}")
                             # Continue processing normally

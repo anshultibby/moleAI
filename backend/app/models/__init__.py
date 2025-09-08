@@ -28,17 +28,9 @@ from .chat import (
     ResponseFunctionToolCall,
     ResponseOutputText
 )
-
-from .search_models import (
-    TokenUsage,
-    SearchMetadata,
-    PageMetadata,
-    ExternalResources,
-    SearchResult,
-    JinaSearchResponse,
-    SearchSummary,
-    parse_search_response,
-    load_search_response_from_file
+from .resource import (
+    Resource,
+    ResourceMetadata
 )
 
 __all__ = [
