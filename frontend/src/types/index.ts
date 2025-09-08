@@ -2,7 +2,7 @@ export interface Message {
   role: 'user' | 'assistant'
   content?: string  // Made optional to handle streaming edge cases
   timestamp: string
-  type?: 'reasoning' | 'normal' | 'search_links' | 'progress' | 'ephemeral' | 'product_grid'
+  type?: 'reasoning' | 'normal' | 'search_links' | 'progress' | 'ephemeral' | 'product_grid' | 'streaming_products'
   turnId?: string  // To associate with thinking panels
   products?: Product[]  // For product grid messages
   productGridTitle?: string  // Title for product grid

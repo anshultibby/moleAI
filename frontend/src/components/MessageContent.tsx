@@ -30,8 +30,8 @@ interface MessageContentProps {
 }
 
 export default function MessageContent({ message, searchLinksData, onRemoveProduct }: MessageContentProps) {
-  // Handle product grid messages
-  if (message.type === 'product_grid' && message.products) {
+  // Handle product grid messages (both product_grid and streaming_products)
+  if ((message.type === 'product_grid' || message.type === 'streaming_products') && message.products) {
     return (
       <div className="mb-6">
         {message.content && (

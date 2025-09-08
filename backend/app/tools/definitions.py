@@ -156,9 +156,9 @@ def grep_content(content: str, pattern: str, flags: int = 0, limit: Optional[int
         if context_end < len(full_line_content):
             context_content = context_content + "..."
         
-        # Further truncate if still too long
-        if len(context_content) > max_line_length:
-            context_content = context_content[:max_line_length] + "..."
+        # Always enforce hard limit of 200 characters
+        if len(context_content) > context_chars:
+            context_content = context_content[:context_chars] + "..."
         
         match_info = {
             'line_number': line_number,
