@@ -3,11 +3,12 @@
 from typing import Optional, List, Dict, Any
 from app.tools import tool
 from app.modules.serp import search_web, SearchError
-from app.modules.direct_scraper import ScrapingBeeScraper, ScrapingBeeError
+from app.modules.direct_scraper import DirectScraper, DirectScraperError
 from app.models.resource import Resource
 import uuid
 import re
 import json
+import asyncio
 from bs4 import BeautifulSoup
 
 
@@ -67,38 +68,66 @@ def scrape_websites(
     if not urls:
         return "URLs cannot be empty"
     
-    resources = context_vars.get('resources')
-    scraper = ScrapingBeeScraper()
-    resources_saved = []
-    
-    for resource_name, url in urls.items():
-        try:
-            # Validate resource name
-            if not resource_name or not isinstance(resource_name, str):
-                resources_saved.append(f"Invalid resource name for {url}: {resource_name}")
-                continue
+    async def _async_scrape():
+        resources = context_vars.get('resources')
+        scraper = DirectScraper()
+        resources_saved = []
+        
+        for resource_name, url in urls.items():
+            try:
+                # Validate resource name
+                if not resource_name or not isinstance(resource_name, str):
+                    resources_saved.append(f"Invalid resource name for {url}: {resource_name}")
+                    continue
+                    
+                # Clean resource name (remove spaces, special chars, make lowercase)
+                clean_name = re.sub(r'[^a-zA-Z0-9_-]', '_', resource_name.lower().strip())
+                if not clean_name:
+                    clean_name = f"resource_{len(resources) + 1}"
                 
-            # Clean resource name (remove spaces, special chars, make lowercase)
-            clean_name = re.sub(r'[^a-zA-Z0-9_-]', '_', resource_name.lower().strip())
-            if not clean_name:
-                clean_name = f"resource_{len(resources) + 1}"
-            
-            resource = scraper.scrape_url(
-                url.strip(), 
-                render_js=render_js, 
-                wait=wait,
-                smart_js_detection=True  # Enable smart JS detection for better performance
-            )
-            
-            # Override the resource ID with the meaningful name
-            resource.id = clean_name
-            resources[clean_name] = resource
-            resources_saved.append(resource.format_for_llm(exclude_content=True))
-        except ScrapingBeeError as e:
-            # Log error but continue with other URLs
-            resources_saved.append(f"Failed to scrape {url} as '{resource_name}': {str(e)}")
+                resource = await scraper.scrape_url(
+                    url.strip(), 
+                    render_js=render_js, 
+                    wait=wait,
+                    smart_js_detection=True  # Enable smart JS detection for better performance
+                )
+                
+                # Override the resource ID with the meaningful name
+                resource.id = clean_name
+                resources[clean_name] = resource
+                resources_saved.append(resource.format_for_llm(exclude_content=True))
+            except DirectScraperError as e:
+                # Log error but continue with other URLs
+                resources_saved.append(f"Failed to scrape {url} as '{resource_name}': {str(e)}")
+            finally:
+                # Clean up browser resources
+                await scraper.cleanup()
 
-    return f"Extracted and saved the resources: {resources_saved}"
+        return f"Extracted and saved the resources: {resources_saved}"
+    
+    # Check if we're in an async context
+    try:
+        loop = asyncio.get_running_loop()
+        # We're in an async context, we need to run this in a thread pool
+        # to avoid blocking the event loop
+        import concurrent.futures
+        import threading
+        
+        def run_in_thread():
+            # Create a new event loop for this thread
+            new_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(new_loop)
+            try:
+                return new_loop.run_until_complete(_async_scrape())
+            finally:
+                new_loop.close()
+        
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(run_in_thread)
+            return future.result()
+    except RuntimeError:
+        # No event loop running, we can use asyncio.run directly
+        return asyncio.run(_async_scrape())
 
 
 def get_resource_content(resource_id: str, context_vars) -> tuple[str, Optional[str]]:
