@@ -4,11 +4,12 @@ from typing import Optional, List, Dict, Any
 from app.tools import tool
 from app.modules.serp import search_web, SearchError
 from app.modules.direct_scraper import DirectScraper, DirectScraperError
-from app.models.resource import Resource
+from app.models.resource import Resource, ResourceMetadata
 import uuid
 import re
 import json
 import asyncio
+from datetime import datetime
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
@@ -138,7 +139,6 @@ def search_web_tool(
     Parameters:
     - urls: Dictionary where keys are meaningful resource names and values are URLs to scrape
            Example: {"zara_dresses": "https://zara.com/dresses", "hm_shirts": "https://hm.com/shirts"}
-           OR a single URL string (will auto-generate resource name from domain)
     - render_js: Whether to render JavaScript (default: True for dynamic content)
     - wait: Time to wait in milliseconds after page load (default: 2000ms)
     
@@ -148,7 +148,7 @@ def search_web_tool(
     """
 )
 def scrape_websites(
-    urls,
+    urls: Dict[str, str],
     render_js: bool = True,
     wait: int = 2000,
     context_vars=None
@@ -156,7 +156,7 @@ def scrape_websites(
     if not urls:
         return "URLs cannot be empty"
     
-    # Handle case where urls might be passed as a string instead of dict
+    # Handle different input types for urls parameter
     if isinstance(urls, str):
         # If it's a single URL string, create a dictionary with a default name
         # Extract domain name for a meaningful resource name
@@ -168,8 +168,36 @@ def scrape_websites(
             resource_name = "scraped_content"
         
         urls = {resource_name: urls}
+    elif isinstance(urls, list):
+        # If it's a list of URLs, auto-generate resource names from domains
+        url_dict = {}
+        domain_counts = {}  # Track domain usage to avoid duplicates
+        
+        for url in urls:
+            if not isinstance(url, str):
+                return f"Error: All URLs in list must be strings, got {type(url)}"
+            
+            try:
+                parsed = urlparse(url.strip())
+                domain = parsed.netloc.replace('www.', '').split('.')[0]
+                
+                # Handle duplicate domains by adding a counter
+                if domain in domain_counts:
+                    domain_counts[domain] += 1
+                    resource_name = f"{domain}_content_{domain_counts[domain]}"
+                else:
+                    domain_counts[domain] = 1
+                    resource_name = f"{domain}_content"
+                    
+            except Exception as e:
+                # Fallback to generic name if URL parsing fails
+                resource_name = f"scraped_content_{len(url_dict) + 1}"
+            
+            url_dict[resource_name] = url.strip()
+        
+        urls = url_dict
     elif not isinstance(urls, dict):
-        return f"Error: urls parameter must be a dictionary or string, got {type(urls)}"
+        return f"Error: urls parameter must be a dictionary, got {type(urls)}. If you have a list of URLs, please convert to dict format: {{\"site1\": \"url1\", \"site2\": \"url2\"}}"
     
     async def _async_scrape():
         resources = context_vars.get('resources')
@@ -456,7 +484,7 @@ def css_select(html_content: str, selector: str, text_only: bool = False, limit:
 
 @tool(
     name="grep_resource",
-    description="""Search for patterns in a resource's content using regex.
+    description="""Search for patterns in a resource's content using regex (case-insensitive by default).
     Returns matching lines with line numbers and absolute character positions where matches occur.
     The start_pos and end_pos can be used directly with get_resource(startidx, endidx) to extract the matched content.
     Prefer using lower limits when you are not sure about the pattern.
@@ -469,7 +497,6 @@ def grep_resource(
     pattern: str,
     max_line_length: int = 200,
     context_chars: int = 100,
-    flags: int = 0,
     limit: int = 10,
     context_vars=None
 ) -> str:
@@ -477,7 +504,8 @@ def grep_resource(
     if error:
         return error
     
-    matches = grep_content(content, pattern, flags, limit, max_line_length, context_chars)
+    # Default to case-insensitive matching
+    matches = grep_content(content, pattern, re.IGNORECASE, limit, max_line_length, context_chars)
     
     if not matches:
         return f"No matches found for pattern '{pattern}' in resource '{resource_id}'"
@@ -590,6 +618,65 @@ def get_resource(
 
 
 @tool(
+    name="create_resource",
+    description="""Create a new resource from text content.
+    
+    Parameters:
+    - text: The text content to store as a resource (required)
+    - resource_name: A meaningful name for the resource (required)
+                    Should be descriptive and unique, e.g. "user_notes", "product_specs", "meeting_summary"
+    
+    The resource will be stored and can be accessed later using get_resource, grep_resource, or css_select_resource tools.
+    Use meaningful, succinct resource names that describe the content being stored.
+    """
+)
+def create_resource(
+    text: str,
+    resource_name: str,
+    context_vars=None
+) -> str:
+    if not text or not text.strip():
+        return "Error: text content cannot be empty"
+    
+    if not resource_name or not isinstance(resource_name, str):
+        return "Error: resource_name must be a non-empty string"
+    
+    # Clean resource name (remove spaces, special chars, make lowercase)
+    clean_name = re.sub(r'[^a-zA-Z0-9_-]', '_', resource_name.lower().strip())
+    if not clean_name:
+        return "Error: resource_name must contain at least one alphanumeric character"
+    
+    resources = context_vars.get('resources')
+    if not resources:
+        return "Error: resources context not available"
+    
+    # Check if resource already exists
+    if clean_name in resources:
+        return f"Error: resource with name '{clean_name}' already exists. Use a different name or get the existing resource."
+    
+    # Determine content type based on content
+    content_type = "html" if "<html" in text.lower() or "<body" in text.lower() or "<div" in text.lower() else "text"
+    
+    # Create resource metadata
+    metadata = ResourceMetadata(
+        content_type=content_type,
+        length=len(text),
+        num_lines=len(text.split('\n'))
+    )
+    
+    # Create and store the resource
+    resource = Resource(
+        id=clean_name,
+        content=text.strip(),
+        metadata=metadata
+    )
+    
+    resources[clean_name] = resource
+    
+    return f"Successfully created resource '{clean_name}' with {len(text)} characters ({content_type} content)"
+
+
+@tool(
     name="list_resources",
     description="""List all resources that have been created so far.
     Returns a dictionary of all resources with their IDs as keys and content as metadata.
@@ -610,8 +697,8 @@ Each item should be a dictionary with these fields:
 - product_name (required): The name/title of the product (string)
 - price (required): The price as a string, e.g. "29.99", "$45.00", "€35.50" (string)
 - store (required): The store/brand name, e.g. "Zara", "H&M", "Amazon" (string)
-- image_url (optional): Direct URL to product image (string)
-- product_url (optional): Direct link to the product page for purchasing (string)
+- image_url (required): Direct URL to product image (string)
+- product_url (required): Direct link to the product page for purchasing (string)
 - description (optional): Brief product description or details (string)
 - currency (optional): Currency code like "USD", "EUR", "GBP" - defaults to "USD" (string)
 - category (optional): Product category like "dress", "shoes", "jacket" (string)
@@ -698,5 +785,79 @@ def display_items(
         "count": len(processed_items),
         "message": f"Found {len(processed_items)} products"
     }
+
+
+@tool(
+    name="checklist",
+    description="""Manage checklists with create, update, and get operations.
+    
+    Operations:
+    - create: Create a new checklist with title and items
+    - update: Mark checklist items as completed or uncompleted
+    - get: Retrieve existing checklist
+    
+    The checklist is stored in the agent's context and automatically included in conversations.
+    When a checklist exists, always include it and ask the user to mark completed items.
+    
+    Parameters:
+    - operation: "create", "update", or "get"
+    - title: Title for the checklist (required for create)
+    - items: List of checklist items as strings (required for create)
+    - item_updates: Dictionary mapping item indices to completion status for update
+                   Example: {0: True, 2: False} marks first item complete, third incomplete
+    """
+)
+def checklist(
+    operation: str,
+    title: str = None,
+    items: List[str] = None,
+    item_updates: Dict[int, bool] = None,
+    context_vars=None
+) -> str:
+    if not operation or operation not in ["create", "update", "get"]:
+        return "Error: operation must be 'create', 'update', or 'get'"
+    
+    agent = context_vars.get('agent')
+    if not agent:
+        return "Error: Agent context not available"
+    
+    if operation == "get":
+        if agent.checklist:
+            return f"Current checklist: {json.dumps(agent.checklist, indent=2)}"
+        else:
+            return "No checklist found"
+    
+    elif operation == "create":
+        if not title or not items:
+            return "Error: title and items are required for create operation"
+        
+        # Create new checklist
+        agent.checklist = {
+            "title": title,
+            "items": [{"text": item, "completed": False} for item in items],
+            "created_at": datetime.now().isoformat()
+        }
+        
+        return f"Created checklist '{title}' with {len(items)} items"
+    
+    elif operation == "update":
+        if not agent.checklist:
+            return "Error: No existing checklist found to update"
+        
+        if not item_updates:
+            return "Error: item_updates required for update operation"
+        
+        # Update checklist items
+        for item_index, completed in item_updates.items():
+            if 0 <= item_index < len(agent.checklist["items"]):
+                agent.checklist["items"][item_index]["completed"] = completed
+        
+        agent.checklist["updated_at"] = datetime.now().isoformat()
+        
+        # Count completed items
+        completed_count = sum(1 for item in agent.checklist["items"] if item["completed"])
+        total_count = len(agent.checklist["items"])
+        
+        return f"Updated checklist: {completed_count}/{total_count} items completed"
 
 

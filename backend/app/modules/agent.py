@@ -94,6 +94,9 @@ class Agent:
         # Initialize resource storage
         self.resources: Dict[str, Resource] = {}
         
+        # Initialize checklist storage
+        self.checklist: Optional[Dict[str, Any]] = None
+        
         # Tool call limit helper
         self.tool_limit_helper = ToolCallLimitHelper()
         
@@ -101,7 +104,8 @@ class Agent:
         self.context_vars = {
             'resources': self.resources,
             'conversation_id': self.conversation_id,
-            'stream_callback': self._emit_tool_event  # Add streaming callback to context
+            'stream_callback': self._emit_tool_event,  # Add streaming callback to context
+            'agent': self  # Add reference to agent for checklist access
         }
         
         # Always use registry tools
@@ -166,8 +170,11 @@ class Agent:
         
         # Call LLM API via router
         try:
+            # Prepare messages with checklist if it exists
+            messages_with_checklist = self._prepare_messages_with_checklist()
+            
             response = self.llm_router.create_completion(
-                messages=self.message_history,
+                messages=messages_with_checklist,
                 model=self.model,
                 tools=tools,
                 reasoning=reasoning
@@ -234,6 +241,81 @@ class Agent:
         cleaned_count = original_length - len(self.message_history)
         if cleaned_count > 0:
             logger.warning(f"Removed {cleaned_count} None messages from history")
+    
+    def _prune_message_history(self) -> List[InputMessage]:
+        """
+        Prune message history to keep only essential messages:
+        1. System message (initial system prompt)
+        2. Initial user message (first user message)
+        3. Checklist-related system messages
+        4. Recent context (last few exchanges for immediate context)
+        """
+        if not self.message_history:
+            return []
+        
+        pruned_messages = []
+        
+        # Always keep the first system message (system prompt)
+        system_message = None
+        initial_user_message = None
+        checklist_messages = []
+        recent_messages = []
+        
+        # Find essential messages
+        for i, message in enumerate(self.message_history):
+            if hasattr(message, 'role'):
+                if message.role == "system":
+                    if system_message is None:
+                        # First system message is the system prompt
+                        system_message = message
+                    elif hasattr(message, 'content') and message.content and "CHECKLIST" in message.content:
+                        # This is a checklist message
+                        checklist_messages.append(message)
+                elif message.role == "user" and initial_user_message is None:
+                    # First user message
+                    initial_user_message = message
+        
+        # Get recent messages (last 6 messages for immediate context)
+        # Skip if they're already captured above
+        recent_count = 30
+        for message in self.message_history[-recent_count:]:
+            if (message != system_message and 
+                message != initial_user_message and 
+                message not in checklist_messages):
+                recent_messages.append(message)
+        
+        # Build pruned history in order
+        if system_message:
+            pruned_messages.append(system_message)
+        
+        if initial_user_message:
+            pruned_messages.append(initial_user_message)
+        
+        # Add checklist messages (they contain current state)
+        pruned_messages.extend(checklist_messages)
+        
+        # Add recent context
+        pruned_messages.extend(recent_messages)
+        
+        logger.info(f"Pruned history: {len(self.message_history)} -> {len(pruned_messages)} messages")
+        return pruned_messages
+
+    def _prepare_messages_with_checklist(self) -> List[InputMessage]:
+        """Prepare messages including checklist as the last message if it exists"""
+        # Use pruned history instead of full history
+        messages = self._prune_message_history()
+        
+        # If checklist exists, add it as the last message
+        if self.checklist:
+            checklist_content = f"CURRENT CHECKLIST:\n{json.dumps(self.checklist, indent=2)}\n\nAlways check if any checklist items can be marked as completed based on the conversation and use it to guide your actions."
+            
+            checklist_message = Message(
+                role="system",
+                content=checklist_content
+            )
+            messages.append(checklist_message)
+        
+        return messages
     
     def _emit_tool_event(self, tool_name: str, status: str, message: str = None, progress: Dict[str, Any] = None, result: str = None, error: str = None):
         """Emit a tool execution event if streaming callback is available"""

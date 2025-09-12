@@ -271,6 +271,15 @@ async def stream_chat(request: ChatRequest):
                             message_msg = StreamMessageContent(content=response_text)
                             yield f"data: {message_msg.model_dump_json()}\n\n"
                             
+                            # Save assistant message to chat history with finish_reason
+                            if response_text.strip():  # Only save if there's actual content
+                                assistant_message = Message(
+                                    role="assistant",
+                                    content=response_text,
+                                    finish_reason=getattr(result.response, 'finish_reason', None)
+                                )
+                                agent.add_to_history(assistant_message)
+                            
                             # Check if conversation should end based on finish_reason
                             if (hasattr(result.response, 'finish_reason') and 
                                 result.response.finish_reason == 'stop'):

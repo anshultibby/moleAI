@@ -13,6 +13,7 @@ class ImageContent(BaseModel):
 class Message(BaseModel):
     role: Literal["user", "assistant", "system"]
     content: Union[str, List[Union[TextContent, ImageContent]]]
+    finish_reason: Optional[str] = None
 
 class Tool(BaseModel):
     type: Literal["function"] = "function"
