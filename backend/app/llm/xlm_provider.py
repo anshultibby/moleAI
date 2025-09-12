@@ -18,8 +18,14 @@ from .xlm_models import (
     ZAIRequest,
     ZAIThinking,
     ZAIMessage,
+    ZAISystemMessage,
+    ZAIUserMessage,
+    ZAIAssistantMessage,
+    ZAIToolMessage,
     ZAITool,
+    ZAIFunctionTool,
     ZAIToolCall,
+    ZAIFunctionToolCall,
     ZAIResponse,
     ContentConverter
 )
@@ -80,10 +86,38 @@ class XLMProvider(BaseLLMProvider):
             zai_tools = []
             for tool in tools:
                 try:
-                    # Let Pydantic discriminated union handle the routing automatically
-                    zai_tools.append(ZAITool.model_validate(tool))
+                    # Convert our Tool model to Z.AI format
+                    if hasattr(tool, 'type') and tool.type == "function":
+                        # Convert to Z.AI function tool format
+                        zai_tool = ZAIFunctionTool(
+                            type="function",
+                            function={
+                                "name": tool.name,
+                                "description": tool.description,
+                                "parameters": tool.parameters
+                            }
+                        )
+                        zai_tools.append(zai_tool)
+                    elif isinstance(tool, dict):
+                        # Handle dict format
+                        if tool.get("type") == "function":
+                            zai_tool = ZAIFunctionTool(
+                                type="function",
+                                function={
+                                    "name": tool.get("name", ""),
+                                    "description": tool.get("description", ""),
+                                    "parameters": tool.get("parameters", {})
+                                }
+                            )
+                            zai_tools.append(zai_tool)
+                        else:
+                            # Try direct validation for other tool types
+                            zai_tools.append(ZAITool.model_validate(tool))
+                    else:
+                        # Try direct validation
+                        zai_tools.append(ZAITool.model_validate(tool))
                 except Exception as e:
-                    logger.error(f"Error converting tool: {e}")
+                    logger.error(f"Error converting tool {getattr(tool, 'name', 'unknown')}: {e}")
                     continue
         
         # Convert reasoning to thinking
@@ -108,18 +142,11 @@ class XLMProvider(BaseLLMProvider):
             response_format=kwargs.get("response_format")
         )
         
-        # Convert to dict for API call
         api_params = zai_request.dict(exclude_none=True)
         
         try:
-            # Call Z.AI API
-            logger.info(f"Calling Z.AI API with model: {model}")
             response = self._make_api_request(api_params)
-            
-            # Convert Z.AI response to OpenAI format
             openai_response = self._convert_xlm_to_openai_response(response, model)
-            
-            logger.info(f"← Z.AI response converted to OpenAI format")
             return openai_response
             
         except Exception as e:
@@ -168,50 +195,214 @@ class XLMProvider(BaseLLMProvider):
         Returns:
             List[ZAIMessage]: Messages in Z.AI format
         """
+        from app.models.chat import InputReasoningItem, InputFunctionToolCall, ToolCallOutput
+        
         zai_messages = []
         
         for msg in messages:
             if msg is None:
                 continue
             
-            # Only process Message objects (skip ToolCall, ToolCallOutput, etc.)
-            if not isinstance(msg, Message):
-                logger.debug(f"Skipping non-Message type: {type(msg).__name__}")
-                continue
-                
-            
-            try:
-                # Use Pydantic models directly for all conversion
-                role = getattr(msg, 'role', None)
-                content = getattr(msg, 'content', "")
-                
-                msg_data = {
-                    "role": role,
-                    "content": ContentConverter.prepare_content(content, role),
-                }
-                
-                # Add optional fields using Pydantic validation
-                if hasattr(msg, 'tool_calls') and msg.tool_calls:
-                    tool_calls = []
-                    for call in msg.tool_calls:
-                        # Let Pydantic discriminated union handle tool call routing
-                        tool_calls.append(ZAIToolCall.model_validate(call).model_dump())
-                    msg_data["tool_calls"] = tool_calls
-                    
-                if hasattr(msg, 'tool_call_id') and msg.tool_call_id:
-                    msg_data["tool_call_id"] = msg.tool_call_id
-                elif hasattr(msg, 'call_id') and msg.call_id:
-                    msg_data["tool_call_id"] = msg.call_id
-                
-                # Pydantic discriminated union handles message type routing automatically
-                zai_message = ZAIMessage.model_validate(msg_data)
-                zai_messages.append(zai_message)
-                        
-            except Exception as e:
-                logger.error(f"Error converting message: {e}")
+            # Handle different message types
+            if isinstance(msg, Message):
+                # Handle standard Message objects
+                zai_message = self._convert_message_to_zai(msg)
+                if zai_message:
+                    zai_messages.append(zai_message)
+            elif isinstance(msg, InputReasoningItem):
+                # Convert reasoning item to assistant message with reasoning content
+                zai_message = self._convert_reasoning_to_zai(msg)
+                if zai_message:
+                    zai_messages.append(zai_message)
+            elif isinstance(msg, InputFunctionToolCall):
+                # Convert function tool call to assistant message with tool calls
+                zai_message = self._convert_function_tool_call_to_zai(msg)
+                if zai_message:
+                    zai_messages.append(zai_message)
+            elif isinstance(msg, ToolCallOutput):
+                # Convert tool call output to tool message
+                zai_message = self._convert_tool_output_to_zai(msg)
+                if zai_message:
+                    zai_messages.append(zai_message)
+            else:
+                logger.debug(f"Skipping unsupported message type: {type(msg).__name__}")
                 continue
         
         return zai_messages
+    
+    def _convert_message_to_zai(self, msg: Message) -> Optional[ZAIMessage]:
+        """Convert a standard Message object to ZAI format."""
+        try:
+            role = getattr(msg, 'role', None)
+            content = getattr(msg, 'content', "")
+            
+            # Ensure content is never empty - Z.AI API requires non-empty content
+            if not content:
+                logger.warning(f"Empty content for {role} message, skipping")
+                return None
+            
+            # Convert content based on role and type
+            if role == "system":
+                # System messages must have string content
+                content_str = self._extract_text_content(content)
+                if not content_str:
+                    logger.warning(f"Empty system message content, skipping")
+                    return None
+                return ZAISystemMessage(role="system", content=content_str)
+                
+            elif role == "user":
+                # User messages can be string or multimodal
+                if isinstance(content, str):
+                    return ZAIUserMessage(role="user", content=content)
+                else:
+                    # Try to extract text content for now (multimodal support can be added later)
+                    content_str = self._extract_text_content(content)
+                    if not content_str:
+                        logger.warning(f"Empty user message content, skipping")
+                        return None
+                    return ZAIUserMessage(role="user", content=content_str)
+                    
+            elif role == "assistant":
+                # Assistant messages may have tool calls
+                content_str = self._extract_text_content(content) if content else ""
+                
+                tool_calls = None
+                if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                    tool_calls = []
+                    for call in msg.tool_calls:
+                        try:
+                            # Convert tool call to Z.AI format
+                            zai_tool_call = ZAIFunctionToolCall(
+                                id=getattr(call, 'id', getattr(call, 'call_id', '')),
+                                type="function",
+                                function={
+                                    "name": getattr(call, 'name', ''),
+                                    "arguments": getattr(call, 'arguments', '{}')
+                                }
+                            )
+                            tool_calls.append(zai_tool_call)
+                        except Exception as e:
+                            logger.error(f"Error converting tool call: {e}")
+                            continue
+                
+                return ZAIAssistantMessage(
+                    role="assistant", 
+                    content=content_str,
+                    tool_calls=tool_calls
+                )
+                
+            elif role == "tool":
+                # Tool messages need tool_call_id
+                content_str = self._extract_text_content(content)
+                if not content_str:
+                    logger.warning(f"Empty tool message content, skipping")
+                    return None
+                    
+                tool_call_id = getattr(msg, 'tool_call_id', getattr(msg, 'call_id', ''))
+                if not tool_call_id:
+                    logger.warning(f"Tool message missing tool_call_id, skipping")
+                    return None
+                    
+                return ZAIToolMessage(
+                    role="tool",
+                    content=content_str,
+                    tool_call_id=tool_call_id
+                )
+                
+            else:
+                logger.warning(f"Unknown message role: {role}, skipping")
+                return None
+                    
+        except Exception as e:
+            logger.error(f"Error converting message: {e}")
+            return None
+    
+    def _convert_reasoning_to_zai(self, reasoning: 'InputReasoningItem') -> Optional[ZAIMessage]:
+        """Convert InputReasoningItem to ZAI assistant message with reasoning content."""
+        try:
+            # Extract reasoning content
+            content = reasoning.content or ""
+            if reasoning.summary:
+                # Combine summary with content
+                summary_text = " ".join(reasoning.summary)
+                if content:
+                    content = f"{summary_text}\n\n{content}"
+                else:
+                    content = summary_text
+            
+            if not content:
+                logger.warning("Empty reasoning content, skipping")
+                return None
+            
+            # Create assistant message with reasoning content
+            # Note: Z.AI doesn't have a specific reasoning message type in the request,
+            # but we can include reasoning content in an assistant message
+            return ZAIAssistantMessage(
+                role="assistant",
+                content=content
+            )
+            
+        except Exception as e:
+            logger.error(f"Error converting reasoning item: {e}")
+            return None
+    
+    def _convert_function_tool_call_to_zai(self, tool_call: 'InputFunctionToolCall') -> Optional[ZAIMessage]:
+        """Convert InputFunctionToolCall to ZAI assistant message with tool calls."""
+        try:
+            # Create ZAI tool call
+            zai_tool_call = ZAIFunctionToolCall(
+                id=tool_call.id or tool_call.call_id,
+                type="function",
+                function={
+                    "name": tool_call.name,
+                    "arguments": tool_call.arguments
+                }
+            )
+            
+            # Create assistant message with tool calls
+            return ZAIAssistantMessage(
+                role="assistant",
+                content="",  # Empty content when tool calls are present
+                tool_calls=[zai_tool_call]
+            )
+            
+        except Exception as e:
+            logger.error(f"Error converting function tool call: {e}")
+            return None
+    
+    def _convert_tool_output_to_zai(self, tool_output: 'ToolCallOutput') -> Optional[ZAIMessage]:
+        """Convert ToolCallOutput to ZAI tool message."""
+        try:
+            if not tool_output.output:
+                logger.warning("Empty tool output content, skipping")
+                return None
+            
+            return ZAIToolMessage(
+                role="tool",
+                content=tool_output.output,
+                tool_call_id=tool_output.call_id
+            )
+            
+        except Exception as e:
+            logger.error(f"Error converting tool output: {e}")
+            return None
+    
+    def _extract_text_content(self, content: Any) -> str:
+        """Extract text content from various content formats."""
+        if isinstance(content, str):
+            return content
+        elif isinstance(content, list):
+            text_parts = []
+            for item in content:
+                if isinstance(item, dict) and item.get("type") == "text":
+                    text_parts.append(item.get("text", ""))
+                elif isinstance(item, dict) and item.get("type") == "input_text":
+                    text_parts.append(item.get("text", ""))
+                elif isinstance(item, str):
+                    text_parts.append(item)
+            return " ".join(text_parts) if text_parts else ""
+        else:
+            return str(content) if content else ""
     
     
     def _convert_xlm_to_openai_response(self, xlm_response: Dict[str, Any], model: str) -> OpenAIResponse:
@@ -289,5 +480,6 @@ class XLMProvider(BaseLLMProvider):
             model=model,
             output=output_items,
             usage=usage,
-            status="completed"
+            status="completed",
+            finish_reason=choice.finish_reason
         )

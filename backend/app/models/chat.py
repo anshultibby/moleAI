@@ -130,6 +130,12 @@ class StreamErrorMessage(BaseModel):
     type: Literal["error"] = "error"
     error: str
 
+class StreamTurnLimitMessage(BaseModel):
+    type: Literal["turn_limit_exceeded"] = "turn_limit_exceeded"
+    message: str
+    current_turns: int
+    max_turns: int
+
 # Union type for all stream messages
 StreamMessage = Union[
     StreamStartMessage,
@@ -139,7 +145,8 @@ StreamMessage = Union[
     StreamEphemeralMessage,
     StreamToolExecutionMessage,
     StreamCompleteMessage,
-    StreamErrorMessage
+    StreamErrorMessage,
+    StreamTurnLimitMessage
 ]
 
 class AssistantResponse(BaseModel):
@@ -268,6 +275,7 @@ class OpenAIResponseBase(BaseModel):
     usage: ResponseUsage
     user: Optional[str] = None
     store: bool = True
+    finish_reason: Optional[str] = None
 
 class OpenAIResponse(OpenAIResponseBase):
     """Clean OpenAI response model with just the essential output field"""

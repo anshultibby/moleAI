@@ -13,58 +13,68 @@ from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
 
-def _emit_search_callback(stream_callback, query: str, num_results: int, results: List[Dict] = None, error_msg: str = None):
-    """Helper function to emit search tool stream callbacks with consistent format"""
-    if not stream_callback:
-        return
+class StreamHelper:
+    """Centralized helper for tool streaming functionality"""
     
-    if results is not None:
-        # Success case with results
-        stores = []
-        for result in results:
-            stores.append({
-                "title": result.get('title', 'Store'),
-                "url": result.get('url', '')
-            })
-        
-        result_data = {
-            "query": query,
-            "results": stores
-        }
-        
-        message = f"Found {len(stores)} stores" if stores else "No results found"
-        
-    else:
-        # Error case or empty results
-        result_data = {
-            "query": query,
-            "results": []
-        }
-        
-        message = error_msg or "No results found"
+    def __init__(self, stream_callback, tool_name: str):
+        self.stream_callback = stream_callback
+        self.tool_name = tool_name
     
-    stream_callback("search_web_tool", "completed", 
-                  message=message,
-                  progress={"query": query, "num_results": num_results},
-                  result=json.dumps(result_data))
+    def progress(self, message: str, **progress_data):
+        """Emit a progress update"""
+        if self.stream_callback:
+            self.stream_callback(self.tool_name, "progress", message=message, progress=progress_data)
+    
+    def completed(self, message: str, result_data: Dict = None, **progress_data):
+        """Emit a completion update"""
+        if self.stream_callback:
+            result_json = json.dumps(result_data) if result_data else None
+            self.stream_callback(self.tool_name, "completed", 
+                               message=message, 
+                               progress=progress_data,
+                               result=result_json)
+    
+    def error(self, message: str, **progress_data):
+        """Emit an error update"""
+        if self.stream_callback:
+            self.stream_callback(self.tool_name, "error", message=message, progress=progress_data)
+    
+    @classmethod
+    def for_search(cls, stream_callback, query: str, num_results: int, results: List[Dict] = None, error_msg: str = None):
+        """Factory method for search tool streaming"""
+        helper = cls(stream_callback, "search_web_tool")
+        
+        if results is not None:
+            # Success case with results
+            stores = []
+            for result in results:
+                stores.append({
+                    "title": result.get('title', 'Store'),
+                    "url": result.get('url', '')
+                })
+            
+            result_data = {
+                "query": query,
+                "results": stores
+            }
+            
+            message = f"Found {len(stores)} stores" if stores else "No results found"
+            helper.completed(message, result_data, query=query, num_results=num_results)
+        else:
+            # Error case or empty results
+            result_data = {
+                "query": query,
+                "results": []
+            }
+            
+            message = error_msg or "No results found"
+            helper.completed(message, result_data, query=query, num_results=num_results)
+    
+    @classmethod
+    def for_scraping(cls, stream_callback, tool_name: str = "scrape_website"):
+        """Factory method for scraping tool streaming"""
+        return cls(stream_callback, tool_name)
 
-
-def _emit_scrape_progress(stream_callback, tool_name: str, message: str, current: int = None, total: int = None, url: str = None, status: str = None):
-    """Helper function to emit scraping progress updates"""
-    if not stream_callback:
-        return
-    
-    progress = {}
-    if current is not None:
-        progress["current"] = current
-    if total is not None:
-        progress["total"] = total
-    if url is not None:
-        progress["url"] = url
-    if status is not None:
-        progress["status"] = status
-    
-    stream_callback(tool_name, "progress", message=message, progress=progress)
 
 
 @tool(
@@ -89,16 +99,16 @@ def search_web_tool(
     num_results: int = 10,
     context_vars=None
 ) -> Dict[str, Any]:
-    try:
-        if not query or not query.strip():
-            return {"error": "Query cannot be empty"}
+    if not query or not query.strip():
+        return {"error": "Query cannot be empty"}
 
+    # Create stream helper
+    stream_callback = context_vars.get('stream_callback') if context_vars else None
+    streamer = StreamHelper(stream_callback, "search_web_tool")
+    
+    try:
         # Emit progress update
-        stream_callback = context_vars.get('stream_callback') if context_vars else None
-        if stream_callback:
-            stream_callback("search_web_tool", "progress", 
-                          message=f"🔍 Searching the web for: {query}",
-                          progress={"query": query, "num_results": num_results})
+        streamer.progress(f"🔍 Searching the web for: {query}", query=query, num_results=num_results)
 
         results = search_web(
             query=query.strip(),
@@ -108,16 +118,14 @@ def search_web_tool(
         
         # Emit completion update
         search_results = results.get('results', []) if isinstance(results, dict) else []
-        _emit_search_callback(stream_callback, query, num_results, search_results)
+        StreamHelper.for_search(stream_callback, query, num_results, search_results)
         
         return results
         
-    except SearchError as e:
-        _emit_search_callback(stream_callback, query, num_results, error_msg=f"Search failed: {str(e)}")
-        return {"error": f"Search error: {str(e)}"}
     except Exception as e:
-        _emit_search_callback(stream_callback, query, num_results, error_msg=f"Unexpected error: {str(e)}")
-        return {"error": f"Unexpected error: {str(e)}"}
+        error_msg = f"Search failed: {str(e)}"
+        StreamHelper.for_search(stream_callback, query, num_results, error_msg=error_msg)
+        return {"error": error_msg}
 
 
 @tool(
@@ -166,6 +174,7 @@ def scrape_websites(
     async def _async_scrape():
         resources = context_vars.get('resources')
         stream_callback = context_vars.get('stream_callback')
+        streamer = StreamHelper.for_scraping(stream_callback)
         scraper = DirectScraper()
         resources_saved = []
         
@@ -174,9 +183,10 @@ def scrape_websites(
         for idx, (resource_name, url) in enumerate(urls.items(), 1):
             try:
                 # Emit progress update
-                _emit_scrape_progress(stream_callback, "scrape_website", 
-                                    f"🛒 Browsing {resource_name} for products ({idx}/{total_urls})",
-                                    current=idx, total=total_urls, url=url)
+                streamer.progress(
+                    f"🛒 Browsing {resource_name} for products ({idx}/{total_urls})",
+                    current=idx, total=total_urls, url=url
+                )
                 
                 # Validate resource name
                 if not resource_name or not isinstance(resource_name, str):
@@ -201,81 +211,78 @@ def scrape_websites(
                 resources_saved.append(resource.format_for_llm(exclude_content=True))
                 
                 # Emit success update
-                _emit_scrape_progress(stream_callback, "scrape_website", 
-                                    f"✅ Found products at {resource_name}! Analyzing {len(resource.content)} items...",
-                                    current=idx, total=total_urls, status="success")
+                streamer.progress(
+                    f"✅ Found products at {resource_name}! Analyzing {len(resource.content)} items...",
+                    current=idx, total=total_urls, status="success"
+                )
                 
-            except DirectScraperError as e:
+            except Exception as e:
                 # Log error but continue with other URLs
                 error_msg = f"Failed to scrape {url} as '{resource_name}': {str(e)}"
                 resources_saved.append(error_msg)
                 
                 # Emit error update
-                _emit_scrape_progress(stream_callback, "scrape_website", 
-                                    f"❌ Couldn't access {resource_name} - trying next store...",
-                                    current=idx, total=total_urls, status="error")
+                streamer.progress(
+                    f"❌ Couldn't access {resource_name} - trying next store...",
+                    current=idx, total=total_urls, status="error"
+                )
             finally:
                 # Clean up browser resources
                 await scraper.cleanup()
 
         # Send completion update with detailed format including actual URLs
-        if stream_callback:
-            scraped_sites = []
+        scraped_sites = []
+        
+        # Track both successful and failed scrapes with actual URLs
+        for idx, (resource_name, original_url) in enumerate(urls.items(), 1):
+            # Check if this resource was successfully saved
+            resource_saved = False
+            for resource_info in resources_saved:
+                if isinstance(resource_info, str) and resource_name in resource_info:
+                    resource_saved = True
+                    break
             
-            # Track both successful and failed scrapes with actual URLs
-            for idx, (resource_name, original_url) in enumerate(urls.items(), 1):
-                # Check if this resource was successfully saved
-                resource_saved = False
-                for resource_info in resources_saved:
-                    if isinstance(resource_info, str) and resource_name in resource_info:
-                        resource_saved = True
-                        break
-                
-                # Extract clean site name from resource name or URL
-                if resource_name.endswith('_content'):
-                    site_name = resource_name.replace('_content', '').replace('_', ' ').title()
-                else:
-                    # Fallback to extracting from URL
-                    try:
-                        parsed = urlparse(original_url)
-                        site_name = parsed.netloc.replace('www.', '').split('.')[0].title()
-                    except:
-                        site_name = resource_name.title()
-                
-                scraped_sites.append({
-                    "name": site_name,
-                    "url": original_url,
-                    "success": resource_saved
-                })
-            
-            # Filter successful sites for the message
-            successful_sites = [site for site in scraped_sites if site["success"]]
-            
-            if successful_sites:
-                result_data = {
-                    "scraped_sites": scraped_sites,
-                    "successful_sites": len(successful_sites),
-                    "total_sites": len(scraped_sites)
-                }
-                
-                if len(successful_sites) == 1:
-                    message = f"Checked {successful_sites[0]['name']}"
-                else:
-                    message = f"Checked {len(successful_sites)} websites"
-                
-                stream_callback("scrape_website", "completed", 
-                              message=message,
-                              result=json.dumps(result_data))
+            # Extract clean site name from resource name or URL
+            if resource_name.endswith('_content'):
+                site_name = resource_name.replace('_content', '').replace('_', ' ').title()
             else:
-                # No successful scrapes
-                result_data = {
-                    "scraped_sites": scraped_sites,
-                    "successful_sites": 0,
-                    "total_sites": len(scraped_sites)
-                }
-                stream_callback("scrape_website", "completed", 
-                              message="No websites could be accessed",
-                              result=json.dumps(result_data))
+                # Fallback to extracting from URL
+                try:
+                    parsed = urlparse(original_url)
+                    site_name = parsed.netloc.replace('www.', '').split('.')[0].title()
+                except:
+                    site_name = resource_name.title()
+            
+            scraped_sites.append({
+                "name": site_name,
+                "url": original_url,
+                "success": resource_saved
+            })
+        
+        # Filter successful sites for the message
+        successful_sites = [site for site in scraped_sites if site["success"]]
+        
+        if successful_sites:
+            result_data = {
+                "scraped_sites": scraped_sites,
+                "successful_sites": len(successful_sites),
+                "total_sites": len(scraped_sites)
+            }
+            
+            if len(successful_sites) == 1:
+                message = f"Checked {successful_sites[0]['name']}"
+            else:
+                message = f"Checked {len(successful_sites)} websites"
+            
+            streamer.completed(message, result_data)
+        else:
+            # No successful scrapes
+            result_data = {
+                "scraped_sites": scraped_sites,
+                "successful_sites": 0,
+                "total_sites": len(scraped_sites)
+            }
+            streamer.completed("No websites could be accessed", result_data)
         
         return f"Extracted and saved the resources: {resources_saved}"
     
@@ -453,11 +460,15 @@ def css_select(html_content: str, selector: str, text_only: bool = False, limit:
     Returns matching lines with line numbers and absolute character positions where matches occur.
     The start_pos and end_pos can be used directly with get_resource(startidx, endidx) to extract the matched content.
     Prefer using lower limits when you are not sure about the pattern.
+
+    You can control how much context is shown around the match by setting the max_line_length and context_chars parameters.
     """
 )
 def grep_resource(
     resource_id: str,
     pattern: str,
+    max_line_length: int = 200,
+    context_chars: int = 100,
     flags: int = 0,
     limit: int = 10,
     context_vars=None
@@ -466,7 +477,7 @@ def grep_resource(
     if error:
         return error
     
-    matches = grep_content(content, pattern, flags, limit)
+    matches = grep_content(content, pattern, flags, limit, max_line_length, context_chars)
     
     if not matches:
         return f"No matches found for pattern '{pattern}' in resource '{resource_id}'"
@@ -626,70 +637,66 @@ def display_items(
     title: Optional[str] = None,
     context_vars=None
 ) -> Dict[str, Any]:
-    try:
-        if not items:
-            return {"error": "Items list cannot be empty"}
+    if not items:
+        return {"error": "Items list cannot be empty"}
+    
+    processed_items = []
+    
+    for i, raw_item in enumerate(items):
+        # Handle case where item might be a JSON string
+        if isinstance(raw_item, str):
+            try:
+                item = json.loads(raw_item)
+            except json.JSONDecodeError:
+                return {"error": f"Item {i+1} is not valid JSON: {raw_item[:100]}..."}
+        elif isinstance(raw_item, dict):
+            item = raw_item
+        else:
+            return {"error": f"Item {i+1} must be a dictionary or JSON string, got {type(raw_item)}"}
         
-        processed_items = []
+        # Extract required fields with fallbacks
+        product_name = item.get('product_name') or item.get('name') or ''
+        price = item.get('price') or ''
+        store = item.get('store') or item.get('store_name') or ''
         
-        for i, raw_item in enumerate(items):
-            # Handle case where item might be a JSON string
-            if isinstance(raw_item, str):
-                try:
-                    item = json.loads(raw_item)
-                except json.JSONDecodeError:
-                    return {"error": f"Item {i+1} is not valid JSON: {raw_item[:100]}..."}
-            elif isinstance(raw_item, dict):
-                item = raw_item
-            else:
-                return {"error": f"Item {i+1} must be a dictionary or JSON string, got {type(raw_item)}"}
-            
-            # Extract required fields with fallbacks
-            product_name = item.get('product_name') or item.get('name') or ''
-            price = item.get('price') or ''
-            store = item.get('store') or item.get('store_name') or ''
-            
-            # Simple validation - just check if we have the basics
-            if not product_name.strip():
-                return {"error": f"Item {i+1} missing product name"}
-            if not price.strip():
-                return {"error": f"Item {i+1} missing price"}
-            if not store.strip():
-                return {"error": f"Item {i+1} missing store name"}
-            
-            # Generate unique ID
-            clean_store = str(store).lower().replace(' ', '-').replace('&', 'and')[:20]
-            clean_name = str(product_name).lower().replace(' ', '-')[:30]
-            item_id = f"{clean_store}-{clean_name}-{str(uuid.uuid4())[:8]}"
-            
-            # Create normalized item
-            processed_item = {
-                "id": item_id,
-                "product_name": str(product_name).strip(),
-                "name": str(product_name).strip(),
-                "price": str(price).strip(),
-                "currency": str(item.get('currency', 'USD')),
-                "store": str(store).strip(),
-                "store_name": str(store).strip(),
-                "image_url": str(item.get('image_url', '')),
-                "product_url": str(item.get('product_url', '')),
-                "description": str(item.get('description', '')),
-                "category": str(item.get('category', '')),
-                "type": "streaming_product"
-            }
-            
-            processed_items.append(processed_item)
+        # Simple validation - just check if we have the basics
+        if not product_name.strip():
+            return {"error": f"Item {i+1} missing product name"}
+        if not price.strip():
+            return {"error": f"Item {i+1} missing price"}
+        if not store.strip():
+            return {"error": f"Item {i+1} missing store name"}
         
-        return {
-            "success": True,
-            "stream_products": True,
-            "title": title or "Products Found",
-            "items": processed_items,
-            "count": len(processed_items),
-            "message": f"Found {len(processed_items)} products"
+        # Generate unique ID
+        clean_store = str(store).lower().replace(' ', '-').replace('&', 'and')[:20]
+        clean_name = str(product_name).lower().replace(' ', '-')[:30]
+        item_id = f"{clean_store}-{clean_name}-{str(uuid.uuid4())[:8]}"
+        
+        # Create normalized item
+        processed_item = {
+            "id": item_id,
+            "product_name": str(product_name).strip(),
+            "name": str(product_name).strip(),
+            "price": str(price).strip(),
+            "currency": str(item.get('currency', 'USD')),
+            "store": str(store).strip(),
+            "store_name": str(store).strip(),
+            "image_url": str(item.get('image_url', '')),
+            "product_url": str(item.get('product_url', '')),
+            "description": str(item.get('description', '')),
+            "category": str(item.get('category', '')),
+            "type": "streaming_product"
         }
         
-    except Exception as e:
-        return {"error": f"Error processing items: {str(e)}"}
+        processed_items.append(processed_item)
+    
+    return {
+        "success": True,
+        "stream_products": True,
+        "title": title or "Products Found",
+        "items": processed_items,
+        "count": len(processed_items),
+        "message": f"Found {len(processed_items)} products"
+    }
 
 

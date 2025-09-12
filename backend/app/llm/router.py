@@ -51,9 +51,8 @@ class LLMRouter:
         Raises:
             ValueError: If no provider supports the model
         """
-        for provider_name, provider in self.providers.items():
+        for _provider_name, provider in self.providers.items():
             if provider.supports_model(model):
-                logger.debug(f"Routing model '{model}' to {provider_name} provider")
                 return provider
         
         # If no provider found, list available models

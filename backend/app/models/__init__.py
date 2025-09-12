@@ -37,6 +37,7 @@ from .chat import (
     StreamToolExecutionMessage,
     StreamCompleteMessage,
     StreamErrorMessage,
+    StreamTurnLimitMessage,
     StreamMessage
 )
 from .resource import (
@@ -84,6 +85,7 @@ __all__ = [
     "StreamToolExecutionMessage",
     "StreamCompleteMessage",
     "StreamErrorMessage",
+    "StreamTurnLimitMessage",
     "StreamMessage",
     
     # Resource models

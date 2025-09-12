@@ -21,6 +21,59 @@ from app.tools import tool_registry
 from app.utils.chat_storage import chat_storage
 from app.llm.router import LLMRouter
 
+# Configuration constants
+MAX_TOOL_CALLS_PER_TURN = 45
+
+
+class ToolCallLimitHelper:
+    """Helper to manage tool call limits and provide clean limit checking"""
+    
+    def __init__(self, max_calls: int = MAX_TOOL_CALLS_PER_TURN):
+        self.max_calls = max_calls
+        self.current_count = 0
+    
+    def reset(self):
+        """Reset the counter for a new conversation turn"""
+        self.current_count = 0
+    
+    def increment(self):
+        """Increment the tool call counter"""
+        self.current_count += 1
+    
+    def is_limit_reached(self) -> bool:
+        """Check if the limit has been reached"""
+        return self.current_count >= self.max_calls
+    
+    def get_limit_message(self) -> str:
+        """Get the standard limit reached message"""
+        return f"Reached maximum of {self.max_calls} tool calls. Please provide further instructions or ask me to continue."
+    
+    def create_limit_event(self, stream_callback) -> None:
+        """Create and emit a tool limit event"""
+        if stream_callback:
+            from app.models.chat import ToolExecutionResponse
+            event = ToolExecutionResponse(
+                tool_name="system",
+                status="turn_limit_exceeded",
+                message=self.get_limit_message(),
+                progress={"current_turns": self.current_count, "max_turns": self.max_calls}
+            )
+            stream_callback(event)
+    
+    def handle_limit_exceeded(self, agent, response):
+        """Handle the complete limit exceeded flow"""
+        from app.models.chat import AssistantResponse
+        
+        # Emit turn limit event
+        self.create_limit_event(agent.stream_callback)
+        
+        # Return the assistant response (history will be handled by the system)
+        limit_message = self.get_limit_message()
+        return AssistantResponse(
+            content=limit_message,
+            response=response
+        )
+
 
 class Agent:
     def __init__(self, 
@@ -40,6 +93,9 @@ class Agent:
         
         # Initialize resource storage
         self.resources: Dict[str, Resource] = {}
+        
+        # Tool call limit helper
+        self.tool_limit_helper = ToolCallLimitHelper()
         
         # Define context variables that will be available to tools
         self.context_vars = {
@@ -225,6 +281,10 @@ class Agent:
             self._emit_tool_event(tool_call.name, "error", error=error_msg)
             return error_msg
     
+    def reset_tool_call_counter(self):
+        """Reset the tool call counter for a new conversation turn"""
+        self.tool_limit_helper.reset()
+    
     def run(self, initial_message: InputMessage) -> Generator[AgentResponse, InputMessage, None]:
         """
         Run the conversation loop. Yields responses and waits for user input.
@@ -289,6 +349,11 @@ class Agent:
                 if hasattr(output_item, 'type') and output_item.type == "function_call":
                     has_tool_calls = True
                     
+                    # Check tool call limit before executing
+                    if self.tool_limit_helper.is_limit_reached():
+                        yield self.tool_limit_helper.handle_limit_exceeded(self, response)
+                        return
+                    
                     # Create ToolCall object
                     tool_call = ToolCall(
                         id=output_item.id,
@@ -296,6 +361,9 @@ class Agent:
                         name=output_item.name,
                         arguments=output_item.arguments
                     )
+                    
+                    # Increment tool call counter
+                    self.tool_limit_helper.increment()
                     
                     # Execute the tool call
                     result = self.execute_tool_call(tool_call)
@@ -335,8 +403,12 @@ class Agent:
                 current_message = None
                 
             elif has_assistant_message:
-                # Has assistant message - yield the response and wait for user input
+                # Has assistant message - yield the response
                 yield AssistantResponse(response=response)
+                
+                # Check if conversation should end based on finish_reason
+                if hasattr(response, 'finish_reason') and response.finish_reason == 'stop':
+                    break
                 
                 # Wait for next user input
                 current_message = yield
@@ -347,6 +419,10 @@ class Agent:
                 # No tool calls or assistant messages - this shouldn't happen normally
                 logger.warning(f"Response has no tool calls or assistant messages: {response}")
                 yield AssistantResponse(response=response)
+                
+                # Check if conversation should end based on finish_reason
+                if hasattr(response, 'finish_reason') and response.finish_reason == 'stop':
+                    break
                 
                 # Wait for next user input
                 current_message = yield
@@ -359,4 +435,41 @@ class Agent:
     
     def get_system_prompt(self) -> str:
         return self.system_prompt
+    
+    def count_conversation_turns(self) -> int:
+        """
+        Count the number of conversation turns (user-assistant pairs).
+        A turn consists of a user message followed by an assistant response.
+        System messages and tool calls don't count as turns.
+        """
+        user_messages = 0
+        assistant_messages = 0
+        
+        for message in self.message_history:
+            if hasattr(message, 'role'):
+                if message.role == "user":
+                    user_messages += 1
+                elif message.role == "assistant":
+                    assistant_messages += 1
+        
+        # A turn is complete when both user and assistant have spoken
+        # We count the minimum of user and assistant messages as completed turns
+        # Plus 1 if there's a pending user message without assistant response
+        completed_turns = min(user_messages, assistant_messages)
+        pending_turn = 1 if user_messages > assistant_messages else 0
+        
+        return completed_turns + pending_turn
+    
+    def is_turn_limit_exceeded(self, max_turns: int = 40) -> tuple[bool, int]:
+        """
+        Check if the conversation has exceeded the turn limit.
+        
+        Args:
+            max_turns: Maximum number of turns allowed (default: 40)
+            
+        Returns:
+            Tuple of (is_exceeded, current_turns)
+        """
+        current_turns = self.count_conversation_turns()
+        return current_turns > max_turns, current_turns
     

@@ -16,7 +16,7 @@ from app.models import (
     Message, ThinkingResponse, ToolCallsResponse, AssistantResponse, ToolExecutionResponse,
     OpenAIResponse, ResponseOutputMessage, StreamStartMessage, StreamMessageContent,
     StreamProductMessage, StreamProductGridMessage, StreamEphemeralMessage,
-    StreamToolExecutionMessage, StreamCompleteMessage, StreamErrorMessage
+    StreamToolExecutionMessage, StreamCompleteMessage, StreamErrorMessage, StreamTurnLimitMessage
 )
 from app.config import OPENAI_API_KEY, XLM_API_KEY
 from app.prompts import BASIC_ASSISTANT_PROMPT
@@ -216,6 +216,21 @@ async def stream_chat(request: ChatRequest):
                 # Get or create agent with streaming callback
                 agent = get_or_create_agent(request.conversation_id or "default", tool_stream_callback, request.model)
                 
+                # Check turn limit before processing the message
+                is_exceeded, current_turns = agent.is_turn_limit_exceeded(max_turns=40)
+                if is_exceeded:
+                    turn_limit_msg = StreamTurnLimitMessage(
+                        message=f"Conversation has reached the maximum limit of 40 turns. Current turns: {current_turns}. Please start a new conversation.",
+                        current_turns=current_turns,
+                        max_turns=40
+                    )
+                    yield f"data: {turn_limit_msg.model_dump_json()}\n\n"
+                    
+                    # Send completion to end the stream
+                    complete_msg = StreamCompleteMessage()
+                    yield f"data: {complete_msg.model_dump_json()}\n\n"
+                    return
+                
                 # Send start signal
                 start_msg = StreamStartMessage()
                 yield f"data: {start_msg.model_dump_json()}\n\n"
@@ -256,9 +271,15 @@ async def stream_chat(request: ChatRequest):
                             message_msg = StreamMessageContent(content=response_text)
                             yield f"data: {message_msg.model_dump_json()}\n\n"
                             
-                            # End the conversation since we don't expect user input in streaming
-                            conversation.send(None)
-                            break
+                            # Check if conversation should end based on finish_reason
+                            if (hasattr(result.response, 'finish_reason') and 
+                                result.response.finish_reason == 'stop'):
+                                # End the conversation when finish_reason is 'stop'
+                                conversation.send(None)
+                                break
+                            else:
+                                # Continue conversation for other finish_reasons like 'tool_calls'
+                                conversation.send(None)
                             
                 except StopIteration:
                     # Conversation ended normally

@@ -19,11 +19,12 @@ cp frontend/env-example frontend/.env.local
 # Email the project owner for API keys and update backend/.env
 # The frontend/.env.local should work with default values for local development
 
-# 4. Start the application
-docker-compose up --build
+# 4. Start backend 
+# bash backend-start.sh
 
-# Or run in detached mode
-docker-compose up --build -d
+# 5. Start frontend
+# bash frontend-start.sh
+
 ```
 
 The application will be available at:

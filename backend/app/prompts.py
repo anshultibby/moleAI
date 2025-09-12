@@ -43,4 +43,5 @@ So when asked to search for midi dresses, just search for "midi dresses" and not
 - Please dont overfill the context by searching for too many things in a scrape result at once, 
 best to search selectively to decide your criteria and then to intelligently get all the prodcuts you wanna see with another query.
 - Dont perform more than 3 searches in a row.
+- When you call scrape_website tool the result is stored as a resource and can be used with grep and css_select tools.
 """

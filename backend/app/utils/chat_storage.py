@@ -11,19 +11,17 @@ from app.models.chat import InputMessage
 
 
 class PrettyJSONEncoder(json.JSONEncoder):
-    """Custom JSON encoder that formats newlines nicely with proper indentation"""
+    """Custom JSON encoder that ensures safe JSON serialization"""
     
     def encode(self, obj):
-        if isinstance(obj, str):
-            # Replace \n with actual newlines for better readability
-            return json.JSONEncoder.encode(self, obj).replace('\\n', '\n')
+        # Don't replace newlines - keep them escaped for safe JSON
         return json.JSONEncoder.encode(self, obj)
     
     def iterencode(self, obj, _one_shot=False):
         """Encode the given object and yield each string representation as available."""
         for chunk in json.JSONEncoder.iterencode(self, obj, _one_shot):
-            # Replace escaped newlines with actual newlines
-            yield chunk.replace('\\n', '\n')
+            # Don't replace newlines - keep them escaped for safe JSON
+            yield chunk
 
 
 class ChatHistoryStorage:
@@ -42,7 +40,15 @@ class ChatHistoryStorage:
         
         # Remove control characters except for common whitespace
         # Keep \n, \r, \t but remove other control characters
+        # Also remove any characters that could break JSON parsing
         cleaned = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', text)
+        
+        # Additional cleaning for characters that might break JSON
+        # Replace problematic quotes and backslashes
+        cleaned = cleaned.replace('\x00', '').replace('\x01', '').replace('\x02', '')
+        cleaned = cleaned.replace('\x03', '').replace('\x04', '').replace('\x05', '')
+        cleaned = cleaned.replace('\x06', '').replace('\x07', '').replace('\x08', '')
+        
         return cleaned
     
     def _clean_control_characters(self, obj: Any) -> Any:
