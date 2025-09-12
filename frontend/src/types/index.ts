@@ -62,7 +62,7 @@ export interface ToolExecutionEvent {
     status?: string
     [key: string]: any
   }
-  result?: string
+  result?: string | any[]
   error?: string
 }
 

@@ -188,12 +188,11 @@ class Agent:
                 'result': result
             }
             
-            # Emit completion event
-            result_str = str(result)
-            self._emit_tool_event(tool_call.name, "completed", message=f"Completed {tool_call.name}", result=result_str)
+            # Don't emit completion event here - tools handle their own streaming callbacks
+            # The tool functions already emit proper completion events with formatted results
             
             # OpenAI API requires string output, but we store the original for special handling
-            return result_str
+            return str(result)
         except Exception as e:
             error_msg = f"Error executing {tool_call.name}: {str(e)}"
             self._emit_tool_event(tool_call.name, "error", error=error_msg)

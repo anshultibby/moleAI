@@ -89,7 +89,7 @@ class ToolExecutionResponse(BaseModel):
     status: str  # "started", "progress", "completed", "error"
     message: Optional[str] = None
     progress: Optional[Dict[str, Any]] = None
-    result: Optional[str] = None
+    result: Optional[Union[str, List[Any]]] = None
     error: Optional[str] = None
 
 # Stream message models for the API responses
@@ -120,7 +120,7 @@ class StreamToolExecutionMessage(BaseModel):
     status: str
     message: Optional[str] = None
     progress: Optional[Dict[str, Any]] = None
-    result: Optional[str] = None
+    result: Optional[Union[str, List[Any]]] = None
     error: Optional[str] = None
 
 class StreamCompleteMessage(BaseModel):

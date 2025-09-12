@@ -13,10 +13,75 @@ from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
 
+def _emit_search_callback(stream_callback, query: str, num_results: int, results: List[Dict] = None, error_msg: str = None):
+    """Helper function to emit search tool stream callbacks with consistent format"""
+    if not stream_callback:
+        return
+    
+    if results is not None:
+        # Success case with results
+        stores = []
+        for result in results:
+            stores.append({
+                "title": result.get('title', 'Store'),
+                "url": result.get('url', '')
+            })
+        
+        result_data = {
+            "query": query,
+            "results": stores
+        }
+        
+        message = f"Found {len(stores)} stores" if stores else "No results found"
+        
+    else:
+        # Error case or empty results
+        result_data = {
+            "query": query,
+            "results": []
+        }
+        
+        message = error_msg or "No results found"
+    
+    stream_callback("search_web_tool", "completed", 
+                  message=message,
+                  progress={"query": query, "num_results": num_results},
+                  result=json.dumps(result_data))
+
+
+def _emit_scrape_progress(stream_callback, tool_name: str, message: str, current: int = None, total: int = None, url: str = None, status: str = None):
+    """Helper function to emit scraping progress updates"""
+    if not stream_callback:
+        return
+    
+    progress = {}
+    if current is not None:
+        progress["current"] = current
+    if total is not None:
+        progress["total"] = total
+    if url is not None:
+        progress["url"] = url
+    if status is not None:
+        progress["status"] = status
+    
+    stream_callback(tool_name, "progress", message=message, progress=progress)
+
+
 @tool(
     name="search_web_tool",
-    description="""Search the web to get SERP results. 
-    You can choose which links we should scrape and store as resources.
+    description="""Search the web to get SERP results using broad, general queries.
+    
+    IMPORTANT: Use natural, general search queries without site restrictions (no "site:" operators).
+    Let Google's algorithm naturally surface the best results from various retailers.
+    
+    Examples:
+    - Good: "trendy winter coats for women 2025"
+    - Good: "midi dresses under $100"
+    - Bad: "winter coats site:zara.com OR site:hm.com"
+    - Bad: "dresses site:nordstrom.com"
+    
+    After getting search results, you can choose which diverse retailer links to scrape.
+    Focus on the product attributes the user wants, not specific brands unless explicitly requested.
     """
 )
 def search_web_tool(
@@ -41,17 +106,17 @@ def search_web_tool(
             provider="google"
         )
         
-        # Emit success update
-        if stream_callback and isinstance(results, dict) and results.get('links'):
-            stream_callback("search_web_tool", "progress", 
-                          message=f"✅ Found {results} stores and websites to check",
-                          progress={"results_found": len(results['links'])})
+        # Emit completion update
+        search_results = results.get('results', []) if isinstance(results, dict) else []
+        _emit_search_callback(stream_callback, query, num_results, search_results)
         
         return results
         
     except SearchError as e:
+        _emit_search_callback(stream_callback, query, num_results, error_msg=f"Search failed: {str(e)}")
         return {"error": f"Search error: {str(e)}"}
     except Exception as e:
+        _emit_search_callback(stream_callback, query, num_results, error_msg=f"Unexpected error: {str(e)}")
         return {"error": f"Unexpected error: {str(e)}"}
 
 
@@ -109,10 +174,9 @@ def scrape_websites(
         for idx, (resource_name, url) in enumerate(urls.items(), 1):
             try:
                 # Emit progress update
-                if stream_callback:
-                    stream_callback("scrape_website", "progress", 
-                                  message=f"🛒 Browsing {resource_name} for products ({idx}/{total_urls})",
-                                  progress={"current": idx, "total": total_urls, "url": url})
+                _emit_scrape_progress(stream_callback, "scrape_website", 
+                                    f"🛒 Browsing {resource_name} for products ({idx}/{total_urls})",
+                                    current=idx, total=total_urls, url=url)
                 
                 # Validate resource name
                 if not resource_name or not isinstance(resource_name, str):
@@ -137,10 +201,9 @@ def scrape_websites(
                 resources_saved.append(resource.format_for_llm(exclude_content=True))
                 
                 # Emit success update
-                if stream_callback:
-                    stream_callback("scrape_website", "progress", 
-                                  message=f"✅ Found products at {resource_name}! Analyzing {len(resource.content)} items...",
-                                  progress={"current": idx, "total": total_urls, "status": "success"})
+                _emit_scrape_progress(stream_callback, "scrape_website", 
+                                    f"✅ Found products at {resource_name}! Analyzing {len(resource.content)} items...",
+                                    current=idx, total=total_urls, status="success")
                 
             except DirectScraperError as e:
                 # Log error but continue with other URLs
@@ -148,14 +211,72 @@ def scrape_websites(
                 resources_saved.append(error_msg)
                 
                 # Emit error update
-                if stream_callback:
-                    stream_callback("scrape_website", "progress", 
-                                  message=f"❌ Couldn't access {resource_name} - trying next store...",
-                                  progress={"current": idx, "total": total_urls, "status": "error"})
+                _emit_scrape_progress(stream_callback, "scrape_website", 
+                                    f"❌ Couldn't access {resource_name} - trying next store...",
+                                    current=idx, total=total_urls, status="error")
             finally:
                 # Clean up browser resources
                 await scraper.cleanup()
 
+        # Send completion update with detailed format including actual URLs
+        if stream_callback:
+            scraped_sites = []
+            
+            # Track both successful and failed scrapes with actual URLs
+            for idx, (resource_name, original_url) in enumerate(urls.items(), 1):
+                # Check if this resource was successfully saved
+                resource_saved = False
+                for resource_info in resources_saved:
+                    if isinstance(resource_info, str) and resource_name in resource_info:
+                        resource_saved = True
+                        break
+                
+                # Extract clean site name from resource name or URL
+                if resource_name.endswith('_content'):
+                    site_name = resource_name.replace('_content', '').replace('_', ' ').title()
+                else:
+                    # Fallback to extracting from URL
+                    try:
+                        parsed = urlparse(original_url)
+                        site_name = parsed.netloc.replace('www.', '').split('.')[0].title()
+                    except:
+                        site_name = resource_name.title()
+                
+                scraped_sites.append({
+                    "name": site_name,
+                    "url": original_url,
+                    "success": resource_saved
+                })
+            
+            # Filter successful sites for the message
+            successful_sites = [site for site in scraped_sites if site["success"]]
+            
+            if successful_sites:
+                result_data = {
+                    "scraped_sites": scraped_sites,
+                    "successful_sites": len(successful_sites),
+                    "total_sites": len(scraped_sites)
+                }
+                
+                if len(successful_sites) == 1:
+                    message = f"Checked {successful_sites[0]['name']}"
+                else:
+                    message = f"Checked {len(successful_sites)} websites"
+                
+                stream_callback("scrape_website", "completed", 
+                              message=message,
+                              result=json.dumps(result_data))
+            else:
+                # No successful scrapes
+                result_data = {
+                    "scraped_sites": scraped_sites,
+                    "successful_sites": 0,
+                    "total_sites": len(scraped_sites)
+                }
+                stream_callback("scrape_website", "completed", 
+                              message="No websites could be accessed",
+                              result=json.dumps(result_data))
+        
         return f"Extracted and saved the resources: {resources_saved}"
     
     # Check if we're in an async context
