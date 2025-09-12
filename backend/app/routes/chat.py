@@ -1,16 +1,17 @@
 """Chat routes for the shopping deals agent"""
 
 import json
-import asyncio
-from typing import Dict, List, Optional
+from typing import Dict
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.modules.agent import Agent
 from app.models import (
-    Message, ThinkingResponse, ToolCallsResponse, AssistantResponse, 
-    OpenAIResponse, ResponseOutputMessage
+    Message, ThinkingResponse, ToolCallsResponse, AssistantResponse, ToolExecutionResponse,
+    OpenAIResponse, ResponseOutputMessage, StreamStartMessage, StreamMessageContent,
+    StreamProductMessage, StreamProductGridMessage, StreamEphemeralMessage,
+    StreamToolExecutionMessage, StreamCompleteMessage, StreamErrorMessage
 )
 from app.config import OPENAI_API_KEY
 from app.prompts import BASIC_ASSISTANT_PROMPT
@@ -27,15 +28,19 @@ class ChatRequest(BaseModel):
 # Store agents by conversation ID
 agents: Dict[str, Agent] = {}
 
-def get_or_create_agent(conversation_id: str) -> Agent:
+def get_or_create_agent(conversation_id: str, stream_callback=None) -> Agent:
     """Get existing agent or create new one for conversation"""
     if conversation_id not in agents:
         agents[conversation_id] = Agent(
             system_prompt=BASIC_ASSISTANT_PROMPT,
             model="gpt-5",
             reasoning_effort="low",
-            api_key=OPENAI_API_KEY
+            api_key=OPENAI_API_KEY,
+            stream_callback=stream_callback
         )
+    else:
+        # Update existing agent's stream callback
+        agents[conversation_id].stream_callback = stream_callback
     
     return agents[conversation_id]
 
@@ -46,13 +51,21 @@ async def stream_chat(request: ChatRequest):
         print(f"New message: {request.message}")
         print(f"Conversation ID: {request.conversation_id}")
         
-        # Get or create agent for this conversation
-        agent = get_or_create_agent(request.conversation_id or "default")
-        
         async def generate_stream():
             try:
+                # Queue to collect tool execution events
+                tool_events = []
+                
+                def tool_stream_callback(event: ToolExecutionResponse):
+                    """Callback to collect tool execution events"""
+                    tool_events.append(event)
+                
+                # Get or create agent with streaming callback
+                agent = get_or_create_agent(request.conversation_id or "default", tool_stream_callback)
+                
                 # Send start signal
-                yield f"data: {json.dumps({'type': 'start'})}\n\n"
+                start_msg = StreamStartMessage()
+                yield f"data: {start_msg.model_dump_json()}\n\n"
                 
                 # Create user message
                 user_message = Message(role="user", content=request.message)
@@ -62,26 +75,33 @@ async def stream_chat(request: ChatRequest):
                 
                 try:
                     while True:
+                        # Stream any pending tool events first
+                        while tool_events:
+                            event = tool_events.pop(0)
+                            tool_msg = StreamToolExecutionMessage(
+                                tool_name=event.tool_name,
+                                status=event.status,
+                                message=event.message,
+                                progress=event.progress,
+                                result=event.result,
+                                error=event.error
+                            )
+                            yield f"data: {tool_msg.model_dump_json()}\n\n"
+                        
                         result = next(conversation)
                         
                         if isinstance(result, ThinkingResponse):
                             # Stream thinking content as ephemeral messages for the thinking panel
                             if result.content:
                                 for content_item in result.content:
-                                    stream_data = {
-                                        'type': 'ephemeral',
-                                        'content': content_item
-                                    }
-                                    yield f"data: {json.dumps(stream_data)}\n\n"
+                                    ephemeral_msg = StreamEphemeralMessage(content=content_item)
+                                    yield f"data: {ephemeral_msg.model_dump_json()}\n\n"
                             
                             # Also stream summary if available
                             if result.summary:
                                 for summary_item in result.summary:
-                                    stream_data = {
-                                        'type': 'ephemeral',
-                                        'content': f"Summary: {summary_item}"
-                                    }
-                                    yield f"data: {json.dumps(stream_data)}\n\n"
+                                    ephemeral_msg = StreamEphemeralMessage(content=f"Summary: {summary_item}")
+                                    yield f"data: {ephemeral_msg.model_dump_json()}\n\n"
                             
                         elif isinstance(result, ToolCallsResponse):
                             # Handle special tool results like display_items and add_product
@@ -117,22 +137,18 @@ async def stream_chat(request: ChatRequest):
                                                 if result_dict.get('stream_products', False):
                                                     # Stream each product individually with a small delay for better UX
                                                     for product in result_dict['items']:
-                                                        product_message = {
-                                                            'type': 'product',
-                                                            'product': product
-                                                        }
-                                                        yield f"data: {json.dumps(product_message)}\n\n"
+                                                        product_msg = StreamProductMessage(product=product)
+                                                        yield f"data: {product_msg.model_dump_json()}\n\n"
                                                         # Small delay between products for streaming effect
                                                         await asyncio.sleep(0.3)
                                                 else:
                                                     # Stream as product grid message (all at once)
-                                                    grid_message = {
-                                                        'type': 'product_grid',
-                                                        'content': result_dict.get('message', ''),
-                                                        'products': result_dict['items'],
-                                                        'productGridTitle': result_dict.get('title', 'Product Recommendations')
-                                                    }
-                                                    yield f"data: {json.dumps(grid_message)}\n\n"
+                                                    grid_msg = StreamProductGridMessage(
+                                                        content=result_dict.get('message', ''),
+                                                        products=result_dict['items'],
+                                                        productGridTitle=result_dict.get('title', 'Product Recommendations')
+                                                    )
+                                                    yield f"data: {grid_msg.model_dump_json()}\n\n"
                                     except Exception as e:
                                         print(f"Error parsing display_items result: {e}")
                             # Continue processing normally
@@ -162,11 +178,8 @@ async def stream_chat(request: ChatRequest):
                                                     elif isinstance(content_item, str):
                                                         response_text += content_item
                             
-                            message_data = {
-                                'type': 'message',
-                                'content': response_text
-                            }
-                            yield f"data: {json.dumps(message_data)}\n\n"
+                            message_msg = StreamMessageContent(content=response_text)
+                            yield f"data: {message_msg.model_dump_json()}\n\n"
                             
                             # End the conversation since we don't expect user input in streaming
                             conversation.send(None)
@@ -176,15 +189,29 @@ async def stream_chat(request: ChatRequest):
                     # Conversation ended normally
                     pass
                 
+                # Stream any remaining tool events
+                while tool_events:
+                    event = tool_events.pop(0)
+                    tool_msg = StreamToolExecutionMessage(
+                        tool_name=event.tool_name,
+                        status=event.status,
+                        message=event.message,
+                        progress=event.progress,
+                        result=event.result,
+                        error=event.error
+                    )
+                    yield f"data: {tool_msg.model_dump_json()}\n\n"
+                
                 # Send completion
-                yield f"data: {json.dumps({'type': 'complete'})}\n\n"
+                complete_msg = StreamCompleteMessage()
+                yield f"data: {complete_msg.model_dump_json()}\n\n"
                 
             except Exception as e:
                 print(f"Error in stream: {str(e)}")
                 import traceback
                 traceback.print_exc()
-                error_data = {'type': 'error', 'error': str(e)}
-                yield f"data: {json.dumps(error_data)}\n\n"
+                error_msg = StreamErrorMessage(error=str(e))
+                yield f"data: {error_msg.model_dump_json()}\n\n"
         
         return StreamingResponse(
             generate_stream(),

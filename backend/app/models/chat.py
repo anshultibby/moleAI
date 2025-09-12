@@ -83,12 +83,71 @@ class ToolCallsResponse(BaseModel):
     response: Any  # Full OpenAI response object
     raw_tool_results: Optional[Dict[str, Any]] = Field(default=None, exclude=True)  # Internal use only, never serialize
 
+class ToolExecutionResponse(BaseModel):
+    type: Literal["tool_execution"] = "tool_execution"
+    tool_name: str
+    status: str  # "started", "progress", "completed", "error"
+    message: Optional[str] = None
+    progress: Optional[Dict[str, Any]] = None
+    result: Optional[str] = None
+    error: Optional[str] = None
+
+# Stream message models for the API responses
+class StreamStartMessage(BaseModel):
+    type: Literal["start"] = "start"
+
+class StreamMessageContent(BaseModel):
+    type: Literal["message"] = "message"
+    content: str
+
+class StreamProductMessage(BaseModel):
+    type: Literal["product"] = "product"
+    product: Dict[str, Any]
+
+class StreamProductGridMessage(BaseModel):
+    type: Literal["product_grid"] = "product_grid"
+    content: str
+    products: List[Dict[str, Any]]
+    productGridTitle: str
+
+class StreamEphemeralMessage(BaseModel):
+    type: Literal["ephemeral"] = "ephemeral"
+    content: str
+
+class StreamToolExecutionMessage(BaseModel):
+    type: Literal["tool_execution"] = "tool_execution"
+    tool_name: str
+    status: str
+    message: Optional[str] = None
+    progress: Optional[Dict[str, Any]] = None
+    result: Optional[str] = None
+    error: Optional[str] = None
+
+class StreamCompleteMessage(BaseModel):
+    type: Literal["complete"] = "complete"
+
+class StreamErrorMessage(BaseModel):
+    type: Literal["error"] = "error"
+    error: str
+
+# Union type for all stream messages
+StreamMessage = Union[
+    StreamStartMessage,
+    StreamMessageContent,
+    StreamProductMessage,
+    StreamProductGridMessage,
+    StreamEphemeralMessage,
+    StreamToolExecutionMessage,
+    StreamCompleteMessage,
+    StreamErrorMessage
+]
+
 class AssistantResponse(BaseModel):
     type: Literal["assistant_response"] = "assistant_response"
     response: Any  # Full OpenAI response object
 
 # Union type for all agent responses
-AgentResponse = Union[ThinkingResponse, ToolCallsResponse, AssistantResponse]
+AgentResponse = Union[ThinkingResponse, ToolCallsResponse, AssistantResponse, ToolExecutionResponse]
 
 # OpenAI Response Models (based on actual API response structure)
 class ResponseOutputText(BaseModel):

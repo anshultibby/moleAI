@@ -2,10 +2,11 @@ export interface Message {
   role: 'user' | 'assistant'
   content?: string  // Made optional to handle streaming edge cases
   timestamp: string
-  type?: 'reasoning' | 'normal' | 'search_links' | 'progress' | 'ephemeral' | 'product_grid' | 'streaming_products'
+  type?: 'reasoning' | 'normal' | 'search_links' | 'progress' | 'ephemeral' | 'product_grid' | 'streaming_products' | 'tool_execution'
   turnId?: string  // To associate with thinking panels
   products?: Product[]  // For product grid messages
   productGridTitle?: string  // Title for product grid
+  toolExecutions?: ToolExecutionEvent[]  // For tool execution tracking
 }
 
 export interface Product {
@@ -47,11 +48,34 @@ export interface ChatResponse {
   deals_found?: (Product | SearchLinksData)[]
 }
 
+export interface ToolExecutionEvent {
+  tool_name: string
+  status: 'started' | 'progress' | 'completed' | 'error'
+  message?: string
+  progress?: {
+    current?: number
+    total?: number
+    url?: string
+    query?: string
+    num_results?: number
+    results_found?: number
+    status?: string
+    [key: string]: any
+  }
+  result?: string
+  error?: string
+}
+
 export interface StreamMessage {
-  type: 'start' | 'message' | 'product' | 'complete' | 'error'
+  type: 'start' | 'message' | 'product' | 'complete' | 'error' | 'tool_execution'
   content?: string
   product?: Product
   error?: string
+  tool_name?: string
+  status?: 'started' | 'progress' | 'completed' | 'error'
+  message?: string
+  progress?: any
+  result?: string
 }
 
 // Price bucket helper function

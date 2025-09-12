@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import ChatPanel from './ChatPanel'
 import WelcomePage from './WelcomePage'
+import ToolExecutionSidePanel from './ToolExecutionSidePanel'
 import { useChat } from '../hooks/useChat'
 import { useProducts } from '../hooks/useProducts'
 
@@ -122,9 +123,9 @@ export default function ChatInterface() {
         </div>
       </div>
 
-      {/* Main content area - Full width chat */}
+      {/* Main content area - Chat with side panel */}
       <div className="flex-1 flex min-h-0 h-full overflow-hidden">
-        <div className="w-full h-full">
+        <div className="flex-1 h-full">
           <ChatPanel
             messages={chat.messages}
             input={input}
@@ -132,11 +133,20 @@ export default function ChatInterface() {
             searchLinksData={products.searchLinksData}
             ephemeralHistory={chat.ephemeralHistory}
             currentTurnId={chat.currentTurnId}
+            activeToolExecutions={chat.activeToolExecutions}
             onInputChange={setInput}
             onSendMessage={handleSendMessage}
             onRemoveProduct={products.removeProduct}
           />
         </div>
+        
+        {/* AI Shopping Activity Panel */}
+        {Object.keys(chat.currentToolExecutions).length > 0 && (
+          <ToolExecutionSidePanel
+            toolExecutions={chat.currentToolExecutions}
+            isActive={chat.isLoading}
+          />
+        )}
       </div>
     </div>
   )

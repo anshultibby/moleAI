@@ -16,6 +16,7 @@ from .chat import (
     ThinkingResponse,
     ToolCallsResponse,
     AssistantResponse,
+    ToolExecutionResponse,
     AgentResponse,
     InputMessage,
     OpenAIResponse,
@@ -26,7 +27,17 @@ from .chat import (
     ResponseReasoningItem,
     ResponseOutputMessage,
     ResponseFunctionToolCall,
-    ResponseOutputText
+    ResponseOutputText,
+    # Stream message models
+    StreamStartMessage,
+    StreamMessageContent,
+    StreamProductMessage,
+    StreamProductGridMessage,
+    StreamEphemeralMessage,
+    StreamToolExecutionMessage,
+    StreamCompleteMessage,
+    StreamErrorMessage,
+    StreamMessage
 )
 from .resource import (
     Resource,
@@ -51,6 +62,7 @@ __all__ = [
     "ThinkingResponse",
     "ToolCallsResponse", 
     "AssistantResponse",
+    "ToolExecutionResponse",
     "AgentResponse",
     "InputMessage",
     "OpenAIResponse",
@@ -62,6 +74,21 @@ __all__ = [
     "ResponseOutputMessage",
     "ResponseFunctionToolCall",
     "ResponseOutputText",
+    
+    # Stream message models
+    "StreamStartMessage",
+    "StreamMessageContent",
+    "StreamProductMessage",
+    "StreamProductGridMessage",
+    "StreamEphemeralMessage",
+    "StreamToolExecutionMessage",
+    "StreamCompleteMessage",
+    "StreamErrorMessage",
+    "StreamMessage",
+    
+    # Resource models
+    "Resource",
+    "ResourceMetadata",
     
     # Search models
     "TokenUsage",

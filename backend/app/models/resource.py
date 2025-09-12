@@ -32,14 +32,20 @@ class Resource(BaseModel):
                     values['metadata']['num_lines'] = len(content.split('\n'))
         return values
 
-    def format_for_llm(self, exclude_content: bool = False, start_line: Optional[int] = None, end_line: Optional[int] = None) -> str:
+    def format_for_llm(self, exclude_content: bool = False, start_line: Optional[int] = None, end_line: Optional[int] = None, startidx: Optional[int] = None, endidx: Optional[int] = None) -> str:
         if exclude_content:
             return f"Resource ID: {self.id}\nMetadata: {self.metadata.format_for_llm()}"
         else:
-            lines = self.content.split('\n')
-            
-            # Handle line-based extraction
-            if start_line is not None or end_line is not None:
+            # Handle character-based extraction (startidx/endidx)
+            if startidx is not None or endidx is not None:
+                start_char = max(0, startidx if startidx is not None else 0)
+                end_char = min(len(self.content), endidx if endidx is not None else len(self.content))
+                
+                content = self.content[start_char:end_char]
+                content_info = f" (showing characters {start_char}-{end_char} of {len(self.content)} total)"
+            # Handle line-based extraction (start_line/end_line)
+            elif start_line is not None or end_line is not None:
+                lines = self.content.split('\n')
                 start = max(1, start_line if start_line is not None else 1) - 1  # Convert to 0-based index
                 end = min(self.metadata.num_lines, end_line if end_line is not None else self.metadata.num_lines)  # Keep as 1-based for slicing
                 

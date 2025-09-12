@@ -5,6 +5,7 @@ import re
 import asyncio
 import requests
 import hashlib
+import random
 from typing import Dict, Any, Optional, List
 from loguru import logger
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -115,69 +116,124 @@ class DirectScraper:
         """
         # Keep the same interface but don't require API key anymore
         self.timeout = 30
+        self.max_retries = 3
+        self.retry_delay_base = 1.0  # Base delay for exponential backoff
         self.session = requests.Session()
         
-        # Set up common headers to mimic a real browser
+        # Set up common headers to mimic a real browser with rotation
+        self.user_agents = [
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15',
+        ]
+        
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'User-Agent': random.choice(self.user_agents),
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.5',
             'Accept-Encoding': 'gzip, deflate',
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Cache-Control': 'max-age=0',
         })
         
         # Initialize HTML session for JavaScript rendering if available (fallback)
-        if REQUESTS_HTML_AVAILABLE:
-            self.html_session = AsyncHTMLSession()
-            self.html_session.headers.update(self.session.headers)
+        # Note: requests-html has threading issues, so we'll create it on-demand
+        self.html_session = None
         
         # Playwright browser instance (lazy initialization)
         self._playwright = None
         self._browser = None
+        self._browser_lock = asyncio.Lock()
     
     async def _get_browser(self):
-        """Lazy initialization of Playwright browser"""
+        """Lazy initialization of Playwright browser with proper locking"""
         if not PLAYWRIGHT_AVAILABLE:
             return None
             
-        if self._browser is None:
-            self._playwright = await async_playwright().start()
-            self._browser = await self._playwright.chromium.launch(
-                headless=True,
-                args=[
-                    '--no-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-gpu',
-                    '--disable-web-security',
-                    '--disable-features=VizDisplayCompositor',
-                    '--disable-background-networking',
-                    '--disable-background-timer-throttling',
-                    '--disable-renderer-backgrounding',
-                    '--disable-backgrounding-occluded-windows',
-                ]
-            )
+        async with self._browser_lock:
+            browser_needs_restart = False
+            if self._browser is None:
+                browser_needs_restart = True
+            else:
+                try:
+                    # Check if browser is still connected
+                    await self._browser.version()
+                except:
+                    browser_needs_restart = True
+            
+            if browser_needs_restart:
+                # Clean up old browser if it exists
+                if self._browser:
+                    try:
+                        await self._browser.close()
+                    except:
+                        pass
+                if self._playwright:
+                    try:
+                        await self._playwright.stop()
+                    except:
+                        pass
+                
+                # Create new browser instance
+                self._playwright = await async_playwright().start()
+                self._browser = await self._playwright.chromium.launch(
+                    headless=True,
+                    args=[
+                        '--no-sandbox',
+                        '--disable-dev-shm-usage',
+                        '--disable-gpu',
+                        '--disable-web-security',
+                        '--disable-features=VizDisplayCompositor',
+                        '--disable-background-networking',
+                        '--disable-background-timer-throttling',
+                        '--disable-renderer-backgrounding',
+                        '--disable-backgrounding-occluded-windows',
+                        '--disable-blink-features=AutomationControlled',
+                        '--disable-extensions',
+                    ]
+                )
         return self._browser
     
     async def _render_with_playwright(self, url: str, wait: int = 1000) -> str:
-        """Render page with Playwright (faster than requests-html)"""
+        """Render page with Playwright with improved error handling"""
         browser = await self._get_browser()
         if not browser:
             raise Exception("Playwright not available")
         
+        # Create a fresh context for each request to avoid context issues
         context = await browser.new_context(
             user_agent=self.session.headers['User-Agent'],
-            viewport={'width': 1280, 'height': 720}
+            viewport={'width': 1280, 'height': 720},
+            ignore_https_errors=True,
+            java_script_enabled=True,
+            extra_http_headers={
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+            }
         )
         
+        page = None
         try:
             page = await context.new_page()
             
             # Block unnecessary resources for faster loading
             await page.route("**/*.{png,jpg,jpeg,gif,svg,css,woff,woff2,ttf,eot}", lambda route: route.abort())
             
-            # Navigate to page
-            await page.goto(url, wait_until='domcontentloaded', timeout=self.timeout * 1000)
+            # Navigate to page with better error handling
+            try:
+                await page.goto(url, wait_until='domcontentloaded', timeout=self.timeout * 1000)
+            except Exception as e:
+                # Try with networkidle if domcontentloaded fails
+                logger.debug(f"domcontentloaded failed for {url}, trying networkidle: {e}")
+                await page.goto(url, wait_until='networkidle', timeout=self.timeout * 1000)
             
             # Smart waiting - wait for network idle or specific time, whichever is shorter
             try:
@@ -190,7 +246,57 @@ class DirectScraper:
             return content
             
         finally:
-            await context.close()
+            # Always clean up resources
+            if page:
+                try:
+                    await page.close()
+                except:
+                    pass
+            try:
+                await context.close()
+            except:
+                pass
+    
+    async def _retry_with_backoff(self, func, *args, **kwargs):
+        """Execute function with exponential backoff retry logic"""
+        last_exception = None
+        
+        for attempt in range(self.max_retries + 1):
+            try:
+                # Check if function is async or sync
+                if asyncio.iscoroutinefunction(func):
+                    return await func(*args, **kwargs)
+                else:
+                    # Run sync function in executor
+                    loop = asyncio.get_event_loop()
+                    with ThreadPoolExecutor(max_workers=1) as executor:
+                        return await loop.run_in_executor(executor, lambda: func(*args, **kwargs))
+            except Exception as e:
+                last_exception = e
+                
+                # Don't retry on certain errors
+                if isinstance(e, requests.exceptions.RequestException):
+                    if hasattr(e, 'response') and e.response is not None:
+                        status_code = e.response.status_code
+                        # Don't retry on client errors (except 429 rate limit)
+                        if 400 <= status_code < 500 and status_code != 429:
+                            if status_code == 403:
+                                logger.warning(f"403 Forbidden error, will retry with different approach: {e}")
+                            else:
+                                logger.error(f"Client error {status_code}, not retrying: {e}")
+                                break
+                
+                if attempt < self.max_retries:
+                    delay = self.retry_delay_base * (2 ** attempt) + random.uniform(0, 1)
+                    logger.warning(f"Attempt {attempt + 1} failed, retrying in {delay:.2f}s: {e}")
+                    await asyncio.sleep(delay)
+                    
+                    # Rotate user agent for next attempt
+                    self.session.headers['User-Agent'] = random.choice(self.user_agents)
+                else:
+                    logger.error(f"All {self.max_retries + 1} attempts failed: {e}")
+        
+        raise last_exception
     
     async def cleanup(self):
         """Cleanup browser resources"""
@@ -204,6 +310,10 @@ class DirectScraper:
                 await self._playwright.stop()
             except:
                 pass
+        
+        # Close requests session
+        if hasattr(self, 'session'):
+            self.session.close()
     
     async def scrape_url(
         self, 
@@ -244,12 +354,17 @@ class DirectScraper:
         try:
             logger.info(f"Scraping URL: {url}")
             
-            # Step 1: Always try static HTML first (fastest)
-            try:
+            # Step 1: Always try static HTML first (fastest) with retry logic
+            def _fetch_static_content():
                 response = self.session.get(url, timeout=self.timeout)
                 response.raise_for_status()
-                static_content = response.text
-                
+                return response.text
+            
+            try:
+                # Run sync function in executor to make it awaitable
+                loop = asyncio.get_event_loop()
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    static_content = await loop.run_in_executor(executor, _fetch_static_content)
                 logger.debug(f"Static HTML fetched for {url} ({len(static_content)} chars)")
                 
                 # Step 2: Intelligent JS detection
@@ -260,12 +375,12 @@ class DirectScraper:
                         content = static_content
                     else:
                         logger.info(f"JS rendering needed for {url}, attempting with Playwright")
-                        content = await self._render_with_js(url, wait, static_content)
+                        content = await self._retry_with_backoff(self._render_with_js, url, wait, static_content)
                         used_js_rendering = True
                 elif render_js:
                     # Force JS rendering if requested and smart detection disabled
                     logger.info(f"Force JS rendering for {url}")
-                    content = await self._render_with_js(url, wait, static_content)
+                    content = await self._retry_with_backoff(self._render_with_js, url, wait, static_content)
                     used_js_rendering = True
                 else:
                     # Use static content only
@@ -275,7 +390,7 @@ class DirectScraper:
                 # If static request fails, try JS rendering as last resort
                 if render_js and (PLAYWRIGHT_AVAILABLE or REQUESTS_HTML_AVAILABLE):
                     logger.warning(f"Static request failed for {url}, trying JS rendering: {e}")
-                    content = await self._render_with_js(url, wait)
+                    content = await self._retry_with_backoff(self._render_with_js, url, wait)
                     used_js_rendering = True
                 else:
                     raise
@@ -323,12 +438,30 @@ class DirectScraper:
             except Exception as e:
                 logger.warning(f"Playwright rendering failed for {url}: {e}")
         
-        # Fallback to requests-html
+        # Fallback to requests-html (with threading fix)
         if REQUESTS_HTML_AVAILABLE:
             try:
-                response = await self.html_session.get(url, timeout=self.timeout)
-                await response.html.arender(timeout=wait/1000)
-                return response.html.html
+                # Create session on-demand to avoid threading issues
+                if self.html_session is None:
+                    self.html_session = AsyncHTMLSession()
+                    self.html_session.headers.update(self.session.headers)
+                
+                # Run in executor to avoid threading issues
+                loop = asyncio.get_event_loop()
+                
+                def _sync_render():
+                    import requests_html
+                    # Create a new session for this thread
+                    session = requests_html.HTMLSession()
+                    session.headers.update(self.session.headers)
+                    response = session.get(url, timeout=self.timeout)
+                    response.html.render(timeout=wait/1000, wait=0.5)
+                    return response.html.html
+                
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    future = loop.run_in_executor(executor, _sync_render)
+                    return await future
+                    
             except Exception as e:
                 logger.warning(f"requests-html rendering failed for {url}: {e}")
         

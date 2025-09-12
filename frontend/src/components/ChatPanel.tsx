@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
-import { Message, SearchLinksData } from '../types'
+import { Message, SearchLinksData, ToolExecutionEvent } from '../types'
 import MessageContent from './MessageContent'
 import ThinkingPanel from './ThinkingPanel'
+// Removed ToolExecutionPanel - now using side panel
 
 interface ChatPanelProps {
   messages: Message[]
@@ -10,6 +11,7 @@ interface ChatPanelProps {
   searchLinksData: SearchLinksData[]
   ephemeralHistory: {[turnId: string]: string[]}
   currentTurnId: string | null
+  activeToolExecutions: {[turnId: string]: ToolExecutionEvent[]}
   onInputChange: (value: string) => void
   onSendMessage: () => void
   onRemoveProduct?: (id: string) => void
@@ -22,6 +24,7 @@ export default function ChatPanel({
   searchLinksData,
   ephemeralHistory,
   currentTurnId,
+  activeToolExecutions,
   onInputChange,
   onSendMessage,
   onRemoveProduct
@@ -120,20 +123,26 @@ export default function ChatPanel({
                     
                     {/* Show thinking panel for the next assistant message if it exists */}
                     {index + 1 < messages.length && messages[index + 1].role === 'assistant' && messages[index + 1].turnId && (
-                      <ThinkingPanel 
-                        turnId={messages[index + 1].turnId!}
-                        ephemeralMessages={ephemeralHistory[messages[index + 1].turnId!] || []}
-                        isActive={false}
-                      />
+                      <>
+                        <ThinkingPanel 
+                          turnId={messages[index + 1].turnId!}
+                          ephemeralMessages={ephemeralHistory[messages[index + 1].turnId!] || []}
+                          isActive={false}
+                        />
+                        {/* Tool execution now shown in side panel */}
+                      </>
                     )}
                     
-                    {/* Show active thinking panel if this is the last user message and we're loading */}
+                    {/* Show active thinking and tool panels if this is the last user message and we're loading */}
                     {index === messages.length - 1 && currentTurnId && (
-                      <ThinkingPanel 
-                        turnId={currentTurnId}
-                        ephemeralMessages={ephemeralHistory[currentTurnId] || []}
-                        isActive={true}
-                      />
+                      <>
+                        <ThinkingPanel 
+                          turnId={currentTurnId}
+                          ephemeralMessages={ephemeralHistory[currentTurnId] || []}
+                          isActive={true}
+                        />
+                        {/* Tool execution now shown in side panel */}
+                      </>
                     )}
                   </div>
                 ) : (

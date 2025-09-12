@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Message, Product } from '../types'
+import { Message, Product, ToolExecutionEvent } from '../types'
 
 export function useChat() {
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [ephemeralHistory, setEphemeralHistory] = useState<{[turnId: string]: string[]}>({})
   const [currentTurnId, setCurrentTurnId] = useState<string | null>(null)
+  const [activeToolExecutions, setActiveToolExecutions] = useState<Record<string, ToolExecutionEvent[]>>({})
+  const [currentToolExecutions, setCurrentToolExecutions] = useState<Record<string, ToolExecutionEvent>>({})
   const [conversationId, setConversationId] = useState<string>('')
   const [hasStartedConversation, setHasStartedConversation] = useState(false)
 
@@ -166,6 +168,47 @@ export function useChat() {
                   }
                   break
                 
+                case 'tool_execution':
+                  if (data.tool_name && data.status) {
+                    const toolEvent: ToolExecutionEvent = {
+                      tool_name: data.tool_name,
+                      status: data.status,
+                      message: data.message,
+                      progress: data.progress,
+                      result: data.result,
+                      error: data.error
+                    }
+                    
+                    // Update current tool executions (for side panel - latest status only)
+                    setCurrentToolExecutions(prev => ({
+                      ...prev,
+                      [data.tool_name]: toolEvent
+                    }))
+                    
+                    // Also keep the old format for backward compatibility
+                    setActiveToolExecutions(prev => {
+                      const existing = prev[turnId] || []
+                      const existingIndex = existing.findIndex(e => e.tool_name === data.tool_name)
+                      
+                      if (existingIndex >= 0) {
+                        // Update existing tool execution
+                        const updated = [...existing]
+                        updated[existingIndex] = toolEvent
+                        return {
+                          ...prev,
+                          [turnId]: updated
+                        }
+                      } else {
+                        // Add new tool execution
+                        return {
+                          ...prev,
+                          [turnId]: [...existing, toolEvent]
+                        }
+                      }
+                    })
+                  }
+                  break
+                
                 case 'error':
                   const errorMessage: Message = {
                     role: 'assistant',
@@ -197,8 +240,11 @@ export function useChat() {
 
   const resetConversation = () => {
     setMessages([])
+    setIsLoading(false)
     setEphemeralHistory({})
     setCurrentTurnId(null)
+    setActiveToolExecutions({})
+    setCurrentToolExecutions({})
     setHasStartedConversation(false)
     // Generate new conversation ID
     setConversationId(`conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`)
@@ -209,6 +255,8 @@ export function useChat() {
     isLoading,
     ephemeralHistory,
     currentTurnId,
+    activeToolExecutions,
+    currentToolExecutions,
     hasStartedConversation,
     sendMessage,
     resetConversation

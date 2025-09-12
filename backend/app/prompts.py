@@ -27,4 +27,6 @@ Consider the following motivations:
     c. Showing a variety of products from different categories
 3. When showing products from one website 20-30 is a great number.
 4. For number of unique websites to show, 5-10 is a great number.
+5. Dont restrict yourselves to singular brands when you search unless the user specifically asks for them. 
+So when asked to search for midi dresses just search for midi dresses and not just zara midi dresses.
 """

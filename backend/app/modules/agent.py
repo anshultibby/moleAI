@@ -10,6 +10,7 @@ from app.models.chat import (
     ThinkingResponse,
     ToolCallsResponse,
     AssistantResponse,
+    ToolExecutionResponse,
     AgentResponse,
     OpenAIResponse,
     ResponseReasoningItem,
@@ -24,12 +25,14 @@ class Agent:
                  system_prompt: str, 
                  model: str, 
                  reasoning_effort: str = "medium",
-                 api_key: Optional[str] = None):
+                 api_key: Optional[str] = None,
+                 stream_callback: Optional[Callable[[ToolExecutionResponse], None]] = None):
         self.system_prompt = system_prompt
         self.model = model
         self.reasoning_effort = reasoning_effort
         self.message_history: List[InputMessage] = []
         self.client = OpenAI(api_key=api_key)
+        self.stream_callback = stream_callback
         
         # Initialize resource storage
         self.resources: Dict[str, Resource] = {}
@@ -37,7 +40,8 @@ class Agent:
         # Define context variables that will be available to tools
         self.context_vars = {
             'resources': self.resources,
-            'conversation_id': getattr(self, 'conversation_id', None)
+            'conversation_id': getattr(self, 'conversation_id', None),
+            'stream_callback': self._emit_tool_event  # Add streaming callback to context
         }
         
         # Always use registry tools
@@ -148,13 +152,30 @@ class Agent:
         if cleaned_count > 0:
             logger.warning(f"Removed {cleaned_count} None messages from history")
     
+    def _emit_tool_event(self, tool_name: str, status: str, message: str = None, progress: Dict[str, Any] = None, result: str = None, error: str = None):
+        """Emit a tool execution event if streaming callback is available"""
+        if self.stream_callback:
+            event = ToolExecutionResponse(
+                tool_name=tool_name,
+                status=status,
+                message=message,
+                progress=progress,
+                result=result,
+                error=error
+            )
+            self.stream_callback(event)
     
     def execute_tool_call(self, tool_call: ToolCall) -> str:
         """Execute a tool call using the tool registry"""
         if not tool_registry.has_tool(tool_call.name):
-            return f"Error: Tool '{tool_call.name}' not found in registry"
+            error_msg = f"Error: Tool '{tool_call.name}' not found in registry"
+            self._emit_tool_event(tool_call.name, "error", error=error_msg)
+            return error_msg
         
         try:
+            # Emit tool start event
+            self._emit_tool_event(tool_call.name, "started", message=f"Starting {tool_call.name}")
+            
             # Parse arguments and execute using registry
             args = tool_call.parse_arguments()
             
@@ -167,10 +188,16 @@ class Agent:
                 'result': result
             }
             
+            # Emit completion event
+            result_str = str(result)
+            self._emit_tool_event(tool_call.name, "completed", message=f"Completed {tool_call.name}", result=result_str)
+            
             # OpenAI API requires string output, but we store the original for special handling
-            return str(result)
+            return result_str
         except Exception as e:
-            return f"Error executing {tool_call.name}: {str(e)}"
+            error_msg = f"Error executing {tool_call.name}: {str(e)}"
+            self._emit_tool_event(tool_call.name, "error", error=error_msg)
+            return error_msg
     
     def run(self, initial_message: InputMessage) -> Generator[AgentResponse, InputMessage, None]:
         """

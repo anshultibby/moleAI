@@ -9,6 +9,7 @@ import uuid
 import re
 import json
 import asyncio
+from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
 
@@ -20,18 +21,31 @@ from bs4 import BeautifulSoup
 )
 def search_web_tool(
     query: str,
-    num_results: int = 3,
+    num_results: int = 10,
     context_vars=None
 ) -> Dict[str, Any]:
     try:
         if not query or not query.strip():
             return {"error": "Query cannot be empty"}
 
+        # Emit progress update
+        stream_callback = context_vars.get('stream_callback') if context_vars else None
+        if stream_callback:
+            stream_callback("search_web_tool", "progress", 
+                          message=f"🔍 Searching the web for: {query}",
+                          progress={"query": query, "num_results": num_results})
+
         results = search_web(
             query=query.strip(),
             num_results=num_results,
             provider="google"
         )
+        
+        # Emit success update
+        if stream_callback and isinstance(results, dict) and results.get('links'):
+            stream_callback("search_web_tool", "progress", 
+                          message=f"✅ Found {results} stores and websites to check",
+                          progress={"results_found": len(results['links'])})
         
         return results
         
@@ -51,6 +65,7 @@ def search_web_tool(
     Parameters:
     - urls: Dictionary where keys are meaningful resource names and values are URLs to scrape
            Example: {"zara_dresses": "https://zara.com/dresses", "hm_shirts": "https://hm.com/shirts"}
+           OR a single URL string (will auto-generate resource name from domain)
     - render_js: Whether to render JavaScript (default: True for dynamic content)
     - wait: Time to wait in milliseconds after page load (default: 2000ms)
     
@@ -60,7 +75,7 @@ def search_web_tool(
     """
 )
 def scrape_websites(
-    urls: Dict[str, str],
+    urls,
     render_js: bool = True,
     wait: int = 2000,
     context_vars=None
@@ -68,13 +83,37 @@ def scrape_websites(
     if not urls:
         return "URLs cannot be empty"
     
+    # Handle case where urls might be passed as a string instead of dict
+    if isinstance(urls, str):
+        # If it's a single URL string, create a dictionary with a default name
+        # Extract domain name for a meaningful resource name
+        try:
+            parsed = urlparse(urls)
+            domain = parsed.netloc.replace('www.', '').split('.')[0]
+            resource_name = f"{domain}_content"
+        except:
+            resource_name = "scraped_content"
+        
+        urls = {resource_name: urls}
+    elif not isinstance(urls, dict):
+        return f"Error: urls parameter must be a dictionary or string, got {type(urls)}"
+    
     async def _async_scrape():
         resources = context_vars.get('resources')
+        stream_callback = context_vars.get('stream_callback')
         scraper = DirectScraper()
         resources_saved = []
         
-        for resource_name, url in urls.items():
+        total_urls = len(urls)
+        
+        for idx, (resource_name, url) in enumerate(urls.items(), 1):
             try:
+                # Emit progress update
+                if stream_callback:
+                    stream_callback("scrape_website", "progress", 
+                                  message=f"🛒 Browsing {resource_name} for products ({idx}/{total_urls})",
+                                  progress={"current": idx, "total": total_urls, "url": url})
+                
                 # Validate resource name
                 if not resource_name or not isinstance(resource_name, str):
                     resources_saved.append(f"Invalid resource name for {url}: {resource_name}")
@@ -96,9 +135,23 @@ def scrape_websites(
                 resource.id = clean_name
                 resources[clean_name] = resource
                 resources_saved.append(resource.format_for_llm(exclude_content=True))
+                
+                # Emit success update
+                if stream_callback:
+                    stream_callback("scrape_website", "progress", 
+                                  message=f"✅ Found products at {resource_name}! Analyzing {len(resource.content)} items...",
+                                  progress={"current": idx, "total": total_urls, "status": "success"})
+                
             except DirectScraperError as e:
                 # Log error but continue with other URLs
-                resources_saved.append(f"Failed to scrape {url} as '{resource_name}': {str(e)}")
+                error_msg = f"Failed to scrape {url} as '{resource_name}': {str(e)}"
+                resources_saved.append(error_msg)
+                
+                # Emit error update
+                if stream_callback:
+                    stream_callback("scrape_website", "progress", 
+                                  message=f"❌ Couldn't access {resource_name} - trying next store...",
+                                  progress={"current": idx, "total": total_urls, "status": "error"})
             finally:
                 # Clean up browser resources
                 await scraper.cleanup()
