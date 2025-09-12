@@ -9,7 +9,7 @@ interface ToolExecutionSidePanelProps {
 }
 
 
-function getSimpleMessage(execution: ToolExecutionEvent): string {
+function getSimpleMessage(execution: ToolExecutionEvent): string | null {
   if (execution.tool_name === 'search_web_tool') {
     console.log('=== DEBUGGING SEARCH EXECUTION ===')
     console.log('Full execution object:', execution)
@@ -19,7 +19,7 @@ function getSimpleMessage(execution: ToolExecutionEvent): string {
     console.log('Message:', execution.message)
     
     // Try to extract query from multiple places
-    let query = 'products'
+    let query: string | null = null
     
     // First try progress
     console.log('Step 1: Checking progress...')
@@ -56,6 +56,11 @@ function getSimpleMessage(execution: ToolExecutionEvent): string {
     console.log('FINAL EXTRACTED QUERY:', query)
     console.log('=== END DEBUG ===')
     
+    // If no query found, don't show this card
+    if (!query) {
+      return null
+    }
+    
     if (execution.status === 'completed') {
       return `Searched "${query}"`
     }
@@ -63,7 +68,48 @@ function getSimpleMessage(execution: ToolExecutionEvent): string {
   }
   
   if (execution.tool_name === 'scrape_website') {
-    return execution.status === 'completed' ? 'Checked websites' : 'Browsing websites...'
+    // Try to extract website name from the execution
+    let websiteName = 'website'
+    
+    // Try to get website name from result
+    if (execution.result && typeof execution.result === 'string') {
+      try {
+        if (execution.result.startsWith('{') || execution.result.startsWith('[')) {
+          const parsed = JSON.parse(execution.result)
+          if (parsed.scraped_sites && Array.isArray(parsed.scraped_sites) && parsed.scraped_sites.length > 0) {
+            const firstSite = parsed.scraped_sites[0]
+            if (typeof firstSite === 'object' && firstSite.name) {
+              websiteName = firstSite.name
+            } else if (typeof firstSite === 'string') {
+              websiteName = firstSite
+            }
+          }
+        } else if (execution.result.includes('_content')) {
+          const match = execution.result.match(/(\w+)_content/)
+          if (match) {
+            websiteName = match[1].charAt(0).toUpperCase() + match[1].slice(1)
+          }
+        }
+      } catch (e) {
+        console.log('Error parsing website name:', e)
+      }
+    }
+    
+    // Try to get from progress or message if result parsing failed
+    if (websiteName === 'website' && execution.progress?.url) {
+      try {
+        const url = new URL(execution.progress.url)
+        websiteName = url.hostname.replace('www.', '').split('.')[0]
+        websiteName = websiteName.charAt(0).toUpperCase() + websiteName.slice(1)
+      } catch (e) {
+        console.log('Error parsing URL from progress:', e)
+      }
+    }
+    
+    if (execution.status === 'completed') {
+      return `Check ${websiteName}`
+    }
+    return `Checking ${websiteName}...`
   }
   
   return 'Working...'
@@ -158,7 +204,7 @@ function getScrapedSites(executions: ToolExecutionEvent[]): Array<{name: string,
         }
         
         // Fallback to old format parsing
-        if (exec.result.includes('_content')) {
+        if (typeof exec.result === 'string' && exec.result.includes('_content')) {
           const match = exec.result.match(/(\w+)_content/)
           if (match) {
             const siteName = match[1].charAt(0).toUpperCase() + match[1].slice(1)
@@ -188,8 +234,14 @@ function SimpleCard({ execution, allExecutions }: { execution: ToolExecutionEven
   const [isExpanded, setIsExpanded] = useState(false)
   const message = getSimpleMessage(execution)
   const links = getSimpleLinks(execution)
-  const scrapedSites = execution.tool_name === 'scrape_website' ? getScrapedSites(allExecutions) : []
+  // For scraping tasks, get sites from this specific execution only
+  const scrapedSites = execution.tool_name === 'scrape_website' ? getScrapedSites([execution]) : []
   const icon = execution.tool_name === 'search_web_tool' ? '🔍' : '🌐'
+  
+  // Don't render card if no message (e.g., search without proper query)
+  if (!message) {
+    return null
+  }
   
   const hasExpandableContent = links.length > 0 || scrapedSites.length > 0
   
@@ -304,19 +356,30 @@ export default function ToolExecutionSidePanel({
     return null
   }
 
-  // Group tasks: show each search as separate card, but group all scraping into one card
+  // Show each task as a separate card
   const searchTasks = allTasks.filter(task => task.tool_name === 'search_web_tool')
   const scrapingTasks = allTasks.filter(task => task.tool_name === 'scrape_website')
-  const hasScrapingTasks = scrapingTasks.length > 0
   
   const displayTasks = []
-  // Add each search task as a separate card
-  displayTasks.push(...searchTasks)
-  // Add one representative scraping card if any scraping exists
-  if (hasScrapingTasks) displayTasks.push(scrapingTasks[0]) // Use first scraping task as representative
+  // Add each search task as a separate card (only if they have valid queries)
+  displayTasks.push(...searchTasks.filter(task => getSimpleMessage(task) !== null))
+  // Add each scraping task as a separate card
+  displayTasks.push(...scrapingTasks)
 
   return (
-    <div className="w-80 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 flex flex-col">
+    <div 
+      ref={panelRef}
+      className="bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 flex flex-col relative"
+      style={{ width: `${panelWidth}px` }}
+    >
+      {/* Resize handle */}
+      <div
+        className={`absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-indigo-500 transition-colors ${
+          isResizing ? 'bg-indigo-500' : 'bg-transparent hover:bg-indigo-300'
+        }`}
+        onMouseDown={handleMouseDown}
+        title="Drag to resize panel"
+      />
       {/* Header */}
       <div className="px-4 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
         <div className="flex items-center space-x-3">
@@ -334,13 +397,17 @@ export default function ToolExecutionSidePanel({
       
       {/* Tasks */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {displayTasks.map((execution, index) => (
-          <SimpleCard
-            key={`${execution.tool_name}-${index}`}
-            execution={execution}
-            allExecutions={allTasks}
-          />
-        ))}
+        {displayTasks.map((execution, index) => {
+          const card = (
+            <SimpleCard
+              key={`${execution.tool_name}-${index}`}
+              execution={execution}
+              allExecutions={allTasks}
+            />
+          )
+          // Only render non-null cards
+          return card
+        }).filter(Boolean)}
       </div>
     </div>
   )

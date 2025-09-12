@@ -170,4 +170,7 @@ debug/
 domain_validation_cache.json
 
 # Funnel visualization reports
-funnel_reports/ 
+funnel_reports/
+
+# Chat history storage
+backend/resources/ 

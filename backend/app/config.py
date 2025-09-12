@@ -9,6 +9,7 @@ load_dotenv()
 # API Keys (add these to your .env file)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+XLM_API_KEY = os.getenv("XLM_API_KEY")  # Z.AI API key
 
 # Other configuration
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")

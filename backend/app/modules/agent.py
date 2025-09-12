@@ -1,6 +1,6 @@
 from typing import List, Optional, Generator, Dict, Any, Callable
-from openai import OpenAI
 import json
+from datetime import datetime
 from loguru import logger
 from app.models.chat import (
     ToolCall, 
@@ -18,6 +18,8 @@ from app.models.chat import (
 )
 from app.models.resource import Resource
 from app.tools import tool_registry
+from app.utils.chat_storage import chat_storage
+from app.llm.router import LLMRouter
 
 
 class Agent:
@@ -25,14 +27,16 @@ class Agent:
                  system_prompt: str, 
                  model: str, 
                  reasoning_effort: str = "medium",
-                 api_key: Optional[str] = None,
-                 stream_callback: Optional[Callable[[ToolExecutionResponse], None]] = None):
+                 llm_router: Optional[LLMRouter] = None,
+                 stream_callback: Optional[Callable[[ToolExecutionResponse], None]] = None,
+                 conversation_id: Optional[str] = None):
         self.system_prompt = system_prompt
         self.model = model
         self.reasoning_effort = reasoning_effort
         self.message_history: List[InputMessage] = []
-        self.client = OpenAI(api_key=api_key)
+        self.llm_router = llm_router
         self.stream_callback = stream_callback
+        self.conversation_id = conversation_id
         
         # Initialize resource storage
         self.resources: Dict[str, Resource] = {}
@@ -40,7 +44,7 @@ class Agent:
         # Define context variables that will be available to tools
         self.context_vars = {
             'resources': self.resources,
-            'conversation_id': getattr(self, 'conversation_id', None),
+            'conversation_id': self.conversation_id,
             'stream_callback': self._emit_tool_event  # Add streaming callback to context
         }
         
@@ -53,13 +57,37 @@ class Agent:
             content=self.system_prompt
         )
         self.message_history.append(system_message)
+        
+        # Start conversation tracking if conversation_id is provided
+        if self.conversation_id:
+            try:
+                metadata = {
+                    "model": self.model,
+                    "reasoning_effort": self.reasoning_effort,
+                    "started_at": datetime.now().isoformat()
+                }
+                chat_storage.start_conversation(self.conversation_id, metadata)
+                # Save the initial system message
+                chat_storage.append_message(self.conversation_id, system_message)
+            except Exception as e:
+                logger.warning(f"Failed to start conversation tracking: {e}")
 
     def step(self, input_message: InputMessage) -> OpenAIResponse:
-        """Add an input message and call the OpenAI responses API"""
+        """Add an input message and call the LLM API via router"""
+        if not self.llm_router:
+            raise ValueError("No LLM router configured for this agent")
+            
         if input_message is not None:
             self.message_history.append(input_message)
             
-            # Log what we're sending to OpenAI
+            # Save message incrementally
+            if self.conversation_id:
+                try:
+                    chat_storage.append_message(self.conversation_id, input_message)
+                except Exception as e:
+                    logger.warning(f"Failed to save message incrementally: {e}")
+            
+            # Log what we're sending to LLM
             if hasattr(input_message, 'content') and input_message.content:
                 logger.info(f"→ Sending {input_message.role}: {input_message.content[:200]}{'...' if len(input_message.content) > 200 else ''}")
             else:
@@ -70,34 +98,27 @@ class Agent:
         # Clean up any None values that might have accumulated
         self.clean_message_history()
         
-        # Convert models to dict format for API call
-        input_data = []
-        for i, msg in enumerate(self.message_history):
-            if msg is not None:
-                input_data.append(msg.dict())
-            else:
-                logger.warning(f"Skipping None message at index {i}")
-        
-        # Prepare API call parameters
-        api_params = {
-            "model": self.model,
-            "input": input_data
-        }
-        
+        # Prepare tools for API call
+        tools = None
         if self.tools:
-            api_params["tools"] = [tool.dict() for tool in self.tools]
+            tools = [tool.dict() for tool in self.tools]
             
+        # Prepare reasoning configuration
+        reasoning = None
         if self.reasoning_effort:
-            api_params["reasoning"] = {"effort": self.reasoning_effort}
+            reasoning = {"effort": self.reasoning_effort}
         
-        # Call OpenAI responses API
-        raw_response = self.client.responses.create(**api_params)
-        
-        # Parse response using Pydantic model for type safety
+        # Call LLM API via router
         try:
-            response = OpenAIResponse.parse_obj(raw_response.dict())
-            # Log what OpenAI returned with content
-            logger.info(f"← OpenAI response ({len(response.output)} items):")
+            response = self.llm_router.create_completion(
+                messages=self.message_history,
+                model=self.model,
+                tools=tools,
+                reasoning=reasoning
+            )
+            
+            # Log what LLM returned with content
+            logger.info(f"← LLM response ({len(response.output)} items):")
             for i, output_item in enumerate(response.output):
                 if isinstance(output_item, ResponseReasoningItem):
                     # Handle reasoning items specially to show their content
@@ -126,9 +147,8 @@ class Agent:
                     logger.info(f"  [{i+1}] {type(output_item).__name__}")
             return response
         except Exception as e:
-            logger.error(f"Failed to parse OpenAI response: {e}")
-            # Return raw response as fallback
-            return raw_response
+            logger.error(f"LLM API call failed: {e}")
+            raise
         
     
     def add_to_history(self, message: InputMessage):
@@ -137,6 +157,13 @@ class Agent:
             logger.error("Attempted to add None message to history")
             return
         self.message_history.append(message)
+        
+        # Save message incrementally
+        if self.conversation_id:
+            try:
+                chat_storage.append_message(self.conversation_id, message)
+            except Exception as e:
+                logger.warning(f"Failed to save message incrementally: {e}")
         
         # Log tool results being sent
         if hasattr(message, 'output') and message.output:
