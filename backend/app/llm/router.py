@@ -9,145 +9,137 @@ from typing import List, Dict, Any, Optional
 from loguru import logger
 
 from .base import BaseLLMProvider
-from .openai_provider import OpenAIProvider
 from .xlm_provider import XLMProvider
-from app.models.chat import InputMessage, OpenAIResponse
+from app.models import (
+    Message, 
+    ChatCompletionResponse, 
+    ModelType,
+    ChatCompletionRequest,
+    ChatCompletionTextRequest,
+    ChatCompletionVisionRequest
+)
 
 
 class LLMRouter:
-    """Router that routes LLM requests to the appropriate provider based on model name."""
+    """Router for GLM-4.5V model via XLM provider."""
     
-    def __init__(self, openai_api_key: Optional[str] = None, xlm_api_key: Optional[str] = None):
+    def __init__(self, xlm_api_key: str):
         """
-        Initialize the LLM router with API keys for different providers.
+        Initialize the LLM router with XLM API key for GLM-4.5V.
         
         Args:
-            openai_api_key: OpenAI API key
-            xlm_api_key: XLM (Z.AI) API key
+            xlm_api_key: XLM (Z.AI) API key for GLM models
         """
-        self.providers: Dict[str, BaseLLMProvider] = {}
+        if not xlm_api_key:
+            raise ValueError("XLM API key is required for GLM-4.5V model")
+            
+        self.xlm_provider = XLMProvider(xlm_api_key)
+        self.default_model = ModelType.GLM_4_5V
         
-        # Initialize OpenAI provider if API key is provided
-        if openai_api_key:
-            self.providers['openai'] = OpenAIProvider(openai_api_key)
-        
-        # Initialize XLM provider if API key is provided
-        if xlm_api_key:
-            self.providers['xlm'] = XLMProvider(xlm_api_key)
-        
-        if not self.providers:
-            logger.warning("No LLM providers initialized - no API keys provided")
+        logger.info(f"LLM Router initialized with GLM-4.5V as default model")
     
     def get_provider_for_model(self, model: str) -> BaseLLMProvider:
         """
-        Get the appropriate provider for the given model.
+        Get the XLM provider (only provider we support).
         
         Args:
-            model: Model name to route
+            model: Model name (should be GLM model)
             
         Returns:
-            BaseLLMProvider: The provider that supports this model
+            BaseLLMProvider: The XLM provider
             
         Raises:
-            ValueError: If no provider supports the model
+            ValueError: If model is not supported
         """
-        for _provider_name, provider in self.providers.items():
-            if provider.supports_model(model):
-                return provider
+        if not self.xlm_provider.supports_model(model):
+            supported_models = self.xlm_provider.get_supported_models()
+            raise ValueError(
+                f"Model '{model}' not supported. "
+                f"Supported models: {', '.join(supported_models)}"
+            )
         
-        # If no provider found, list available models
-        available_models = self.get_all_supported_models()
-        raise ValueError(
-            f"No provider supports model '{model}'. "
-            f"Available models: {', '.join(available_models)}"
-        )
+        return self.xlm_provider
     
     def create_completion(
         self,
-        messages: List[InputMessage],
-        model: str,
+        messages: List[Message],
+        model: Optional[str] = None,
         tools: Optional[List[Dict[str, Any]]] = None,
-        reasoning: Optional[Dict[str, Any]] = None,
         **kwargs
-    ) -> OpenAIResponse:
+    ) -> ChatCompletionResponse:
         """
-        Create a chat completion by routing to the appropriate provider.
+        Create a chat completion.
         
         Args:
             messages: List of conversation messages
-            model: Model name to use
+            model: Model name (defaults to GLM-4.5V)
             tools: Optional list of tools/functions
-            reasoning: Optional reasoning configuration
-            **kwargs: Additional model-specific parameters
+            **kwargs: Additional parameters (temperature, max_tokens, etc.)
             
         Returns:
-            OpenAIResponse: Standardized response object
+            ChatCompletionResponse: Response object
         """
-        provider = self.get_provider_for_model(model)
+        target_model = model or self.default_model
+        
+        # Create appropriate request based on model type
+        if target_model == ModelType.GLM_4_5:
+            request = ChatCompletionTextRequest(
+                model=target_model,
+                messages=messages,
+                tools=tools,
+                **kwargs
+            )
+        else:  # GLM_4_5V or other vision models
+            request = ChatCompletionVisionRequest(
+                model=target_model,
+                messages=messages,
+                tools=tools,
+                **kwargs
+            )
+        
+        provider = self.get_provider_for_model(target_model)
         return provider.create_completion(
-            messages=messages,
-            model=model,
-            tools=tools,
-            reasoning=reasoning,
-            **kwargs
+            messages=request.messages,
+            model=target_model,
+            tools=getattr(request, 'tools', None),
+            reasoning=getattr(request, 'thinking', None),
+            temperature=request.temperature,
+            top_p=request.top_p,
+            max_tokens=request.max_tokens,
+            stream=request.stream,
+            do_sample=request.do_sample,
+            user_id=getattr(request, 'user_id', None),
+            stop=getattr(request, 'stop', None),
+            response_format=getattr(request, 'response_format', None),
+            request_id=getattr(request, 'request_id', None)
         )
     
     def supports_model(self, model: str) -> bool:
         """
-        Check if any provider supports the given model.
+        Check if the XLM provider supports the given model.
         
         Args:
             model: Model name to check
             
         Returns:
-            bool: True if any provider supports the model
+            bool: True if the model is supported
         """
-        return any(provider.supports_model(model) for provider in self.providers.values())
+        return self.xlm_provider.supports_model(model)
     
-    def get_all_supported_models(self) -> List[str]:
+    def get_supported_models(self) -> List[str]:
         """
-        Get list of all models supported by all providers.
+        Get list of supported models.
         
         Returns:
-            List[str]: List of all supported model names
+            List[str]: List of supported model names
         """
-        all_models = []
-        for provider in self.providers.values():
-            all_models.extend(provider.get_supported_models())
-        return sorted(list(set(all_models)))  # Remove duplicates and sort
+        return self.xlm_provider.get_supported_models()
     
-    def get_provider_info(self) -> Dict[str, List[str]]:
+    def get_default_model(self) -> str:
         """
-        Get information about available providers and their supported models.
+        Get the default model (GLM-4.5V).
         
         Returns:
-            Dict[str, List[str]]: Mapping of provider names to their supported models
+            str: Default model name
         """
-        info = {}
-        for provider_name, provider in self.providers.items():
-            info[provider_name] = provider.get_supported_models()
-        return info
-    
-    def add_provider(self, name: str, provider: BaseLLMProvider):
-        """
-        Add a new provider to the router.
-        
-        Args:
-            name: Name for the provider
-            provider: Provider instance
-        """
-        self.providers[name] = provider
-        logger.info(f"Added {name} provider with models: {provider.get_supported_models()}")
-    
-    def remove_provider(self, name: str):
-        """
-        Remove a provider from the router.
-        
-        Args:
-            name: Name of the provider to remove
-        """
-        if name in self.providers:
-            del self.providers[name]
-            logger.info(f"Removed {name} provider")
-        else:
-            logger.warning(f"Provider {name} not found")
+        return self.default_model

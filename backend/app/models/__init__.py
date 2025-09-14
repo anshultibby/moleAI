@@ -1,105 +1,67 @@
 # Models module - Define your data models here
-from .chat import (
-    TextContent,
-    ImageContent,
-    Message, 
-    Tool, 
-    ToolCall, 
-    ToolCallOutput,
-    ForcedFunctionChoice,
-    AllowedToolRef,
-    AllowedToolsChoice,
-    ToolChoice,
-    OpenAIRequest,
-    ReasoningConfig,
-    ReasoningOutput,
-    ThinkingResponse,
-    ToolCallsResponse,
-    AssistantResponse,
-    ToolExecutionResponse,
-    AgentResponse,
-    InputMessage,
-    OpenAIResponse,
-    OpenAIResponseBase,
-    ResponseOutputItem,
-    InputReasoningItem,
-    InputFunctionToolCall,
-    ResponseReasoningItem,
-    ResponseOutputMessage,
-    ResponseFunctionToolCall,
-    ResponseOutputText,
-    # Stream message models
-    StreamStartMessage,
-    StreamMessageContent,
-    StreamProductMessage,
-    StreamProductGridMessage,
-    StreamEphemeralMessage,
-    StreamToolExecutionMessage,
-    StreamCompleteMessage,
-    StreamErrorMessage,
-    StreamTurnLimitMessage,
-    StreamMessage
-)
+from .chat import *
 from .resource import (
     Resource,
     ResourceMetadata
 )
 
 __all__ = [
-    # Chat models
+    # Enums
+    "ModelType",
+    "MessageRole",
+    "ToolType",
+    "ContentType",
+    "ResponseFormatType",
+    "ThinkingType",
+    
+    # Content models
     "TextContent",
-    "ImageContent", 
-    "Message", 
-    "Tool", 
-    "ToolCall", 
-    "ToolCallOutput",
-    "ForcedFunctionChoice",
-    "AllowedToolRef", 
-    "AllowedToolsChoice",
-    "ToolChoice",
-    "OpenAIRequest",
-    "ReasoningConfig",
-    "ReasoningOutput",
-    "ThinkingResponse",
-    "ToolCallsResponse", 
-    "AssistantResponse",
-    "ToolExecutionResponse",
-    "AgentResponse",
+    "ImageContent",
+    "VideoContent",
+    "FileContent",
+    "ImageUrlObject",
+    "VideoUrlObject",
+    "FileUrlObject",
+    "VisionMultimodalContentItem",
+    
+    # Tool models
+    "FunctionParameters",
+    "FunctionObject",
+    "FunctionTool",
+    "Tool",
+    
+    # Message models
+    "ChatThinking",
+    "ResponseFormat",
+    "ToolCallFunction",
+    "ToolCall",
+    "UserMessage",
+    "SystemMessage",
+    "AssistantMessage",
+    "ToolMessage",
+    "Message",
+    
+    # Request models
+    "ChatCompletionTextRequest",
+    "ChatCompletionVisionRequest",
+    "ChatCompletionRequest",
+    
+    # Response models
+    "PromptTokensDetails",
+    "Usage",
+    "ChatCompletionResponseMessageToolCallFunction",
+    "ChatCompletionResponseMessageToolCall",
+    "ChatCompletionResponseMessage",
+    "Choice",
+    "ChatCompletionResponse",
+    "Error",
+    
+    # Legacy compatibility models
     "InputMessage",
     "OpenAIResponse",
     "OpenAIResponseBase",
-    "ResponseOutputItem",
-    "InputReasoningItem",
-    "InputFunctionToolCall",
-    "ResponseReasoningItem", 
-    "ResponseOutputMessage",
-    "ResponseFunctionToolCall",
-    "ResponseOutputText",
-    
-    # Stream message models
-    "StreamStartMessage",
-    "StreamMessageContent",
-    "StreamProductMessage",
-    "StreamProductGridMessage",
-    "StreamEphemeralMessage",
-    "StreamToolExecutionMessage",
-    "StreamCompleteMessage",
-    "StreamErrorMessage",
-    "StreamTurnLimitMessage",
-    "StreamMessage",
     
     # Resource models
     "Resource",
     "ResourceMetadata",
-    
-    # Search models
-    "TokenUsage",
-    "SearchMetadata",
-    "PageMetadata",
-    "ExternalResources",
-    "SearchResult",
-    "JinaSearchResponse",
-    "SearchSummary",
-    "parse_search_response",
-    "load_search_response_from_file"
 ]

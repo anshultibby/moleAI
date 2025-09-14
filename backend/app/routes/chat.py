@@ -4,7 +4,6 @@ import ast
 import asyncio
 import json
 import traceback
-from datetime import datetime
 from typing import Dict, List, Any
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -13,10 +12,11 @@ from enum import Enum
 
 from app.modules.agent import Agent
 from app.models import (
-    Message, ThinkingResponse, ToolCallsResponse, AssistantResponse, ToolExecutionResponse,
-    OpenAIResponse, ResponseOutputMessage, StreamStartMessage, StreamMessageContent,
-    StreamProductMessage, StreamProductGridMessage, StreamEphemeralMessage,
-    StreamToolExecutionMessage, StreamCompleteMessage, StreamErrorMessage, StreamTurnLimitMessage
+    Message, 
+    UserMessage,
+    SystemMessage, 
+    AssistantMessage,
+    ChatCompletionResponse
 )
 from app.config import OPENAI_API_KEY, XLM_API_KEY
 from app.prompts import BASIC_ASSISTANT_PROMPT
@@ -43,10 +43,7 @@ class ChatRequest(BaseModel):
     model: AvailableModels = AvailableModels.GLM_4_5V  # Default to XLM model
 
 # Initialize global LLM router
-llm_router = LLMRouter(
-    openai_api_key=OPENAI_API_KEY,
-    xlm_api_key=XLM_API_KEY
-)
+llm_router = LLMRouter(xlm_api_key=XLM_API_KEY)
 
 # Store agents by conversation ID
 agents: Dict[str, Agent] = {}
@@ -92,99 +89,20 @@ def end_conversation_tracking(conversation_id: str, user_message: str, agent: Ag
         print(f"Error ending conversation tracking: {e}")
         # Don't fail the request if ending fails
 
-async def stream_tool_events(tool_events: List[ToolExecutionResponse]):
+
+async def stream_tool_events(tool_events: List[Dict[str, Any]]):
     """Helper to stream pending tool events"""
     while tool_events:
         event = tool_events.pop(0)
-        tool_msg = StreamToolExecutionMessage(
-            tool_name=event.tool_name,
-            status=event.status,
-            message=event.message,
-            progress=event.progress,
-            result=event.result,
-            error=event.error
-        )
-        yield f"data: {tool_msg.model_dump_json()}\n\n"
+        yield f"data: {json.dumps({'type': 'tool_execution', **event})}\n\n"
 
-async def handle_thinking_response(result: ThinkingResponse):
-    """Helper to handle thinking response streaming"""
-    # Stream thinking content as ephemeral messages for the thinking panel
-    if result.content:
-        for content_item in result.content:
-            ephemeral_msg = StreamEphemeralMessage(content=content_item)
-            yield f"data: {ephemeral_msg.model_dump_json()}\n\n"
-    
-    # Also stream summary if available
-    if result.summary:
-        for summary_item in result.summary:
-            ephemeral_msg = StreamEphemeralMessage(content=f"Summary: {summary_item}")
-            yield f"data: {ephemeral_msg.model_dump_json()}\n\n"
-
-async def handle_display_items_tool(tool_output, result: ToolCallsResponse):
-    """Helper to handle display_items tool results"""
-    try:
-        # First try to get the raw structured result
-        result_dict = None
-        if result.raw_tool_results and tool_output.call_id in result.raw_tool_results:
-            result_dict = result.raw_tool_results[tool_output.call_id]
-        
-        # Fallback to parsing the string output
-        if not result_dict:
-            output_str = tool_output.output
-            if isinstance(output_str, str):
-                try:
-                    result_dict = ast.literal_eval(output_str)
-                except (ValueError, SyntaxError):
-                    try:
-                        result_dict = json.loads(output_str)
-                    except json.JSONDecodeError:
-                        result_dict = {}
-        
-        if isinstance(result_dict, dict) and result_dict.get('success') and 'items' in result_dict:
-            # Check if we should stream products individually
-            if result_dict.get('stream_products', False):
-                # Stream each product individually with a small delay for better UX
-                for product in result_dict['items']:
-                    product_msg = StreamProductMessage(product=product)
-                    yield f"data: {product_msg.model_dump_json()}\n\n"
-                    # Small delay between products for streaming effect
-                    await asyncio.sleep(0.3)
-            else:
-                # Stream as product grid message (all at once)
-                grid_msg = StreamProductGridMessage(
-                    content=result_dict.get('message', ''),
-                    products=result_dict['items'],
-                    productGridTitle=result_dict.get('title', 'Product Recommendations')
-                )
-                yield f"data: {grid_msg.model_dump_json()}\n\n"
-    except Exception as e:
-        print(f"Error parsing display_items result: {e}")
-
-def extract_assistant_response_text(result: AssistantResponse) -> str:
-    """Helper to extract text from assistant response"""
-    response_text = ""
-    
-    # Extract text from typed response
-    if isinstance(result.response, OpenAIResponse):
-        for output_item in result.response.output:
-            if isinstance(output_item, ResponseOutputMessage):
-                for content_item in output_item.content:
-                    response_text += content_item.text
-    else:
-        # Fallback for untyped response
-        if hasattr(result.response, 'output_text'):
-            response_text = result.response.output_text
-        elif hasattr(result.response, 'output') and result.response.output:
-            for item in result.response.output:
-                if hasattr(item, 'type') and item.type == "message":
-                    if hasattr(item, 'content') and item.content:
-                        for content_item in item.content:
-                            if hasattr(content_item, 'text'):
-                                response_text += content_item.text
-                            elif isinstance(content_item, str):
-                                response_text += content_item
-    
-    return response_text
+async def handle_thinking_response(response: ChatCompletionResponse):
+    """Helper to handle thinking response streaming from choices"""
+    if response.choices:
+        choice = response.choices[0]
+        if choice.message.reasoning_content:
+            # Stream reasoning content as ephemeral messages for the thinking panel
+            yield f"data: {json.dumps({'type': 'ephemeral', 'content': choice.message.reasoning_content})}\n\n"
 
 def format_chat_history_for_api(history: List[Any]) -> List[Dict[str, Any]]:
     """Helper to format chat history for API response"""
@@ -209,107 +127,45 @@ async def stream_chat(request: ChatRequest):
                 # Queue to collect tool execution events
                 tool_events = []
                 
-                def tool_stream_callback(event: ToolExecutionResponse):
+                def tool_stream_callback(event: Dict[str, Any]):
                     """Callback to collect tool execution events"""
                     tool_events.append(event)
                 
                 # Get or create agent with streaming callback
                 agent = get_or_create_agent(request.conversation_id or "default", tool_stream_callback, request.model)
                 
-                # Check turn limit before processing the message
-                is_exceeded, current_turns = agent.is_turn_limit_exceeded(max_turns=40)
-                if is_exceeded:
-                    turn_limit_msg = StreamTurnLimitMessage(
-                        message=f"Conversation has reached the maximum limit of 40 turns. Current turns: {current_turns}. Please start a new conversation.",
-                        current_turns=current_turns,
-                        max_turns=40
-                    )
-                    yield f"data: {turn_limit_msg.model_dump_json()}\n\n"
-                    
-                    # Send completion to end the stream
-                    complete_msg = StreamCompleteMessage()
-                    yield f"data: {complete_msg.model_dump_json()}\n\n"
-                    return
-                
                 # Send start signal
-                start_msg = StreamStartMessage()
-                yield f"data: {start_msg.model_dump_json()}\n\n"
+                yield f"data: {json.dumps({'type': 'start'})}\n\n"
                 
                 # Create user message
-                user_message = Message(role="user", content=request.message)
+                user_message = UserMessage(content=request.message)
                 
-                # Run the agent conversation
-                conversation = agent.run(user_message)
+                # Run the agent conversation (this now handles all tool execution internally)
+                response = agent.run(user_message)
                 
-                try:
-                    while True:
-                        # Stream any pending tool events first
-                        async for item in stream_tool_events(tool_events):
-                            yield item
-                        
-                        result = next(conversation)
-                        
-                        if isinstance(result, ThinkingResponse):
-                            async for item in handle_thinking_response(result):
-                                yield item
-                            
-                        elif isinstance(result, ToolCallsResponse):
-                            # Handle special tool results like display_items and add_product
-                            for tool_output in result.tool_outputs:
-                                # Find the corresponding tool call
-                                tool_call = next((tc for tc in result.tool_calls if tc.call_id == tool_output.call_id), None)
-                                
-                                if tool_call and tool_call.name == "display_items":
-                                    async for item in handle_display_items_tool(tool_output, result):
-                                        yield item
-                            # Continue processing normally
-                            pass
-                            
-                        elif isinstance(result, AssistantResponse):
-                            # Stream the assistant response using helper
-                            response_text = extract_assistant_response_text(result)
-                            message_msg = StreamMessageContent(content=response_text)
-                            yield f"data: {message_msg.model_dump_json()}\n\n"
-                            
-                            # Save assistant message to chat history with finish_reason
-                            if response_text.strip():  # Only save if there's actual content
-                                assistant_message = Message(
-                                    role="assistant",
-                                    content=response_text,
-                                    finish_reason=getattr(result.response, 'finish_reason', None)
-                                )
-                                agent.add_to_history(assistant_message)
-                            
-                            # Check if conversation should end based on finish_reason
-                            if (hasattr(result.response, 'finish_reason') and 
-                                result.response.finish_reason == 'stop'):
-                                # End the conversation when finish_reason is 'stop'
-                                conversation.send(None)
-                                break
-                            else:
-                                # Continue conversation for other finish_reasons like 'tool_calls'
-                                conversation.send(None)
-                            
-                except StopIteration:
-                    # Conversation ended normally
-                    pass
-                
-                # Stream any remaining tool events
+                # Stream any tool events that were collected during execution
                 async for item in stream_tool_events(tool_events):
                     yield item
+                
+                # Handle thinking/reasoning content from the final response
+                async for item in handle_thinking_response(response):
+                    yield item
+                
+                # Stream the final response content
+                if response.choices and response.choices[0].message.content:
+                    content = response.choices[0].message.content
+                    yield f"data: {json.dumps({'type': 'message', 'content': content})}\n\n"
                 
                 # End conversation tracking
                 end_conversation_tracking(request.conversation_id, request.message, agent)
                 
                 # Send completion
-                complete_msg = StreamCompleteMessage()
-                yield f"data: {complete_msg.model_dump_json()}\n\n"
+                yield f"data: {json.dumps({'type': 'complete'})}\n\n"
                 
             except Exception as e:
                 print(f"Error in stream: {str(e)}")
                 traceback.print_exc()
-                error_msg = StreamErrorMessage(error=str(e))
-                yield f"data: {error_msg.model_dump_json()}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
         
         return StreamingResponse(
             generate_stream(),
@@ -402,18 +258,17 @@ async def cleanup_old_chat_histories(days_to_keep: int = 30):
 async def list_models():
     """List available LLM models and their providers"""
     try:
-        provider_info = llm_router.get_provider_info()
-        all_models = llm_router.get_all_supported_models()
+        supported_models = llm_router.get_supported_models()
+        default_model = llm_router.get_default_model()
         
         return {
             "available_models": [model.value for model in AvailableModels],
-            "providers": provider_info,
-            "default_model": AvailableModels.GLM_4_5V.value,
+            "supported_models": supported_models,
+            "default_model": default_model,
             "model_descriptions": {
-                AvailableModels.GLM_4_5V.value: "GLM-4.5V - XLM Vision Model (Z.AI)",
-                AvailableModels.GPT_5.value: "GPT-5 - OpenAI Latest Model"
+                AvailableModels.GLM_4_5V.value: "GLM-4.5V - XLM Vision Model (Z.AI) - Supports multimodal content",
             }
         }
     except Exception as e:
-        logger.error(f"Error listing models: {e}")
+        print(f"Error listing models: {e}")
         raise HTTPException(status_code=500, detail=str(e))

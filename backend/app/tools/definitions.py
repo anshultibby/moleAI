@@ -691,7 +691,9 @@ def list_resources(context_vars=None) -> List[str]:
 
 @tool(
     name="display_items",
-    description="""Display products/items that will stream to the user in real-time as they are processed. Products appear immediately as each one is processed, creating a dynamic streaming experience.
+    description="""Display products/items that will stream to the user in real-time as they are processed. 
+    Products appear immediately as each one is processed, creating a dynamic streaming experience.
+    This is a very important tool to call as it makes for a very delightful experience for the user, our main goal is to keep the user engaged.
 
 Each item should be a dictionary with these fields:
 - product_name (required): The name/title of the product (string)
