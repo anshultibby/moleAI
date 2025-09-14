@@ -13,7 +13,7 @@ from loguru import logger
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 
-from app.models.resource import Resource, ResourceMetadata
+# Resource import removed - scraper now returns raw content
 
 # Try to import playwright for JS rendering
 try:
@@ -384,7 +384,7 @@ class DirectScraper:
         smart_js_detection: bool = True,
         resource_name: Optional[str] = None,
         conversation_id: Optional[str] = None
-    ) -> Resource:
+    ) -> str:
         """
         Scrape content from a single URL with intelligent JavaScript detection
         
@@ -400,7 +400,7 @@ class DirectScraper:
             conversation_id: Optional conversation ID to organize files by conversation
         
         Returns:
-            Resource object containing scraped content and metadata
+            String containing scraped HTML content
         """
         if not url or not url.strip():
             raise ValueError("URL cannot be empty")
@@ -457,47 +457,36 @@ class DirectScraper:
                 else:
                     raise
             
-            # Create Resource object
-            resource_id = hashlib.md5(url.encode()).hexdigest()
-            
             scrape_time = time.time() - start_time
             
-            resource_metadata = ResourceMetadata(
-                content_type="html",
-                length=len(content),
-                num_lines=len(content.split('\n')),
-                extra={
-                    "scraper": "direct_http_optimized",
-                    "render_js": used_js_rendering,
-                    "wait_time": wait,
-                    "scrape_time_seconds": round(scrape_time, 2),
-                    "smart_detection": smart_js_detection,
-                }
-            )
-            
-            # Save raw scraped data to JSON file if resource_name is provided
-            json_filepath = ""
-            if resource_name:
-                json_filepath = self._save_raw_scraped_data(
-                    resource_name=resource_name,
-                    url=url,
-                    content=content,
-                    metadata=resource_metadata.extra,
-                    conversation_id=conversation_id
-                )
-                # Add JSON file path to metadata
-                resource_metadata.extra["raw_data_file"] = json_filepath
-            
-            resource = Resource(
-                id=resource_id,
-                content=content,
-                metadata=resource_metadata
-            )
+            # Log scraping metadata for debugging
+            metadata = {
+                "scraper": "direct_http_optimized",
+                "render_js": used_js_rendering,
+                "wait_time": wait,
+                "scrape_time_seconds": round(scrape_time, 2),
+                "smart_detection": smart_js_detection,
+                "content_length": len(content),
+                "num_lines": len(content.split('\n'))
+            }
             
             logger.info(f"Successfully scraped {url} ({len(content)} chars, {scrape_time:.2f}s, JS: {used_js_rendering})")
-            if json_filepath:
-                logger.info(f"Raw data saved to: {json_filepath}")
-            return resource
+            
+            # Save raw scraped data if conversation_id is provided
+            if conversation_id and resource_name:
+                try:
+                    saved_path = self._save_raw_scraped_data(
+                        resource_name=resource_name,
+                        url=url,
+                        content=content,
+                        metadata=metadata,
+                        conversation_id=conversation_id
+                    )
+                    logger.debug(f"Saved scraped data to: {saved_path}")
+                except Exception as e:
+                    logger.warning(f"Failed to save scraped data: {e}")
+            
+            return content
             
         except Exception as e:
             error_msg = f"Failed to scrape {url}: {str(e)}"
@@ -557,7 +546,7 @@ class DirectScraper:
         wait_for: Optional[str] = None,
         max_workers: int = 5,
         smart_js_detection: bool = True
-    ) -> List[Resource]:
+    ) -> List[str]:
         """
         Scrape content from multiple URLs concurrently for better performance
         
@@ -570,14 +559,14 @@ class DirectScraper:
             smart_js_detection: Whether to intelligently detect if JS is needed (default: True)
         
         Returns:
-            List of Resource objects containing scraped content and metadata
+            List of content strings (empty string for failed scrapes)
         """
         if not urls:
             raise ValueError("URLs list cannot be empty")
         
         start_time = time.time()
         
-        async def scrape_single_url(url: str) -> Resource:
+        async def scrape_single_url(url: str) -> str:
             """Helper function for concurrent scraping"""
             try:
                 return await self.scrape_url(
@@ -588,52 +577,28 @@ class DirectScraper:
                     smart_js_detection=smart_js_detection
                 )
             except DirectScraperError as e:
-                # Create empty resource for failed scrapes
+                # Return empty string for failed scrapes
                 logger.warning(f"Failed to scrape {url}: {e}")
-                resource_id = hashlib.md5(url.encode()).hexdigest()
-                
-                return Resource(
-                    id=resource_id,
-                    content="",
-                    metadata=ResourceMetadata(
-                        content_type="html",
-                        length=0,
-                        extra={"scraper": "direct_http_optimized", "error": str(e)}
-                    )
-                )
+                return ""
             except Exception as e:
                 logger.error(f"Unexpected error scraping {url}: {e}")
-                # Create empty resource for unexpected errors
-                resource_id = hashlib.md5(url.encode()).hexdigest()
-                return Resource(
-                    id=resource_id,
-                    content="",
-                    metadata=ResourceMetadata(
-                        content_type="html",
-                        length=0,
-                        extra={"scraper": "direct_http_optimized", "error": str(e)}
-                    )
-                )
+                # Return empty string for unexpected errors
+                return ""
         
         # Use asyncio.gather for concurrent scraping
         # Create semaphore to limit concurrent requests
         semaphore = asyncio.Semaphore(max_workers)
         
-        async def scrape_with_semaphore(url: str) -> Resource:
+        async def scrape_with_semaphore(url: str) -> str:
             async with semaphore:
                 return await scrape_single_url(url)
         
         # Execute all scraping tasks concurrently
         results = await asyncio.gather(*[scrape_with_semaphore(url) for url in urls], return_exceptions=False)
         
-        # Sort results to maintain original URL order
-        url_to_index = {url: i for i, url in enumerate(urls)}
-        results.sort(key=lambda r: url_to_index.get(
-            next((url for url in urls if hashlib.md5(url.encode()).hexdigest() == r.id), ""), 
-            len(urls)
-        ))
+        # Results are already in the correct order since we used asyncio.gather
         
-        successful_count = sum(1 for r in results if len(r.content) > 0)
+        successful_count = sum(1 for content in results if len(content) > 0)
         total_time = time.time() - start_time
         
         logger.info(f"Completed scraping {len(urls)} URLs in {total_time:.2f}s, {successful_count} successful")
@@ -649,7 +614,7 @@ async def scrape_url(
     smart_js_detection: bool = True,
     resource_name: Optional[str] = None,
     conversation_id: Optional[str] = None
-) -> Resource:
+) -> str:
     """
     Convenience function to scrape a single URL using optimized direct scraper
     
@@ -663,7 +628,7 @@ async def scrape_url(
         conversation_id: Optional conversation ID to organize files by conversation
     
     Returns:
-        Resource object containing scraped content and metadata
+        String containing scraped HTML content
     """
     scraper = DirectScraper()
     return await scraper.scrape_url(
@@ -684,7 +649,7 @@ async def scrape_multiple_urls(
     wait_for: Optional[str] = None,
     max_workers: int = 5,
     smart_js_detection: bool = True
-) -> List[Resource]:
+) -> List[str]:
     """
     Convenience function to scrape multiple URLs using optimized direct scraper with concurrency
     
@@ -697,7 +662,7 @@ async def scrape_multiple_urls(
         smart_js_detection: Whether to intelligently detect if JS is needed (default: True)
     
     Returns:
-        List of Resource objects containing scraped content and metadata
+        List of content strings (empty string for failed scrapes)
     """
     scraper = DirectScraper()
     return await scraper.scrape_multiple_urls(

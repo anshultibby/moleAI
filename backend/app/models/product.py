@@ -1,12 +1,11 @@
 """Product data models for e-commerce product representation"""
 
-from typing import Optional
-from dataclasses import dataclass
+from typing import Optional, Tuple
+from pydantic import BaseModel, Field
 import re
 
 
-@dataclass
-class Product:
+class Product(BaseModel):
     """
     Simple product data model with core fields:
     - price: Product price amount
@@ -20,18 +19,18 @@ class Product:
     - product_url: URL to the product page
     """
     
-    title: Optional[str] = None
-    price: Optional[float] = None
-    currency: Optional[str] = None
-    vendor: Optional[str] = None  # Brand
-    sku: Optional[str] = None
-    image_url: Optional[str] = None
-    product_id: Optional[str] = None
-    variant_id: Optional[str] = None
-    product_url: Optional[str] = None
+    title: Optional[str] = Field(default=None, description="Product name/title")
+    price: Optional[float] = Field(default=None, description="Product price amount")
+    currency: Optional[str] = Field(default=None, description="Price currency (USD, EUR, etc.)")
+    vendor: Optional[str] = Field(default=None, description="Brand or vendor name")
+    sku: Optional[str] = Field(default=None, description="Stock Keeping Unit")
+    image_url: Optional[str] = Field(default=None, description="Primary product image URL")
+    product_id: Optional[str] = Field(default=None, description="Unique product identifier")
+    variant_id: Optional[str] = Field(default=None, description="Unique variant identifier")
+    product_url: Optional[str] = Field(default=None, description="URL to the product page")
     
     @classmethod
-    def parse_price_and_currency(cls, price_str: str, default_currency: str = "USD") -> tuple[Optional[float], Optional[str]]:
+    def parse_price_and_currency(cls, price_str: str, default_currency: str = "USD") -> Tuple[Optional[float], Optional[str]]:
         """
         Parse price string and extract amount and currency
         

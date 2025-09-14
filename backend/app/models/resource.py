@@ -1,60 +1,76 @@
 from pydantic import BaseModel, model_validator
 from typing import Literal, Optional, Dict, Any
+from .product_collection import ProductCollection
 
 
 class ResourceMetadata(BaseModel):
-    content_type: Literal["text", "html"]
-    length: int
-    num_lines: int
+    content_type: Literal["product_collection"]
+    product_count: int
+    source_url: str
+    extraction_method: Optional[str] = None
+    site_name: Optional[str] = None
     extra: Optional[Dict[str, Any]] = None
 
     def __str__(self) -> str:
-        return f"ResourceMetadata(content_type={self.content_type}, length={self.length}, num_lines={self.num_lines})"
+        return f"ResourceMetadata(content_type={self.content_type}, product_count={self.product_count}, site_name={self.site_name})"
     
     def format_for_llm(self) -> str:
         """Format metadata for LLM without including the extra field"""
-        return f"ResourceMetadata(content_type={self.content_type}, length={self.length}, num_lines={self.num_lines})"
+        return f"ResourceMetadata(content_type={self.content_type}, product_count={self.product_count}, site_name={self.site_name}, source_url={self.source_url})"
 
 class Resource(BaseModel):
     id: str
-    content: str
+    product_collection: ProductCollection
     metadata: ResourceMetadata
     
     @model_validator(mode='before')
     @classmethod
-    def set_num_lines(cls, values):
-        """Automatically set num_lines in metadata based on content"""
-        if isinstance(values, dict):
-            content = values.get('content', '')
-            if 'metadata' in values and isinstance(values['metadata'], dict):
-                # Set num_lines if not already provided
-                if 'num_lines' not in values['metadata']:
-                    values['metadata']['num_lines'] = len(content.split('\n'))
+    def set_metadata_from_collection(cls, values):
+        """Automatically set metadata from ProductCollection"""
+        if isinstance(values, dict) and 'product_collection' in values:
+            collection = values['product_collection']
+            if isinstance(collection, ProductCollection) and 'metadata' in values:
+                metadata = values['metadata']
+                if isinstance(metadata, dict):
+                    # Set product_count if not already provided
+                    if 'product_count' not in metadata:
+                        metadata['product_count'] = len(collection.products)
+                    # Set source_url if not already provided
+                    if 'source_url' not in metadata:
+                        metadata['source_url'] = collection.source_url
+                    # Set site_name if not already provided
+                    if 'site_name' not in metadata:
+                        metadata['site_name'] = collection.site_name
+                    # Set extraction_method if not already provided
+                    if 'extraction_method' not in metadata:
+                        metadata['extraction_method'] = collection.extraction_method
         return values
 
-    def format_for_llm(self, exclude_content: bool = False, start_line: Optional[int] = None, end_line: Optional[int] = None, startidx: Optional[int] = None, endidx: Optional[int] = None) -> str:
+    def format_for_llm(self, exclude_content: bool = False, max_products: Optional[int] = 5) -> str:
         if exclude_content:
             return f"Resource ID: {self.id}\nMetadata: {self.metadata.format_for_llm()}"
         else:
-            # Handle character-based extraction (startidx/endidx)
-            if startidx is not None or endidx is not None:
-                start_char = max(0, startidx if startidx is not None else 0)
-                end_char = min(len(self.content), endidx if endidx is not None else len(self.content))
-                
-                content = self.content[start_char:end_char]
-                content_info = f" (showing characters {start_char}-{end_char} of {len(self.content)} total)"
-            # Handle line-based extraction (start_line/end_line)
-            elif start_line is not None or end_line is not None:
-                lines = self.content.split('\n')
-                start = max(1, start_line if start_line is not None else 1) - 1  # Convert to 0-based index
-                end = min(self.metadata.num_lines, end_line if end_line is not None else self.metadata.num_lines)  # Keep as 1-based for slicing
-                
-                selected_lines = lines[start:end]
-                content = '\n'.join(selected_lines)
-                content_info = f" (showing lines {start + 1}-{end} of {self.metadata.num_lines} total)"
-            else:
-                content = self.content
-                content_info = ""
+            # Format product collection summary
+            collection = self.product_collection
+            summary_lines = [
+                f"Resource ID: {self.id}",
+                f"Product Collection: {collection.source_name}",
+                f"Site: {collection.site_name}",
+                f"Total Products: {len(collection.products)}",
+                f"Source URL: {collection.source_url}"
+            ]
             
-            return f"Resource ID: {self.id}\nContent{content_info}: {content}\nMetadata: {self.metadata.format_for_llm()}"
+            if collection.products and max_products and max_products > 0:
+                summary_lines.append("\nSample Products:")
+                for i, product in enumerate(collection.products[:max_products]):
+                    title = product.title or 'Untitled Product'
+                    price_info = f"{product.price} {product.currency}" if product.price and product.currency else "Price not available"
+                    vendor_info = f" by {product.vendor}" if product.vendor else ""
+                    summary_lines.append(f"  {i+1}. {title}{vendor_info} - {price_info}")
+                
+                if len(collection.products) > max_products:
+                    summary_lines.append(f"  ... and {len(collection.products) - max_products} more products")
+            
+            summary_lines.append(f"\nMetadata: {self.metadata.format_for_llm()}")
+            return "\n".join(summary_lines)
 

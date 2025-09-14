@@ -222,13 +222,15 @@ class ChatHistoryStorage:
             print(f"Error appending message to conversation {conversation_id}: {e}")
             return False
     
-    def end_conversation(self, conversation_id: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
+    def end_conversation(self, conversation_id: str, metadata: Optional[Dict[str, Any]] = None, end_reason: str = "completed", resources: Optional[Dict[str, Any]] = None) -> bool:
         """
         Mark a conversation as ended and update metadata
         
         Args:
             conversation_id: Unique identifier for the conversation
             metadata: Optional final metadata
+            end_reason: Reason for ending the conversation (e.g., "completed", "error", "timeout")
+            resources: Optional resources dictionary to save as resources.json
             
         Returns:
             True if successful, False otherwise
@@ -246,19 +248,73 @@ class ChatHistoryStorage:
             if metadata:
                 chat_data["metadata"].update(metadata)
             chat_data["ended_at"] = datetime.now().isoformat()
+            chat_data["end_reason"] = end_reason
             
             # Save updated data with pretty formatting
             with open(filepath, 'w', encoding='utf-8') as f:
                 json.dump(chat_data, f, indent=2, ensure_ascii=False, cls=PrettyJSONEncoder)
             
+            # Save resources.json if resources are provided
+            if resources:
+                self._save_resources_json(conversation_id, resources)
+            
             # Remove from active conversations
             del self._active_conversations[conversation_id]
             
-            print(f"Ended conversation: {conversation_id}")
+            print(f"Ended conversation: {conversation_id} (reason: {end_reason})")
             return True
             
         except Exception as e:
             print(f"Error ending conversation {conversation_id}: {e}")
+            return False
+    
+    def _save_resources_json(self, conversation_id: str, resources: Dict[str, Any]) -> bool:
+        """
+        Save resources as resources.json in the conversation directory
+        
+        Args:
+            conversation_id: Unique identifier for the conversation
+            resources: Dictionary of resources to save
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Get conversation directory
+            conversation_dir = self.base_path / conversation_id
+            if not conversation_dir.exists():
+                print(f"Conversation directory not found: {conversation_dir}")
+                return False
+            
+            # Prepare resources data with full product information
+            resources_data = {}
+            for resource_name, resource in resources.items():
+                if hasattr(resource, 'get_products'):
+                    # Get all products with full details (limit=-1, summary=False)
+                    resource_data = resource.get_products(limit=-1, summary=False)
+                    resources_data[resource_name] = resource_data
+                else:
+                    # Fallback for non-ProductCollection resources
+                    resources_data[resource_name] = str(resource)
+            
+            # Add metadata
+            full_resources_data = {
+                "conversation_id": conversation_id,
+                "saved_at": datetime.now().isoformat(),
+                "total_resources": len(resources_data),
+                "resources": resources_data
+            }
+            
+            # Save to resources.json
+            resources_filepath = conversation_dir / "resources.json"
+            with open(resources_filepath, 'w', encoding='utf-8') as f:
+                json.dump(full_resources_data, f, indent=2, ensure_ascii=False, cls=PrettyJSONEncoder)
+            
+            print(f"Saved resources to: {resources_filepath}")
+            return True
+            
+        except Exception as e:
+            print(f"Error saving resources for conversation {conversation_id}: {e}")
             return False
     
     def load_chat_history(self, conversation_id: str, timestamp: Optional[str] = None) -> Optional[Dict[str, Any]]:

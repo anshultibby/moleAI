@@ -66,7 +66,7 @@ def get_or_create_agent(conversation_id: str, stream_callback=None, model: Avail
     
     return agents[conversation_id]
 
-def end_conversation_tracking(conversation_id: str, user_message: str, agent: Agent) -> None:
+def end_conversation_tracking(conversation_id: str, user_message: str, agent: Agent, end_reason: str = "completed") -> None:
     """Helper method to mark conversation as ended"""
     try:
         conversation_id_to_save = conversation_id or "default"
@@ -76,15 +76,23 @@ def end_conversation_tracking(conversation_id: str, user_message: str, agent: Ag
             "final_user_message": user_message,
             "model": agent.model,
             "reasoning_effort": agent.reasoning_effort,
-            "total_messages": len(agent.get_message_history())
+            "total_messages": len(agent.get_message_history()),
+            "end_reason": end_reason
         }
+        
+        # Get resources from agent context if available
+        resources = None
+        if hasattr(agent, 'context_vars') and agent.context_vars:
+            resources = agent.context_vars.get('resources')
         
         # Mark conversation as ended
         chat_storage.end_conversation(
             conversation_id=conversation_id_to_save,
-            metadata=metadata
+            metadata=metadata,
+            end_reason=end_reason,
+            resources=resources
         )
-        print(f"Ended conversation tracking: {conversation_id_to_save}")
+        print(f"Ended conversation tracking: {conversation_id_to_save} (reason: {end_reason})")
         
     except Exception as e:
         print(f"Error ending conversation tracking: {e}")
@@ -111,6 +119,7 @@ async def stream_chat(request: ChatRequest):
         print(f"Conversation ID: {request.conversation_id}")
         
         async def generate_stream():
+            agent = None
             try:
                 # Get or create agent
                 agent = get_or_create_agent(request.conversation_id or "default", None, request.model)
@@ -133,7 +142,7 @@ async def stream_chat(request: ChatRequest):
                         yield f"data: {json.dumps(event_dict)}\n\n"
                 
                 # End conversation tracking
-                end_conversation_tracking(request.conversation_id, request.message, agent)
+                end_conversation_tracking(request.conversation_id, request.message, agent, "completed")
                 
                 # Send completion
                 yield f"data: {json.dumps({'type': 'complete'})}\n\n"
@@ -141,6 +150,12 @@ async def stream_chat(request: ChatRequest):
             except Exception as e:
                 print(f"Error in stream: {str(e)}")
                 traceback.print_exc()
+                # End conversation tracking with error reason if agent was created
+                if agent:
+                    try:
+                        end_conversation_tracking(request.conversation_id, request.message, agent, "error")
+                    except:
+                        pass  # Don't fail if ending fails
                 yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
         
         return StreamingResponse(

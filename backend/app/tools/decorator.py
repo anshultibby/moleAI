@@ -120,6 +120,9 @@ class ToolFunction:
     def execute(self, context_vars: Dict[str, Any] = None, **kwargs) -> Any:
         """Execute the function with given parameters and context variables"""
         try:
+            import asyncio
+            import inspect
+            
             context_vars = context_vars or {}
             
             # Check if the function accepts context_vars parameter
@@ -137,9 +140,35 @@ class ToolFunction:
             bound_args = self.signature.bind(**kwargs)
             bound_args.apply_defaults()
             
-            # Execute the function
-            result = self.func(**bound_args.arguments)
-            return result
+            # Check if the function is async
+            if inspect.iscoroutinefunction(self.func):
+                # Handle async function
+                try:
+                    loop = asyncio.get_running_loop()
+                    # We're in an async context, we need to run this in a thread pool
+                    # to avoid blocking the event loop
+                    import concurrent.futures
+                    import threading
+                    
+                    def run_in_thread():
+                        # Create a new event loop for this thread
+                        new_loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(new_loop)
+                        try:
+                            return new_loop.run_until_complete(self.func(**bound_args.arguments))
+                        finally:
+                            new_loop.close()
+                    
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(run_in_thread)
+                        return future.result()
+                except RuntimeError:
+                    # No event loop running, we can use asyncio.run directly
+                    return asyncio.run(self.func(**bound_args.arguments))
+            else:
+                # Execute sync function normally
+                result = self.func(**bound_args.arguments)
+                return result
             
         except TypeError as e:
             raise ValueError(f"Invalid parameters for {self.name}: {str(e)}")

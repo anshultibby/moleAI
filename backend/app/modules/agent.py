@@ -28,6 +28,7 @@ from app.models.chat import (
     StreamingEvent
 )
 from app.models.resource import Resource
+from app.models.product_collection import ProductCollection
 from app.tools import tool_registry
 from app.utils.chat_storage import chat_storage
 from app.llm.router import LLMRouter
@@ -100,8 +101,8 @@ class Agent:
         if self.reasoning_effort:
             self.thinking = ChatThinking(type=ThinkingType.ENABLED)
         
-        # Initialize resource storage
-        self.resources: Dict[str, Resource] = {}
+        # Initialize resource storage - now stores ProductCollection objects directly
+        self.resources: Dict[str, ProductCollection] = {}
         
         # Initialize checklist storage
         self.checklist: Optional[Dict[str, Any]] = None
@@ -245,11 +246,21 @@ class Agent:
     async def _handle_display_items_result(self, tool_result: str, tool_call_id: str):
         """Handle display_items tool result and stream products"""
         try:
-            # Parse the tool result
+            # Parse the tool result as JSON
             if isinstance(tool_result, str):
-                result_data = json.loads(tool_result)
+                try:
+                    result_data = json.loads(tool_result)
+                except json.JSONDecodeError:
+                    logger.warning(f"Failed to parse display_items result as JSON: {tool_result}")
+                    return
             else:
+                # tool_result is already a dict (shouldn't happen with current implementation)
                 result_data = tool_result
+            
+            # Check if this is an error result
+            if isinstance(result_data, dict) and result_data.get('error'):
+                logger.warning(f"display_items tool returned error: {result_data['error']}")
+                return
             
             # Check if this is a successful display_items result
             if (isinstance(result_data, dict) and 
@@ -274,9 +285,9 @@ class Agent:
                     import asyncio
                     await asyncio.sleep(0.1)
                     
-        except (json.JSONDecodeError, TypeError, KeyError) as e:
-            logger.warning(f"Failed to parse display_items result: {e}")
-            # Don't yield anything if parsing fails
+        except (TypeError, KeyError) as e:
+            logger.warning(f"Failed to process display_items result: {e}")
+            # Don't yield anything if processing fails
     
     def execute_tool_call(self, tool_call: ToolCall) -> str:
         """Execute a tool call using the tool registry"""
@@ -297,17 +308,15 @@ class Agent:
             # Use agent's context variables for tool execution
             result = tool_registry.execute_tool(tool_name, context_vars=self.context_vars, **args)
             
-            # Store the raw result for special handling
-            self._last_tool_result = {
-                'tool_name': tool_name,
-                'result': result
-            }
             
             # Don't emit completion event here - tools handle their own streaming callbacks
             # The tool functions already emit proper completion events with formatted results
             
-            # OpenAI API requires string output, but we store the original for special handling
-            return str(result)
+            # OpenAI API requires string output, but convert dicts to JSON for proper parsing
+            if isinstance(result, dict):
+                return json.dumps(result)
+            else:
+                return str(result)
         except Exception as e:
             error_msg = f"Error executing {tool_name}: {str(e)}"
             self._emit_tool_event(tool_name, "error", error=error_msg)

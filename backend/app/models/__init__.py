@@ -5,6 +5,7 @@ from .resource import (
     ResourceMetadata
 )
 from .product import Product
+from .product_collection import ProductCollection
 
 __all__ = [
     # Enums
@@ -66,4 +67,5 @@ __all__ = [
     
     # Product models
     "Product",
+    "ProductCollection",
 ]
