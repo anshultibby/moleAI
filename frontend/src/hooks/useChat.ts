@@ -92,6 +92,21 @@ export function useChat() {
                   }
                   break
                 
+                case 'thinking':
+                  // Handle thinking content (same as ephemeral)
+                  if (data.content && data.content.trim().length > 0) {
+                    setEphemeralHistory(prev => ({
+                      ...prev,
+                      [turnId]: [...(prev[turnId] || []), data.content]
+                    }))
+                  }
+                  break
+                
+                case 'llm_call':
+                  // Handle LLM call status - could show loading indicators
+                  console.log('LLM Call:', data.status, data.message)
+                  break
+                
                 case 'product_grid':
                   if (data.products) {
                     const message: Message = {

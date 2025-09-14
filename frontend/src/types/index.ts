@@ -67,15 +67,17 @@ export interface ToolExecutionEvent {
 }
 
 export interface StreamMessage {
-  type: 'start' | 'message' | 'product' | 'complete' | 'error' | 'tool_execution'
+  type: 'start' | 'message' | 'product' | 'complete' | 'error' | 'tool_execution' | 'thinking' | 'llm_call'
   content?: string
   product?: Product
   error?: string
   tool_name?: string
-  status?: 'started' | 'progress' | 'completed' | 'error'
+  status?: 'started' | 'progress' | 'completed' | 'error' | 'continuing'
   message?: string
   progress?: any
   result?: string
+  tool_call_id?: string
+  final?: boolean
 }
 
 // Price bucket helper function
