@@ -230,7 +230,9 @@ def scrape_websites(
                     url.strip(), 
                     render_js=render_js, 
                     wait=wait,
-                    smart_js_detection=True  # Enable smart JS detection for better performance
+                    smart_js_detection=True,  # Enable smart JS detection for better performance
+                    resource_name=clean_name,  # Pass resource name for JSON file naming
+                    conversation_id=context_vars.get('conversation_id')  # Pass conversation ID for folder organization
                 )
                 
                 # Override the resource ID with the meaningful name

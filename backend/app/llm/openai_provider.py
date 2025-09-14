@@ -9,7 +9,7 @@ from openai import OpenAI
 from loguru import logger
 
 from .base import BaseLLMProvider
-from app.models.chat import InputMessage, OpenAIResponse
+from app.models.chat import InputMessage, ChatCompletionResponse
 
 
 class OpenAIProvider(BaseLLMProvider):
@@ -38,7 +38,7 @@ class OpenAIProvider(BaseLLMProvider):
         tools: Optional[List[Dict[str, Any]]] = None,
         reasoning: Optional[Dict[str, Any]] = None,
         **kwargs
-    ) -> OpenAIResponse:
+    ) -> ChatCompletionResponse:
         """
         Create a chat completion using OpenAI API.
         
@@ -50,7 +50,7 @@ class OpenAIProvider(BaseLLMProvider):
             **kwargs: Additional OpenAI parameters
             
         Returns:
-            OpenAIResponse: Standardized response object
+            ChatCompletionResponse: Standardized response object
         """
         if not self.supports_model(model):
             raise ValueError(f"Model {model} is not supported by OpenAI provider")
@@ -58,41 +58,83 @@ class OpenAIProvider(BaseLLMProvider):
         # Format messages for OpenAI API
         formatted_messages = self.format_messages_for_api(messages)
         
-        # Prepare API call parameters
-        api_params = {
-            "model": model,
-            "input": formatted_messages
-        }
-        
-        # Add tools if provided
-        if tools:
-            formatted_tools = self.format_tools_for_api(tools)
-            if formatted_tools:
-                api_params["tools"] = formatted_tools
-        
-        # Add reasoning if provided
-        if reasoning:
-            api_params["reasoning"] = reasoning
-        
-        # Add any additional parameters
-        api_params.update(kwargs)
         
         try:
-            # Call OpenAI responses API
+            # Call OpenAI chat completions API
             logger.info(f"Calling OpenAI API with model: {model}")
-            raw_response = self.client.responses.create(**api_params)
             
-            # Parse response using Pydantic model for type safety
-            raw_dict = raw_response.dict()
+            # Prepare standard OpenAI API parameters
+            openai_params = {
+                "model": model,
+                "messages": formatted_messages
+            }
             
-            # Handle reasoning field - if it exists but has None effort, set a default
-            if "reasoning" in raw_dict and raw_dict["reasoning"] is not None:
-                if "effort" not in raw_dict["reasoning"] or raw_dict["reasoning"]["effort"] is None:
-                    raw_dict["reasoning"]["effort"] = "medium"
+            # Add tools if provided
+            if tools:
+                formatted_tools = self.format_tools_for_api(tools)
+                if formatted_tools:
+                    openai_params["tools"] = formatted_tools
             
-            response = OpenAIResponse.parse_obj(raw_dict)
+            # Add other parameters
+            openai_params.update(kwargs)
             
-            logger.info(f"← OpenAI response ({len(response.output)} items)")
+            raw_response = self.client.chat.completions.create(**openai_params)
+            
+            # Convert OpenAI response to our ChatCompletionResponse format
+            response_dict = {
+                "id": raw_response.id,
+                "request_id": raw_response.id,  # OpenAI doesn't have separate request_id
+                "created": raw_response.created,
+                "model": raw_response.model,
+                "choices": [],
+                "usage": None
+            }
+            
+            # Convert choices
+            for choice in raw_response.choices:
+                choice_dict = {
+                    "index": choice.index,
+                    "message": {
+                        "role": choice.message.role,
+                        "content": choice.message.content,
+                        "reasoning_content": None,  # OpenAI doesn't have reasoning_content
+                        "tool_calls": None
+                    },
+                    "finish_reason": choice.finish_reason
+                }
+                
+                # Handle tool calls if present
+                if choice.message.tool_calls:
+                    tool_calls = []
+                    for tool_call in choice.message.tool_calls:
+                        # Convert OpenAI tool call to our ToolCall format
+                        from app.models.chat import ToolCall, ToolCallFunction, ToolType
+                        converted_tool_call = ToolCall(
+                            id=tool_call.id,
+                            type=ToolType.FUNCTION,
+                            function=ToolCallFunction(
+                                name=tool_call.function.name,
+                                arguments=tool_call.function.arguments  # OpenAI returns JSON string
+                            )
+                        )
+                        tool_calls.append(converted_tool_call.model_dump())
+                    choice_dict["message"]["tool_calls"] = tool_calls
+                
+                response_dict["choices"].append(choice_dict)
+            
+            # Convert usage
+            if raw_response.usage:
+                response_dict["usage"] = {
+                    "prompt_tokens": raw_response.usage.prompt_tokens,
+                    "completion_tokens": raw_response.usage.completion_tokens,
+                    "total_tokens": raw_response.usage.total_tokens,
+                    "prompt_tokens_details": {
+                        "cached_tokens": 0  # OpenAI doesn't provide this
+                    }
+                }
+            
+            response = ChatCompletionResponse.model_validate(response_dict)
+            logger.info(f"← OpenAI response with {len(response.choices)} choices")
             return response
             
         except Exception as e:

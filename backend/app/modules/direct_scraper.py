@@ -6,6 +6,8 @@ import asyncio
 import requests
 import hashlib
 import random
+import json
+from datetime import datetime
 from typing import Dict, Any, Optional, List
 from loguru import logger
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -149,6 +151,62 @@ class DirectScraper:
         self._playwright = None
         self._browser = None
         self._browser_lock = asyncio.Lock()
+        
+        # Base directory for storing raw scraped data
+        self.base_data_dir = "/Users/anshul/code/moleAI/backend/resources/chat_history"
+    
+    def _save_raw_scraped_data(self, resource_name: str, url: str, content: str, metadata: Dict[str, Any], conversation_id: Optional[str] = None) -> str:
+        """
+        Save raw scraped data to a JSON file in a conversation-specific folder
+        
+        Args:
+            resource_name: The name that would be used for the resource
+            url: The URL that was scraped
+            content: The raw HTML content
+            metadata: Additional metadata about the scrape
+            conversation_id: Optional conversation ID to organize files by conversation
+            
+        Returns:
+            The path to the saved JSON file
+        """
+        try:
+            # Determine the directory structure
+            if conversation_id:
+                # Create conversation-specific folder
+                conversation_dir = os.path.join(self.base_data_dir, conversation_id)
+                os.makedirs(conversation_dir, exist_ok=True)
+                target_dir = conversation_dir
+            else:
+                # Fallback to base directory
+                os.makedirs(self.base_data_dir, exist_ok=True)
+                target_dir = self.base_data_dir
+            
+            # Create filename using resource name and timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"scraped_{resource_name}_{timestamp}.json"
+            filepath = os.path.join(target_dir, filename)
+            
+            # Prepare data to save
+            scraped_data = {
+                "resource_name": resource_name,
+                "url": url,
+                "scraped_at": datetime.now().isoformat(),
+                "content_length": len(content),
+                "raw_content": content,
+                "metadata": metadata,
+                "conversation_id": conversation_id
+            }
+            
+            # Save to JSON file
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(scraped_data, f, indent=2, ensure_ascii=False)
+            
+            logger.info(f"Saved raw scraped data to: {filepath}")
+            return filepath
+            
+        except Exception as e:
+            logger.error(f"Failed to save raw scraped data for {resource_name}: {e}")
+            return ""
     
     async def _get_browser(self):
         """Lazy initialization of Playwright browser with proper locking"""
@@ -323,7 +381,9 @@ class DirectScraper:
         wait_for: Optional[str] = None,
         screenshot: bool = False,
         extract_rules: Optional[Dict] = None,
-        smart_js_detection: bool = True
+        smart_js_detection: bool = True,
+        resource_name: Optional[str] = None,
+        conversation_id: Optional[str] = None
     ) -> Resource:
         """
         Scrape content from a single URL with intelligent JavaScript detection
@@ -336,6 +396,8 @@ class DirectScraper:
             screenshot: Whether to take a screenshot (not supported)
             extract_rules: Optional extraction rules (not implemented)
             smart_js_detection: Whether to intelligently detect if JS is needed (default: True)
+            resource_name: Optional name for the resource (used for JSON file naming)
+            conversation_id: Optional conversation ID to organize files by conversation
         
         Returns:
             Resource object containing scraped content and metadata
@@ -413,6 +475,19 @@ class DirectScraper:
                 }
             )
             
+            # Save raw scraped data to JSON file if resource_name is provided
+            json_filepath = ""
+            if resource_name:
+                json_filepath = self._save_raw_scraped_data(
+                    resource_name=resource_name,
+                    url=url,
+                    content=content,
+                    metadata=resource_metadata.extra,
+                    conversation_id=conversation_id
+                )
+                # Add JSON file path to metadata
+                resource_metadata.extra["raw_data_file"] = json_filepath
+            
             resource = Resource(
                 id=resource_id,
                 content=content,
@@ -420,6 +495,8 @@ class DirectScraper:
             )
             
             logger.info(f"Successfully scraped {url} ({len(content)} chars, {scrape_time:.2f}s, JS: {used_js_rendering})")
+            if json_filepath:
+                logger.info(f"Raw data saved to: {json_filepath}")
             return resource
             
         except Exception as e:
@@ -569,7 +646,9 @@ async def scrape_url(
     render_js: bool = True, 
     wait: int = 1000,
     wait_for: Optional[str] = None,
-    smart_js_detection: bool = True
+    smart_js_detection: bool = True,
+    resource_name: Optional[str] = None,
+    conversation_id: Optional[str] = None
 ) -> Resource:
     """
     Convenience function to scrape a single URL using optimized direct scraper
@@ -580,6 +659,8 @@ async def scrape_url(
         wait: Time to wait in milliseconds after page load (default: 1000ms)
         wait_for: CSS selector to wait for (not implemented)
         smart_js_detection: Whether to intelligently detect if JS is needed (default: True)
+        resource_name: Optional name for the resource (used for JSON file naming)
+        conversation_id: Optional conversation ID to organize files by conversation
     
     Returns:
         Resource object containing scraped content and metadata
@@ -590,7 +671,9 @@ async def scrape_url(
         render_js=render_js, 
         wait=wait, 
         wait_for=wait_for,
-        smart_js_detection=smart_js_detection
+        smart_js_detection=smart_js_detection,
+        resource_name=resource_name,
+        conversation_id=conversation_id
     )
 
 

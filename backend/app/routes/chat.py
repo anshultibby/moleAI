@@ -16,7 +16,8 @@ from app.models import (
     UserMessage,
     SystemMessage, 
     AssistantMessage,
-    ChatCompletionResponse
+    ChatCompletionResponse,
+    StreamEventType
 )
 from app.config import OPENAI_API_KEY, XLM_API_KEY
 from app.prompts import BASIC_ASSISTANT_PROMPT
@@ -90,19 +91,6 @@ def end_conversation_tracking(conversation_id: str, user_message: str, agent: Ag
         # Don't fail the request if ending fails
 
 
-async def stream_tool_events(tool_events: List[Dict[str, Any]]):
-    """Helper to stream pending tool events"""
-    while tool_events:
-        event = tool_events.pop(0)
-        yield f"data: {json.dumps({'type': 'tool_execution', **event})}\n\n"
-
-async def handle_thinking_response(response: ChatCompletionResponse):
-    """Helper to handle thinking response streaming from choices"""
-    if response.choices:
-        choice = response.choices[0]
-        if choice.message.reasoning_content:
-            # Stream reasoning content as ephemeral messages for the thinking panel
-            yield f"data: {json.dumps({'type': 'ephemeral', 'content': choice.message.reasoning_content})}\n\n"
 
 def format_chat_history_for_api(history: List[Any]) -> List[Dict[str, Any]]:
     """Helper to format chat history for API response"""
@@ -124,15 +112,8 @@ async def stream_chat(request: ChatRequest):
         
         async def generate_stream():
             try:
-                # Queue to collect tool execution events
-                tool_events = []
-                
-                def tool_stream_callback(event: Dict[str, Any]):
-                    """Callback to collect tool execution events"""
-                    tool_events.append(event)
-                
-                # Get or create agent with streaming callback
-                agent = get_or_create_agent(request.conversation_id or "default", tool_stream_callback, request.model)
+                # Get or create agent
+                agent = get_or_create_agent(request.conversation_id or "default", None, request.model)
                 
                 # Send start signal
                 yield f"data: {json.dumps({'type': 'start'})}\n\n"
@@ -140,21 +121,16 @@ async def stream_chat(request: ChatRequest):
                 # Create user message
                 user_message = UserMessage(content=request.message)
                 
-                # Run the agent conversation (this now handles all tool execution internally)
-                response = agent.run(user_message)
-                
-                # Stream any tool events that were collected during execution
-                async for item in stream_tool_events(tool_events):
-                    yield item
-                
-                # Handle thinking/reasoning content from the final response
-                async for item in handle_thinking_response(response):
-                    yield item
-                
-                # Stream the final response content
-                if response.choices and response.choices[0].message.content:
-                    content = response.choices[0].message.content
-                    yield f"data: {json.dumps({'type': 'message', 'content': content})}\n\n"
+                # Run the agent conversation and stream events in real-time
+                final_response = None
+                async for event in agent.run(user_message):
+                    if event.type == StreamEventType.COMPLETE:
+                        final_response = event.response
+                        break
+                    else:
+                        # Convert pydantic model to dict for JSON serialization
+                        event_dict = event.model_dump()
+                        yield f"data: {json.dumps(event_dict)}\n\n"
                 
                 # End conversation tracking
                 end_conversation_tracking(request.conversation_id, request.message, agent)

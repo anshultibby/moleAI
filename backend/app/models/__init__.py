@@ -4,6 +4,7 @@ from .resource import (
     Resource,
     ResourceMetadata
 )
+from .product import Product
 
 __all__ = [
     # Enums
@@ -49,9 +50,7 @@ __all__ = [
     # Response models
     "PromptTokensDetails",
     "Usage",
-    "ChatCompletionResponseMessageToolCallFunction",
-    "ChatCompletionResponseMessageToolCall",
-    "ChatCompletionResponseMessage",
+    "ResponseMessage",
     "Choice",
     "ChatCompletionResponse",
     "Error",
@@ -64,4 +63,7 @@ __all__ = [
     # Resource models
     "Resource",
     "ResourceMetadata",
+    
+    # Product models
+    "Product",
 ]

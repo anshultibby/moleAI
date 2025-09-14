@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Callable, get_type_hints, get_orig
 from functools import wraps
 from loguru import logger
 from app.tools.registry import tool_registry
-from app.models.chat import Tool
+from app.models.chat import Tool, FunctionObject, FunctionParameters
 
 
 def _python_type_to_json_schema(py_type: Any, description: str = "") -> Dict[str, Any]:
@@ -96,16 +96,23 @@ class ToolFunction:
                 else:
                     required.append(param_name)
         
-        tool_schema = Tool(
+        # Create the function parameters
+        function_params = FunctionParameters(
+            type="object",
+            properties=properties,
+            required=required
+        )
+        
+        # Create the function object
+        function_obj = FunctionObject(
             name=self.name,
             description=self.description,
-            parameters={
-                "type": "object",
-                "properties": properties,
-                "required": required,
-                "additionalProperties": False
-            },
-            strict=False
+            parameters=function_params
+        )
+        
+        # Create the tool schema
+        tool_schema = Tool(
+            function=function_obj
         )
         
         return tool_schema

@@ -120,7 +120,7 @@ class ChatHistoryStorage:
     
     def start_conversation(self, conversation_id: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """
-        Start a new conversation and create initial file
+        Start a new conversation and create initial file in a conversation-specific folder
         
         Args:
             conversation_id: Unique identifier for the conversation
@@ -130,10 +130,13 @@ class ChatHistoryStorage:
             Path to the created file
         """
         try:
-            # Create filename with timestamp for uniqueness
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{conversation_id}_{timestamp}.json"
-            filepath = self.base_path / filename
+            # Create conversation-specific directory
+            conversation_dir = self.base_path / conversation_id
+            conversation_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Create filename - just use chat_history.json since it's in its own folder
+            filename = "chat_history.json"
+            filepath = conversation_dir / filename
             
             # Prepare initial data structure
             chat_data = {
@@ -173,11 +176,11 @@ class ChatHistoryStorage:
             # Get the filepath for this conversation
             filepath = self._active_conversations.get(conversation_id)
             if not filepath or not Path(filepath).exists():
-                # Try to find the most recent file for this conversation
-                pattern = f"{conversation_id}_*.json"
-                matching_files = list(self.base_path.glob(pattern))
-                if matching_files:
-                    filepath = str(sorted(matching_files)[-1])
+                # Try to find the conversation folder and chat_history.json
+                conversation_dir = self.base_path / conversation_id
+                chat_file = conversation_dir / "chat_history.json"
+                if chat_file.exists():
+                    filepath = str(chat_file)
                     self._active_conversations[conversation_id] = filepath
                 else:
                     # Start a new conversation if none exists
@@ -264,13 +267,20 @@ class ChatHistoryStorage:
         
         Args:
             conversation_id: Unique identifier for the conversation
-            timestamp: Optional specific timestamp to load (format: YYYYMMDD_HHMMSS)
-                      If not provided, loads the most recent file for the conversation
+            timestamp: Optional specific timestamp to load (deprecated - now uses folder structure)
             
         Returns:
             Dictionary containing the chat history data, or None if not found
         """
         try:
+            # Try new folder structure first
+            conversation_dir = self.base_path / conversation_id
+            chat_file = conversation_dir / "chat_history.json"
+            if chat_file.exists():
+                with open(chat_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            
+            # Fallback to old structure for backward compatibility
             if timestamp:
                 # Load specific file
                 filename = f"{conversation_id}_{timestamp}.json"
@@ -279,7 +289,7 @@ class ChatHistoryStorage:
                     with open(filepath, 'r', encoding='utf-8') as f:
                         return json.load(f)
             else:
-                # Find the most recent file for this conversation
+                # Find the most recent file for this conversation in old structure
                 pattern = f"{conversation_id}_*.json"
                 matching_files = list(self.base_path.glob(pattern))
                 if matching_files:
@@ -296,7 +306,7 @@ class ChatHistoryStorage:
     
     def list_conversations(self) -> List[Dict[str, Any]]:
         """
-        List all available conversations
+        List all available conversations (supports both old and new folder structures)
         
         Returns:
             List of dictionaries with conversation metadata
@@ -304,7 +314,32 @@ class ChatHistoryStorage:
         try:
             conversations = {}
             
-            # Scan all JSON files in the directory
+            # Scan new folder structure first
+            for conversation_dir in self.base_path.iterdir():
+                if conversation_dir.is_dir():
+                    chat_file = conversation_dir / "chat_history.json"
+                    if chat_file.exists():
+                        try:
+                            with open(chat_file, 'r', encoding='utf-8') as f:
+                                data = json.load(f)
+                            
+                            conv_id = data.get('conversation_id', conversation_dir.name)
+                            timestamp = data.get('timestamp', '')
+                            
+                            conversations[conv_id] = {
+                                'conversation_id': conv_id,
+                                'timestamp': timestamp,
+                                'message_count': data.get('message_count', 0),
+                                'filepath': str(chat_file),
+                                'metadata': data.get('metadata', {}),
+                                'structure': 'new'  # Mark as new folder structure
+                            }
+                            
+                        except Exception as e:
+                            print(f"Error reading folder {conversation_dir}: {e}")
+                            continue
+            
+            # Scan old file structure for backward compatibility
             for filepath in self.base_path.glob("*.json"):
                 try:
                     with open(filepath, 'r', encoding='utf-8') as f:
@@ -313,15 +348,25 @@ class ChatHistoryStorage:
                     conv_id = data.get('conversation_id', 'unknown')
                     timestamp = data.get('timestamp', '')
                     
-                    # Keep track of the latest file for each conversation
-                    if conv_id not in conversations or timestamp > conversations[conv_id]['timestamp']:
+                    # Only add if not already found in new structure
+                    if conv_id not in conversations:
                         conversations[conv_id] = {
                             'conversation_id': conv_id,
                             'timestamp': timestamp,
                             'message_count': data.get('message_count', 0),
                             'filepath': str(filepath),
-                            'metadata': data.get('metadata', {})
+                            'metadata': data.get('metadata', {}),
+                            'structure': 'old'  # Mark as old file structure
                         }
+                    elif timestamp > conversations[conv_id]['timestamp']:
+                        # Update if this old file is newer than what we found
+                        conversations[conv_id].update({
+                            'timestamp': timestamp,
+                            'message_count': data.get('message_count', 0),
+                            'filepath': str(filepath),
+                            'metadata': data.get('metadata', {}),
+                            'structure': 'old'
+                        })
                         
                 except Exception as e:
                     print(f"Error reading file {filepath}: {e}")

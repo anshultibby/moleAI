@@ -6,7 +6,7 @@ This module defines the abstract base class that all LLM providers must implemen
 
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional
-from app.models.chat import InputMessage, OpenAIResponse
+from app.models.chat import InputMessage, ChatCompletionResponse
 
 
 class BaseLLMProvider(ABC):
@@ -31,7 +31,7 @@ class BaseLLMProvider(ABC):
         tools: Optional[List[Dict[str, Any]]] = None,
         reasoning: Optional[Dict[str, Any]] = None,
         **kwargs
-    ) -> OpenAIResponse:
+    ) -> ChatCompletionResponse:
         """
         Create a chat completion.
         
@@ -43,7 +43,7 @@ class BaseLLMProvider(ABC):
             **kwargs: Additional model-specific parameters
             
         Returns:
-            OpenAIResponse: Standardized response object
+            ChatCompletionResponse: Standardized response object
         """
         pass
     
