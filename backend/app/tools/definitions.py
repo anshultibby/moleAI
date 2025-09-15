@@ -129,102 +129,124 @@ def search_web_tool(
 
 @tool(
     name="extract_products",
-    description="""Extract product information from e-commerce website URLs using advanced extraction methods.
-    This tool scrapes product pages and automatically extracts structured product data including:
-    - Product titles, prices, and currencies
+    description="""Extract product information from e-commerce website URLs using JSON-LD structured data.
+    This tool scrapes product pages and extracts schema.org Product data including:
+    - Product names, prices, and currencies
     - Brand/vendor information
     - SKUs and product IDs
     - Product images and URLs
+    - Colors, sizes, and descriptions
     
-    Uses multiple extraction methods in priority order:
-    1. Shopify Analytics (fast path) - extracts from analytics blob
-    2. Atom Feed parsing - extracts from RSS/Atom feeds
-    3. HTML Heuristics - extracts using CSS selectors and patterns
+    The extractor:
+    1. Scrapes each URL and finds JSON-LD structured data
+    2. Finds product links on each page
+    3. Scrapes those links in parallel to extract more products
+    4. Returns structured Product objects based on schema.org standard
     
     Parameters:
-    - urls: Dictionary where keys are meaningful resource names and values are URLs to scrape
-           Example: {"zara_dresses": "https://zara.com/dresses", "hm_shirts": "https://hm.com/shirts"}
-    - render_js: Whether to render JavaScript (default: True for dynamic content)
-    - wait: Time to wait in milliseconds after page load (default: 2000ms)
+    - urls: List of URLs to scrape (each URL will be processed to find and follow product links)
+    - max_links: Maximum number of product links to follow per URL (default: 10)
     
-    The tool stores both the raw scraped content as resources AND extracts structured product data.
-    Use meaningful, succinct resource names that describe the products being extracted.
-    Good examples: "zara_dresses", "amazon_laptops", "nike_shoes"
+    The tool automatically converts schema.org products to our core Product model for consistency.
     """
 )
 async def extract_products(
-    urls: Dict[str, str],
-    render_js: bool = True,
-    wait: int = 2000,
+    urls: List[str],
+    max_links: int = 30,
     context_vars=None
 ) -> str:
-    # Handle case where urls is passed as a JSON string instead of dict
-    if isinstance(urls, str):
-        try:
-            urls = json.loads(urls)
-        except json.JSONDecodeError as e:
-            return f"Invalid URLs format: {str(e)}"
+    if not urls or not isinstance(urls, list) or len(urls) == 0:
+        return "URLs list cannot be empty"
     
-    if not urls:
-        return "URLs cannot be empty"
-    
-    # Main extraction logic (now inline since function is async)
+    # Get context
     resources = context_vars.get('resources')
     stream_callback = context_vars.get('stream_callback')
-    streamer = StreamHelper.for_scraping(stream_callback)
+    streamer = StreamHelper.for_scraping(stream_callback, "extract_products")
     
-    # Create progress callback for the extractor
-    def progress_callback(message, current=None, total=None, status=None, url=None):
-        streamer.progress(message, current=current, total=total, status=status, url=url)
-    
-    # Let ProductExtractor handle everything
-    product_extractor = ProductExtractor()
-    product_collections = await product_extractor.scrape_and_extract_multiple(
-        urls=urls,
-        render_js=render_js,
-        wait=wait,
-        progress_callback=progress_callback,
-        conversation_id=context_vars.get('conversation_id')
-    )
-    
-    # Store collections as resources
-    total_products = 0
-    
-    for collection in product_collections:
-        # Store ProductCollection directly using source_name as key
-        resources[collection.source_name] = collection
-        total_products += len(collection)
-    
-    # Send completion message
-    sites_with_products = sum(1 for c in product_collections if len(c) > 0)
-    if total_products > 0:
-        message = f"Extracted {total_products} products from {sites_with_products} sites"
-    else:
-        message = f"No products found from {len(product_collections)} sites"
-    
-    streamer.completed(message, {
-        "total_products_extracted": total_products,
-        "sites_with_products": sites_with_products,
-        "total_sites": len(product_collections)
-    })
-    
-    # Return summary using get_resource for each collection
-    if total_products > 0:
-        summary_parts = [f"🛍️ Extracted {total_products} products total\n", "Summary of extracted products:\n"]
+    try:
+        # Start extraction
+        streamer.progress(f"🔍 Extracting products from {len(urls)} URLs", total_urls=len(urls), max_links=max_links)
         
-        for collection in product_collections:
-            if len(collection) > 0:  # Only show collections with products
-                resource_summary = get_resource(
-                    resource_id=collection.source_name,
-                    limit=5,
-                    summary=False,
-                    context_vars=context_vars,
-                )
-                summary_parts.append(f"\n{resource_summary}")
+        # Use the new simplified ProductExtractor
+        product_extractor = ProductExtractor()
+        all_products = []
         
-        return "\n".join(summary_parts)
-    else:
-        return "No products were extracted from the provided URLs."
+        # Process each URL
+        for i, url in enumerate(urls, 1):
+            try:
+                streamer.progress(f"Processing URL {i}/{len(urls)}: {url}", current=i, total=len(urls))
+                
+                schema_products = await product_extractor.extract_from_url_and_links(url, max_links)
+                
+                # Convert SchemaOrgProduct objects to our core Product model
+                from app.models.product import Product
+                url_products = []
+                for schema_product in schema_products:
+                    try:
+                        core_product = Product.from_schema_org_product(schema_product)
+                        url_products.append(core_product)
+                    except Exception as e:
+                        logger.warning(f"Failed to convert schema product: {e}")
+                        continue
+                
+                all_products.extend(url_products)
+                
+                # Store products for this URL as a separate resource
+                domain = url.split('//')[-1].split('/')[0]  # Extract domain
+                resource_name = f"products_from_{domain}"
+                resources[resource_name] = url_products
+                
+                streamer.progress(f"✅ Found {len(url_products)} products from {domain}", 
+                                current=i, total=len(urls), products_found=len(url_products))
+                
+            except Exception as e:
+                logger.error(f"Failed to extract from {url}: {e}")
+                streamer.progress(f"❌ Failed to extract from {url}: {e}", current=i, total=len(urls))
+                continue
+        
+        # Store all products combined
+        resources["all_extracted_products"] = all_products
+        
+        # Send completion message
+        if all_products:
+            message = f"Extracted {len(all_products)} total products from {len(urls)} URLs"
+            streamer.completed(message, {
+                "total_products": len(all_products),
+                "total_urls": len(urls),
+                "resource_name": "all_extracted_products"
+            })
+            
+            # Return summary
+            summary_parts = [f"🛍️ Extracted {len(all_products)} total products from {len(urls)} URLs\n"]
+            summary_parts.append("Resources created:")
+            
+            # Show per-URL breakdown
+            for url in urls:
+                domain = url.split('//')[-1].split('/')[0]
+                resource_name = f"products_from_{domain}"
+                url_products = resources.get(resource_name, [])
+                summary_parts.append(f"  - {resource_name}: {len(url_products)} products")
+            
+            summary_parts.append(f"  - all_extracted_products: {len(all_products)} products (combined)\n")
+            
+            # Show sample products
+            summary_parts.append("Sample products:")
+            for i, product in enumerate(all_products[:5], 1):  # Show first 5
+                summary_parts.append(f"{i}. {product.product_name} - {product.price} ({product.store})")
+            
+            if len(all_products) > 5:
+                summary_parts.append(f"... and {len(all_products) - 5} more products")
+            
+            return "\n".join(summary_parts)
+        else:
+            message = f"No products found from {len(urls)} URLs"
+            streamer.completed(message, {"total_products": 0, "total_urls": len(urls)})
+            return f"No products were extracted from the provided URLs"
+            
+    except Exception as e:
+        error_msg = f"Failed to extract products: {str(e)}"
+        streamer.error(error_msg)
+        return error_msg
 
 
 def get_resource_content(resource_id: str, context_vars) -> tuple[str, Optional[str]]:

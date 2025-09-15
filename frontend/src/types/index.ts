@@ -10,14 +10,23 @@ export interface Message {
 }
 
 export interface Product {
+  // Essential fields (required)
   product_name: string
-  price: string
-  currency: string
   store: string
-  image_url: string
+  price: string
+  price_value: number
   product_url: string
+  image_url: string
+  
+  // Optional fields
+  currency?: string
   sku?: string
   product_id?: string
+  color?: string
+  size?: string
+  description?: string
+  
+  // Legacy fields for backward compatibility
   variant_id?: string
   type?: string
   id?: string
@@ -138,7 +147,28 @@ export interface StreamMessage {
 }
 
 // Price bucket helper function
-export function getPriceBucket(price: string | number | undefined | null): string {
+export function getPriceBucket(product: Product): string {
+  // Use price_value if available (more reliable), otherwise parse price string
+  let numericPrice: number
+  
+  if (product.price_value !== undefined && product.price_value !== null) {
+    numericPrice = product.price_value
+  } else if (product.price) {
+    numericPrice = parseFloat(product.price.replace(/[^0-9.]/g, ''))
+  } else {
+    return 'Unknown'
+  }
+  
+  if (isNaN(numericPrice)) return 'Unknown'
+  if (numericPrice < 20) return 'Under $20'
+  if (numericPrice < 50) return '$20-$50'
+  if (numericPrice < 100) return '$50-$100'
+  if (numericPrice < 200) return '$100-$200'
+  return 'Over $200'
+}
+
+// Legacy price bucket function for backward compatibility
+export function getPriceBucketFromValue(price: string | number | undefined | null): string {
   // Handle undefined, null, or empty values
   if (price === undefined || price === null || price === '') {
     return 'Unknown'

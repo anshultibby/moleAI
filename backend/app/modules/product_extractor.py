@@ -1,266 +1,258 @@
-"""Simplified product extraction module - JSON-LD only"""
+"""
+Simple JSON-LD Product Extractor
 
-import json
+This module extracts product data from e-commerce sites by:
+1. Finding JSON-LD structured data on pages
+2. Following product links and extracting from those pages in parallel
+3. Returning product data as JSON strings
+"""
+
 import asyncio
-from typing import List, Dict, Any, Optional
-from urllib.parse import urljoin, urlparse
-from loguru import logger
+import json
+from typing import Dict, List
+from urllib.parse import urljoin
+
 from bs4 import BeautifulSoup
+from loguru import logger
 
 from .direct_scraper import DirectScraper
-
-
-class ProductExtractionError(Exception):
-    """Custom exception for product extraction errors"""
-    pass
+from app.models.product import SchemaOrgProduct
 
 
 class ProductExtractor:
     """
-    Simplified product extractor that only extracts JSON-LD structured data
-    and follows links to extract more products.
+    Simple product extractor that only looks for JSON-LD data.
+    
+    Usage:
+        extractor = ProductExtractor()
+        result = await extractor.extract_from_url_and_links(url)
+        print(f"Found {len(result['products'])} products")
     """
     
     def __init__(self):
-        """Initialize the product extractor"""
         self.scraper = DirectScraper()
     
-    def extract_json_ld_products(self, html_content: str, url: str = "") -> List[str]:
+    def find_json_ld_products(self, html: str) -> List[SchemaOrgProduct]:
         """
-        Extract JSON-LD product cards as strings.
+        Find all JSON-LD products in HTML and return them as SchemaOrgProduct objects.
         
         Args:
-            html_content: The HTML content to extract from
-            url: Optional URL for context and logging
+            html: HTML content to search
             
         Returns:
-            List of JSON-LD product cards as strings
+            List of SchemaOrgProduct objects
         """
-        try:
-            logger.info(f"Extracting JSON-LD products {'from ' + url if url else ''}")
-            
-            soup = BeautifulSoup(html_content, 'html.parser')
-            product_cards = []
-            
-            # Find all JSON-LD script tags
-            json_ld_scripts = soup.find_all('script', {'type': 'application/ld+json'})
-            
-            for script in json_ld_scripts:
-                if not script.string:
-                    continue
-                    
-                try:
-                    data = json.loads(script.string)
-                    products = self._extract_products_from_json_ld(data)
-                    
-                    # Save each product as a JSON string
-                    for product in products:
-                        product_cards.append(json.dumps(product, indent=2))
-                        
-                except json.JSONDecodeError as e:
-                    logger.debug(f"Failed to parse JSON-LD: {e}")
-                    continue
-            
-            logger.info(f"Found {len(product_cards)} JSON-LD product cards")
-            return product_cards
-            
-        except Exception as e:
-            error_msg = f"JSON-LD extraction failed: {str(e)}"
-            logger.error(error_msg)
-            raise ProductExtractionError(error_msg)
-    
-    def _extract_products_from_json_ld(self, data: Any) -> List[Dict[str, Any]]:
-        """Extract product objects from JSON-LD data"""
+        soup = BeautifulSoup(html, 'html.parser')
         products = []
         
-        if isinstance(data, dict):
-            # Direct Product type
-            if data.get('@type') == 'Product':
-                products.append(data)
-            
-            # ItemList containing products
-            elif data.get('@type') == 'ItemList':
-                items = data.get('itemListElement', [])
-                for item in items:
-                    if isinstance(item, dict) and item.get('@type') == 'Product':
-                        products.append(item)
-            
-            # Search for nested products
-            else:
-                for key, value in data.items():
-                    if isinstance(value, dict) and value.get('@type') == 'Product':
-                        products.append(value)
-                    elif isinstance(value, list):
-                        for item in value:
-                            if isinstance(item, dict) and item.get('@type') == 'Product':
-                                products.append(item)
-        
-        elif isinstance(data, list):
-            for item in data:
-                if isinstance(item, dict):
-                    products.extend(self._extract_products_from_json_ld(item))
+        # Find all JSON-LD script tags
+        for script in soup.find_all('script', {'type': 'application/ld+json'}):
+            if not script.string:
+                continue
+                
+            try:
+                data = json.loads(script.string)
+                found_products = self._find_products_in_data(data)
+                
+                # Convert each product dict to SchemaOrgProduct
+                for product_data in found_products:
+                    try:
+                        product = SchemaOrgProduct(**product_data)
+                        products.append(product)
+                    except Exception as e:
+                        logger.debug(f"Failed to parse product data: {e}")
+                        continue
+                    
+            except json.JSONDecodeError:
+                continue  # Skip invalid JSON
         
         return products
     
-    def get_page_links(self, html_content: str, base_url: str) -> List[str]:
+    def _find_products_in_data(self, data) -> List[Dict]:
         """
-        Extract all links from the page that might contain products.
+        Recursively find all Product objects in JSON-LD data.
         
         Args:
-            html_content: The HTML content to extract links from
-            base_url: Base URL for resolving relative links
+            data: JSON-LD data (dict, list, or other)
             
         Returns:
-            List of absolute URLs
+            List of product dictionaries
         """
-        try:
-            soup = BeautifulSoup(html_content, 'html.parser')
-            links = []
+        products = []
+        
+        if isinstance(data, dict):
+            # Check if this is a Product
+            if data.get('@type') == 'Product':
+                products.append(data)
             
-            # Find all links
-            for link in soup.find_all('a', href=True):
-                href = link.get('href')
-                if not href:
-                    continue
-                
-                # Convert to absolute URL
-                absolute_url = urljoin(base_url, href)
-                
-                # Filter for product-like URLs
-                if self._is_product_link(absolute_url):
-                    links.append(absolute_url)
+            # Check if this is an ItemList with products
+            elif data.get('@type') == 'ItemList':
+                for item in data.get('itemListElement', []):
+                    if isinstance(item, dict) and item.get('@type') == 'Product':
+                        products.append(item)
             
-            # Remove duplicates while preserving order
-            unique_links = []
-            seen = set()
-            for link in links:
-                if link not in seen:
-                    seen.add(link)
-                    unique_links.append(link)
-            
-            logger.info(f"Found {len(unique_links)} product links")
-            return unique_links
-            
-        except Exception as e:
-            logger.error(f"Failed to extract links: {e}")
-            return []
+            # Search all values for more products
+            else:
+                for value in data.values():
+                    products.extend(self._find_products_in_data(value))
+        
+        elif isinstance(data, list):
+            # Search each item in the list
+            for item in data:
+                products.extend(self._find_products_in_data(item))
+        
+        return products
     
-    def _is_product_link(self, url: str) -> bool:
-        """Check if URL looks like a product page"""
+    def find_product_links(self, html: str, base_url: str) -> List[str]:
+        """
+        Find all links that look like product pages.
+        
+        Args:
+            html: HTML content to search
+            base_url: Base URL for making relative links absolute
+            
+        Returns:
+            List of product page URLs
+        """
+        soup = BeautifulSoup(html, 'html.parser')
+        product_links = []
+        
+        # Find all links on the page
+        for link in soup.find_all('a', href=True):
+            href = link.get('href')
+            if not href:
+                continue
+            
+            # Make the URL absolute
+            full_url = urljoin(base_url, href)
+            
+            # Check if it looks like a product page
+            if self._looks_like_product_url(full_url):
+                product_links.append(full_url)
+        
+        # Remove duplicates
+        return list(dict.fromkeys(product_links))
+    
+    def _looks_like_product_url(self, url: str) -> bool:
+        """
+        Check if a URL looks like it leads to a product page.
+        
+        Args:
+            url: URL to check
+            
+        Returns:
+            True if it looks like a product URL
+        """
         if not url:
             return False
         
-        # Skip external links
-        parsed_base = urlparse(url)
-        if not parsed_base.netloc:
-            return False
+        url_lower = url.lower()
         
-        # Skip common non-product paths
-        skip_patterns = [
-            '/cart', '/checkout', '/account', '/login', '/register',
-            '/search', '/blog', '/about', '/contact', '/help',
-            '/privacy', '/terms', '/shipping', '/returns',
-            '.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg',
-            'mailto:', 'tel:', '#'
+        # Skip obvious non-product URLs
+        skip_words = [
+            'cart', 'checkout', 'account', 'login', 'register', 'search',
+            'blog', 'about', 'contact', 'help', 'privacy', 'terms',
+            '.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg'
         ]
         
-        url_lower = url.lower()
-        for pattern in skip_patterns:
-            if pattern in url_lower:
+        for word in skip_words:
+            if word in url_lower:
                 return False
         
         # Look for product-like patterns
-        product_patterns = [
-            '/product', '/item', '/p/', '/products/',
-            '/shop', '/store', '/buy'
-        ]
+        product_words = ['/product', '/item', '/p/', '/products/']
         
-        for pattern in product_patterns:
-            if pattern in url_lower:
+        for word in product_words:
+            if word in url_lower:
                 return True
         
         return False
     
-    async def scrape_and_extract_with_links(self, 
-                                           url: str, 
-                                           max_links: int = 10,
-                                           render_js: bool = True, 
-                                           wait: int = 2000) -> Dict[str, List[str]]:
+    async def _scrape_links_for_products(self, urls: List[str]) -> List[SchemaOrgProduct]:
         """
-        Scrape a URL and extract JSON-LD products from it and linked pages.
+        Scrape multiple URLs in parallel and extract JSON-LD products.
         
         Args:
-            url: URL to scrape and extract products from
-            max_links: Maximum number of links to follow (default: 10)
-            render_js: Whether to render JavaScript (default: True)
-            wait: Time to wait in milliseconds after page load (default: 2000ms)
+            urls: List of URLs to scrape
             
         Returns:
-            Dictionary with 'main_page' and 'linked_pages' containing product cards as strings
+            List of SchemaOrgProduct objects from all URLs
+        """
+        if not urls:
+            return []
+        
+        async def scrape_one_url(url: str) -> List[SchemaOrgProduct]:
+            """Scrape a single URL and return its products"""
+            try:
+                scraper = DirectScraper()
+                try:
+                    html = await scraper.scrape_url(url, render_js=True, wait=2000, smart_js_detection=True)
+                    products = self.find_json_ld_products(html)
+                    logger.info(f"Found {len(products)} products from {url}")
+                    return products
+                finally:
+                    await scraper.cleanup()
+            except Exception as e:
+                logger.warning(f"Failed to scrape {url}: {e}")
+                return []
+        
+        # Scrape all URLs in parallel
+        logger.info(f"Scraping {len(urls)} URLs in parallel...")
+        tasks = [scrape_one_url(url) for url in urls]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Collect all products
+        all_products = []
+        for result in results:
+            if isinstance(result, list):
+                all_products.extend(result)
+        
+        logger.info(f"Collected {len(all_products)} total products from {len(urls)} URLs")
+        return all_products
+    
+    async def extract_from_url_and_links(self, url: str, max_links: int = 10) -> List[SchemaOrgProduct]:
+        """
+        Extract JSON-LD products from a URL and its linked product pages.
+        
+        This is the main method - it scrapes the given URL, finds product links,
+        then scrapes those links in parallel to collect all JSON-LD products.
+        
+        Args:
+            url: The main URL to scrape
+            max_links: Maximum number of product links to follow
             
-        Raises:
-            ProductExtractionError: If scraping or extraction fails
+        Returns:
+            List of SchemaOrgProduct objects from main page and linked pages
         """
         try:
-            logger.info(f"Scraping and extracting products from {url} and its links")
+            logger.info(f"Extracting products from {url} and up to {max_links} linked pages")
             
             # Step 1: Scrape the main page
-            html_content = await self.scraper.scrape_url(
-                url, 
-                render_js=render_js, 
-                wait=wait,
-                smart_js_detection=True
-            )
+            html = await self.scraper.scrape_url(url, render_js=True, wait=2000, smart_js_detection=True)
             
-            # Step 2: Extract products from main page
-            main_products = self.extract_json_ld_products(html_content, url)
+            # Step 2: Get products from main page
+            main_products = self.find_json_ld_products(html)
+            logger.info(f"Found {len(main_products)} products on main page")
             
-            # Step 3: Get product links from the page
-            product_links = self.get_page_links(html_content, url)
-            
-            # Limit the number of links to follow
+            # Step 3: Find product links
+            product_links = self.find_product_links(html, url)
             if len(product_links) > max_links:
                 product_links = product_links[:max_links]
-                logger.info(f"Limited to first {max_links} product links")
+            logger.info(f"Found {len(product_links)} product links to scrape")
             
-            # Step 4: Extract products from linked pages
-            linked_products = []
-            for link_url in product_links:
-                try:
-                    logger.info(f"Extracting from linked page: {link_url}")
-                    
-                    # Scrape the linked page
-                    link_html = await self.scraper.scrape_url(
-                        link_url,
-                        render_js=render_js,
-                        wait=wait,
-                        smart_js_detection=True
-                    )
-                    
-                    # Extract products from linked page
-                    link_products = self.extract_json_ld_products(link_html, link_url)
-                    linked_products.extend(link_products)
-                    
-                except Exception as e:
-                    logger.warning(f"Failed to extract from {link_url}: {e}")
-                    continue
+            # Step 4: Scrape linked pages in parallel
+            linked_products = await self._scrape_links_for_products(product_links)
             
-            result = {
-                'main_page': main_products,
-                'linked_pages': linked_products
-            }
+            # Step 5: Combine all products
+            all_products = main_products + linked_products
+            logger.info(f"Total: {len(all_products)} products ({len(main_products)} main + {len(linked_products)} linked)")
             
-            total_products = len(main_products) + len(linked_products)
-            logger.info(f"Successfully extracted {total_products} total products ({len(main_products)} from main page, {len(linked_products)} from {len(product_links)} linked pages)")
-            
-            return result
+            return all_products
             
         except Exception as e:
-            error_msg = f"Failed to scrape and extract products from {url}: {str(e)}"
-            logger.error(error_msg)
-            raise ProductExtractionError(error_msg)
+            logger.error(f"Failed to extract products from {url}: {e}")
+            return []
         finally:
-            # Clean up scraper resources
             await self.scraper.cleanup()
     
     async def cleanup(self):

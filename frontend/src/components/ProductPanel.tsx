@@ -41,7 +41,7 @@ export default function ProductPanel({
 
   // Filter products based on selected filters
   const filteredProducts = products.filter(product => {
-    if (selectedPriceBucket && getPriceBucket(product.price) !== selectedPriceBucket) {
+    if (selectedPriceBucket && getPriceBucket(product) !== selectedPriceBucket) {
       return false
     }
     if (selectedBrand && product.store !== selectedBrand) {

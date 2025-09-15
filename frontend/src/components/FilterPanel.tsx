@@ -21,7 +21,7 @@ export default function FilterPanel({
   const [showFilters, setShowFilters] = useState(false)
   
   // Get unique price buckets and brands from products
-  const priceBuckets = Array.from(new Set(products.map(p => getPriceBucket(p.price))))
+  const priceBuckets = Array.from(new Set(products.map(p => getPriceBucket(p))))
   const brands = Array.from(new Set(products.map(p => p.store).filter(Boolean)))
 
   const hasActiveFilters = selectedPriceBucket || selectedBrand
