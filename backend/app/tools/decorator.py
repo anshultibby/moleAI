@@ -174,6 +174,43 @@ class ToolFunction:
             raise ValueError(f"Invalid parameters for {self.name}: {str(e)}")
         except Exception as e:
             raise RuntimeError(f"Error executing {self.name}: {str(e)}")
+    
+    async def execute_async(self, context_vars: Dict[str, Any] = None, **kwargs) -> Any:
+        """Execute the function asynchronously with given parameters and context variables"""
+        try:
+            import asyncio
+            import inspect
+            
+            context_vars = context_vars or {}
+            
+            # Check if the function accepts context_vars parameter
+            function_params = set(self.signature.parameters.keys())
+            
+            # If function accepts context_vars, pass it as a named parameter
+            if 'context_vars' in function_params:
+                kwargs['context_vars'] = context_vars
+            
+            # Remove any extra parameters that the function doesn't accept
+            kwargs = {k: v for k, v in kwargs.items() if k in function_params}
+            
+            # Validate parameters against signature
+            bound_args = self.signature.bind(**kwargs)
+            bound_args.apply_defaults()
+            
+            # Check if the function is async
+            if inspect.iscoroutinefunction(self.func):
+                # Execute async function directly
+                result = await self.func(**bound_args.arguments)
+                return result
+            else:
+                # Execute sync function normally
+                result = self.func(**bound_args.arguments)
+                return result
+            
+        except TypeError as e:
+            raise ValueError(f"Invalid parameters for {self.name}: {str(e)}")
+        except Exception as e:
+            raise RuntimeError(f"Error executing {self.name}: {str(e)}")
 
 
 def tool(name: str = None, description: str = None):

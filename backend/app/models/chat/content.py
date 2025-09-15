@@ -1,9 +1,10 @@
 from pydantic import BaseModel, Field
-from typing import Literal, Optional, Union, BinaryIO
+from typing import Literal, Optional, Union, BinaryIO, List
 from enum import Enum
 import base64
 import mimetypes
 from pathlib import Path
+from loguru import logger
 
 # =============================================================================
 # CONTENT ENUMS
@@ -89,6 +90,24 @@ class ImageContent(BaseModel):
     def from_url(cls, url: str) -> "ImageContent":
         """Create ImageContent from a URL"""
         return cls(image_url=ImageUrlObject(url=url))
+    
+    
+    @classmethod
+    def from_product_image(cls, product_data: dict) -> Optional["ImageContent"]:
+        """Create ImageContent from product data using HTTP URLs directly
+        
+        Args:
+            product_data: Dictionary containing product information with 'image_url' key
+        """
+        image_url = product_data.get('image_url')
+        if not image_url or image_url == 'N/A':
+            return None
+        
+        try:
+            return cls.from_url(image_url)
+        except Exception as e:
+            logger.warning(f"Failed to create ImageContent from product image: {e}")
+            return None
 
 class VideoUrlObject(BaseModel):
     """Video URL object"""
@@ -221,3 +240,45 @@ class FileContent(BaseModel):
 
 # Union type for all multimodal content
 VisionMultimodalContentItem = Union[TextContent, ImageContent, VideoContent, FileContent]
+
+# =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
+
+
+def create_multimodal_product_content(products: List[dict], collection_info: dict = None) -> List[VisionMultimodalContentItem]:
+    """
+    Create multimodal content from product data including text and images
+    
+    Args:
+        products: List of product dictionaries
+        collection_info: Optional collection metadata
+        
+    Returns:
+        List of multimodal content items (text and images)
+    """
+    content_items = []
+    
+    # Add collection header if provided
+    if collection_info:
+        header_text = f"**{collection_info.get('site_name', 'Products')}** - {len(products)} products found\n\n"
+        content_items.append(TextContent(text=header_text))
+    
+    # Add each product with text and image
+    for product in products:
+        # Add product text info
+        product_text = f"**{product.get('product_name', 'Unknown Product')}**\n"
+        product_text += f"Store: {product.get('store', 'Unknown')}\n"
+        product_text += f"Price: {product.get('price', 'N/A')}\n"
+        if product.get('product_url'):
+            product_text += f"[View Product]({product['product_url']})\n"
+        product_text += "\n"
+        
+        content_items.append(TextContent(text=product_text))
+        
+        # Add product image if available
+        image_content = ImageContent.from_product_image(product)
+        if image_content:
+            content_items.append(image_content)
+    
+    return content_items

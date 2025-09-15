@@ -105,10 +105,33 @@ def format_chat_history_for_api(history: List[Any]) -> List[Dict[str, Any]]:
     messages = []
     for msg in history:
         if hasattr(msg, 'role') and hasattr(msg, 'content'):
-            messages.append({
-                "role": msg.role,
-                "content": str(msg.content)
-            })
+            # Handle multimodal content if present
+            if hasattr(msg, 'content') and isinstance(msg.content, list):
+                # This is multimodal content - convert to appropriate format
+                formatted_content = []
+                for item in msg.content:
+                    if hasattr(item, 'type'):
+                        if item.type == 'text':
+                            formatted_content.append({
+                                "type": "text",
+                                "text": item.text
+                            })
+                        elif item.type == 'image_url':
+                            formatted_content.append({
+                                "type": "image_url",
+                                "image_url": {"url": item.image_url.url}
+                            })
+                
+                messages.append({
+                    "role": msg.role,
+                    "content": formatted_content if formatted_content else str(msg.content)
+                })
+            else:
+                # Regular text content
+                messages.append({
+                    "role": msg.role,
+                    "content": str(msg.content)
+                })
     return messages
 
 @router.post("/chat/stream")

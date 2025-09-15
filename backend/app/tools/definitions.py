@@ -5,6 +5,7 @@ from app.tools import tool
 from app.modules.serp import search_web
 from app.modules.product_extractor import ProductExtractor
 from app.models.product import Product
+from app.models.chat.content import TextContent, ImageContent, VisionMultimodalContentItem, create_multimodal_product_content
 
 import json
 from datetime import datetime
@@ -216,8 +217,9 @@ async def extract_products(
                 resource_summary = get_resource(
                     resource_id=collection.source_name,
                     limit=5,
-                    summary=True,
-                    context_vars=context_vars
+                    summary=False,
+                    context_vars=context_vars,
+                    get_images=False,
                 )
                 summary_parts.append(f"\n{resource_summary}")
         
@@ -245,15 +247,17 @@ def get_resource_content(resource_id: str, context_vars) -> tuple[str, Optional[
     name="get_resource",
     description="""Get a product collection resource by its name. 
     Returns the product collection data using the collection's get_products method.
+    Always get images when you need to visually determine if a product matches the user's criteria.
 
     Parameters:
     - resource_id: The ID of the resource to get
     - limit: Maximum number of products to show (default: 5)
     - max_price: Maximum price filter - only show products under this price (optional)
     - summary: If True, returns just product names; if False, returns full product details (default: True)
+    - get_images: If True, returns multimodal content with product images; if False, returns text only (default: False)
     - context_vars: The context variables to use
 
-    Returns JSON with collection metadata and filtered products.
+    Returns list of VisionMultimodalContentItem objects (TextContent and ImageContent) for easy handling in agent.py.
     
     NOTE: Use 'display_items' to stream products to the user for better experience.
     """
@@ -263,15 +267,48 @@ def get_resource(
     limit: int = 5,
     max_price: float = None,
     summary: bool = True,
+    get_images: bool = False,
     context_vars=None
-) -> str:
+) -> Union[List[VisionMultimodalContentItem], str]:
     resources = context_vars.get('resources')
     collection = resources.get(resource_id)
     if not collection:
-        return f"Resource with ID '{resource_id}' not found"
+        # Return as TextContent for consistency
+        return [TextContent(text=f"Resource with ID '{resource_id}' not found")]
     
     result = collection.get_products(limit=limit, summary=summary, max_price=max_price)
-    return json.dumps(result, indent=2)
+    
+    # If get_images is False, return text-only content
+    if not get_images:
+        text_result = json.dumps(result, indent=2)
+        return [TextContent(text=text_result)]
+    
+    # If get_images is True, return multimodal content with proper objects
+    products = result.get('products', [])
+    
+    # Create collection info for the helper function
+    collection_info = {
+        'site_name': collection.site_name or collection.source_name,
+        'source_name': collection.source_name
+    }
+    
+    # Use the helper function to create proper content objects
+    if not summary and products:  # Only add images for full product data
+        return create_multimodal_product_content(products, collection_info)
+    else:
+        # For summary mode, just return text content
+        header_text = f"**{collection.site_name or collection.source_name}** - {len(products)} products found\n\n"
+        if summary and products:
+            product_names = result.get('products', [])
+            if isinstance(product_names, list) and product_names:
+                if isinstance(product_names[0], str):
+                    # Summary mode returns just names
+                    header_text += "Products:\n" + "\n".join(f"• {name}" for name in product_names)
+                else:
+                    # Fallback if products are still dicts
+                    header_text += "Products:\n" + "\n".join(f"• {p.get('product_name', 'Unknown')}" for p in product_names)
+        
+        return [TextContent(text=header_text)]
 
 
 @tool(

@@ -127,7 +127,7 @@ class AssistantMessage(BaseModel):
 class ToolMessage(BaseModel):
     """Tool message"""
     role: Literal[MessageRole.TOOL] = MessageRole.TOOL
-    content: str = Field(..., description="Message text content")
+    content: Union[str, List[VisionMultimodalContentItem]] = Field(..., description="Message content - text string or multimodal content array")
     tool_call_id: str = Field(..., description="Indicates the tool call ID corresponding to this message")
 
 # Union type for all message types

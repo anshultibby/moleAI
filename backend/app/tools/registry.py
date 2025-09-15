@@ -54,6 +54,19 @@ class ToolRegistry:
         
         return tool.execute(context_vars=context_vars, **kwargs)
     
+    async def execute_tool_async(self, name: str, context_vars: Dict[str, Any] = None, **kwargs) -> Any:
+        """Execute a registered tool by name with given parameters and context variables (async version)"""
+        tool = self.get_tool(name)
+        if not tool:
+            raise ValueError(f"Tool '{name}' not found in registry")
+        
+        # Add logging for display_items specifically
+        if name == "display_items":
+            from loguru import logger
+            logger.info(f"🔧 Executing display_items with {len(kwargs.get('products', []))} products")
+        
+        return await tool.execute_async(context_vars=context_vars, **kwargs)
+    
     def has_tool(self, name: str) -> bool:
         """Check if a tool is registered"""
         return name in self._tools

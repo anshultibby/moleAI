@@ -11,6 +11,7 @@ from app.models import (
     ChatThinking,
     ThinkingType,
 )
+from app.models.chat.content import VisionMultimodalContentItem, TextContent, ImageContent
 from app.models.chat import (
     ToolCall, 
     ToolExecutionResponse,
@@ -153,12 +154,6 @@ class Agent:
                 chat_storage.append_message(self.conversation_id, message)
             except Exception as e:
                 logger.warning(f"Failed to save message incrementally: {e}")
-        
-        # Log tool results being sent
-        if hasattr(message, 'output') and message.output:
-            logger.info(f"→ Sending tool result: {message.output}")
-        elif hasattr(message, 'role') and message.role == 'tool':
-            logger.info(f"→ Sending tool message")
     
     def _prune_message_history(self) -> List[Message]:
         """
@@ -214,8 +209,6 @@ class Agent:
         
         # Add recent context
         pruned_messages.extend(recent_messages)
-        
-        logger.info(f"Pruned history: {len(self.message_history)} -> {len(pruned_messages)} messages")
         return pruned_messages
 
     def _prepare_messages_with_checklist(self) -> List[Message]:
@@ -260,7 +253,6 @@ class Agent:
                 metadata=metadata,
                 timestamp=datetime.now().isoformat()
             )
-            logger.info(f"📡 Streaming {content_type} content to frontend: {len(data.get('products', []))} products")
             self.stream_callback(event.model_dump())
         else:
             logger.error("❌ No stream_callback available - products won't be displayed")
@@ -357,7 +349,7 @@ class Agent:
             self.stream_callback(event.model_dump())
     
     
-    def execute_tool_call(self, tool_call: ToolCall) -> str:
+    async def execute_tool_call(self, tool_call: ToolCall) -> str:
         """Execute a tool call using the tool registry"""
         tool_name = tool_call.function.name if tool_call.function else "unknown"
         
@@ -367,24 +359,10 @@ class Agent:
             return error_msg
         
         try:
-            # Emit tool start event
             self._emit_tool_event(tool_name, "started", message=f"Starting {tool_name}")
-            
-            # Parse arguments and execute using registry
             args = tool_call.parse_arguments()
-            
-            # Use agent's context variables for tool execution
-            result = tool_registry.execute_tool(tool_name, context_vars=self.context_vars, **args)
-            
-            
-            # Don't emit completion event here - tools handle their own streaming callbacks
-            # The tool functions already emit proper completion events with formatted results
-            
-            # OpenAI API requires string output, but convert dicts to JSON for proper parsing
-            if isinstance(result, dict):
-                return json.dumps(result)
-            else:
-                return str(result)
+            result = await tool_registry.execute_tool_async(tool_name, context_vars=self.context_vars, **args)
+            return result
         except Exception as e:
             error_msg = f"Error executing {tool_name}: {str(e)}"
             self._emit_tool_event(tool_name, "error", error=error_msg)
@@ -433,16 +411,6 @@ class Agent:
                     timestamp=datetime.now().isoformat()
                 )
             
-            # Log what LLM returned
-            if response.choices:
-                choice = response.choices[0]
-                if choice.message.content:
-                    logger.info(f"← LLM response: {choice.message.content[:200]}{'...' if len(choice.message.content) > 200 else ''}")
-                if choice.message.tool_calls:
-                    logger.info(f"← LLM tool calls: {len(choice.message.tool_calls)} calls")
-                if choice.message.reasoning_content:
-                    logger.info(f"← LLM reasoning: {choice.message.reasoning_content[:200]}{'...' if len(choice.message.reasoning_content) > 200 else ''}")
-            
         except Exception as e:
             logger.error(f"LLM API call failed: {e}")
             yield ErrorEvent(
@@ -457,6 +425,7 @@ class Agent:
             
             # Check if conversation should stop based on finish reason
             if choice.finish_reason in ["stop", "length"]:
+                logger.info(f"→ Conversation finished: {choice.finish_reason}")
                 # Add final assistant response to history and stop
                 if choice.message.content:
                     assistant_msg = AssistantMessage(content=choice.message.content)
@@ -471,7 +440,6 @@ class Agent:
                     tool_calls=choice.message.tool_calls
                 )
                 self.add_to_history(assistant_msg)
-                
                 # Execute each tool call and add results to history
                 for tool_call in choice.message.tool_calls:
                     # Yield tool execution start event
@@ -483,9 +451,7 @@ class Agent:
                     )
                     
                     # Execute the tool (tool_call should already be in the right format)
-                    tool_result = self.execute_tool_call(tool_call)
-                    
-                    # Check if this is display_items tool and handle product streaming
+                    tool_result = await self.execute_tool_call(tool_call)
                     
                     # Yield tool execution completion event
                     yield ToolExecutionEvent(
@@ -496,11 +462,24 @@ class Agent:
                         timestamp=datetime.now().isoformat()
                     )
                     
-                    # Add tool result to history
-                    tool_msg = ToolMessage(
-                        content=tool_result,
-                        tool_call_id=tool_call.id
-                    )
+                    # Add tool result to history - handle multimodal content
+                    if isinstance(tool_result, list) and tool_result and isinstance(tool_result[0], VisionMultimodalContentItem):
+                        # This is multimodal content from tools like get_resource
+                        tool_msg = ToolMessage(
+                            content=tool_result,  # Pass multimodal content directly
+                            tool_call_id=tool_call.id
+                        )
+                    else:
+                        # Regular string content or other types
+                        if isinstance(tool_result, dict):
+                            content = json.dumps(tool_result)
+                        else:
+                            content = str(tool_result)
+                        
+                        tool_msg = ToolMessage(
+                            content=content,
+                            tool_call_id=tool_call.id
+                        )
                     self.add_to_history(tool_msg)
                 
                 # Yield continuation LLM call event
