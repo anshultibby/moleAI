@@ -36,7 +36,14 @@ class ProductExtractor:
     MAX_DEPTH = 2
     CONCURRENCY = 8
     TIMEOUT = 20
-    USER_AGENT = "ProductExtractorBot/1.0 (+mailto:you@example.com)"
+    
+    # Realistic user agents to avoid bot detection
+    USER_AGENTS = [
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15',
+    ]
     
     # Regex patterns
     ALLOWED_CONTENT_RE = re.compile(r"text/html")
@@ -44,7 +51,9 @@ class ProductExtractor:
     PAGINATION_HINTS_RE = re.compile(r"(page=\d+|/page/\d+|p=\d+)", re.I)
     
     def __init__(self):
-        pass
+        import random
+        self.current_user_agent = random.choice(self.USER_AGENTS)
+        self.request_delay = 1.0  # Delay between requests to avoid rate limiting
     
     def _same_host(self, a: str, b: str) -> bool:
         """Check if two URLs are from the same host."""
@@ -227,8 +236,23 @@ class ProductExtractor:
         results = []
         
         conn = aiohttp.TCPConnector(limit=self.CONCURRENCY)
+        
+        # Browser-like headers to avoid detection
+        headers = {
+            "User-Agent": self.current_user_agent,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Cache-Control": "max-age=0",
+        }
+        
         async with aiohttp.ClientSession(
-            headers={"User-Agent": self.USER_AGENT}, 
+            headers=headers, 
             connector=conn
         ) as session:
             
@@ -242,6 +266,10 @@ class ProductExtractor:
                 tasks = [self._fetch_page(session, u) for (u, _) in batch]
                 pages = await asyncio.gather(*tasks)
                 pages_crawled += len(batch)
+                
+                # Add delay between batches to avoid rate limiting
+                if queue:  # Only delay if there are more requests
+                    await asyncio.sleep(self.request_delay)
                 
                 for (html, final_url), (u, d) in zip(pages, batch):
                     if not html:

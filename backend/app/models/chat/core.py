@@ -12,6 +12,7 @@ class ModelType(str, Enum):
     """Available model types"""
     GLM_4_5 = "glm-4.5"
     GLM_4_5V = "glm-4.5v"
+    GPT_5 = "gpt-5"
 
 class MessageRole(str, Enum):
     """Message roles"""
