@@ -1,156 +1,210 @@
-"""Product extraction module for e-commerce platforms"""
+"""Simplified product extraction module - JSON-LD only"""
 
-from typing import List, Dict, Any, Optional
-import re
+import json
 import asyncio
+from typing import List, Dict, Any, Optional
+from urllib.parse import urljoin, urlparse
 from loguru import logger
+from bs4 import BeautifulSoup
 
-from app.models.product import Product
-from app.models.product_collection import ProductCollection
 from .direct_scraper import DirectScraper
-from .extractors import (
-    ProductExtractionError,
-    ShopifyAnalyticsExtractor,
-    AtomFeedExtractor,
-    HtmlHeuristicExtractor
-)
+
+
+class ProductExtractionError(Exception):
+    """Custom exception for product extraction errors"""
+    pass
 
 
 class ProductExtractor:
     """
-    Main product extractor that orchestrates multiple extraction methods.
-    
-    Uses a cascade of extraction methods:
-    1. Shopify Analytics (fast path) - extracts from analytics blob
-    2. Atom Feed - extracts from RSS/Atom feeds 
-    3. HTML Heuristics - extracts using CSS selectors and patterns
+    Simplified product extractor that only extracts JSON-LD structured data
+    and follows links to extract more products.
     """
     
     def __init__(self):
-        """Initialize the product extractor with all extraction methods"""
-        self.shopify_extractor = ShopifyAnalyticsExtractor()
-        self.atom_extractor = AtomFeedExtractor()
-        self.html_extractor = HtmlHeuristicExtractor()
+        """Initialize the product extractor"""
         self.scraper = DirectScraper()
     
-    def extract_products(self, html_content: str, url: str = "") -> List[Product]:
+    def extract_json_ld_products(self, html_content: str, url: str = "") -> List[str]:
         """
-        Extract products using all available methods in priority order.
+        Extract JSON-LD product cards as strings.
         
         Args:
             html_content: The HTML content to extract from
             url: Optional URL for context and logging
             
         Returns:
-            List of Product instances
-            
-        Raises:
-            ProductExtractionError: If all extraction methods fail
+            List of JSON-LD product cards as strings
         """
         try:
-            logger.info(f"Starting product extraction {'for ' + url if url else ''}")
+            logger.info(f"Extracting JSON-LD products {'from ' + url if url else ''}")
             
-            # Method 1: Try Shopify Analytics (fastest, most reliable)
-            try:
-                products = self.shopify_extractor.extract_products(html_content, url)
-                if products:
-                    logger.info(f"Successfully extracted {len(products)} products using Shopify analytics")
-                    return products
-            except Exception as e:
-                logger.debug(f"Shopify analytics extraction failed: {e}")
+            soup = BeautifulSoup(html_content, 'html.parser')
+            product_cards = []
             
-            # Method 2: Try Atom Feed extraction
-            try:
-                products = self.atom_extractor.extract_products(html_content, url)
-                if products:
-                    logger.info(f"Successfully extracted {len(products)} products using Atom feeds")
-                    return products
-            except Exception as e:
-                logger.debug(f"Atom feed extraction failed: {e}")
+            # Find all JSON-LD script tags
+            json_ld_scripts = soup.find_all('script', {'type': 'application/ld+json'})
             
-            # Method 3: Try HTML heuristics (fallback)
-            try:
-                products = self.html_extractor.extract_products(html_content, url)
-                if products:
-                    logger.info(f"Successfully extracted {len(products)} products using HTML heuristics")
-                    return products
-            except Exception as e:
-                logger.debug(f"HTML heuristic extraction failed: {e}")
+            for script in json_ld_scripts:
+                if not script.string:
+                    continue
+                    
+                try:
+                    data = json.loads(script.string)
+                    products = self._extract_products_from_json_ld(data)
+                    
+                    # Save each product as a JSON string
+                    for product in products:
+                        product_cards.append(json.dumps(product, indent=2))
+                        
+                except json.JSONDecodeError as e:
+                    logger.debug(f"Failed to parse JSON-LD: {e}")
+                    continue
             
-            # If all methods failed
-            logger.warning("All extraction methods failed to find products")
-            return []
+            logger.info(f"Found {len(product_cards)} JSON-LD product cards")
+            return product_cards
             
         except Exception as e:
-            error_msg = f"Product extraction failed: {str(e)}"
+            error_msg = f"JSON-LD extraction failed: {str(e)}"
             logger.error(error_msg)
             raise ProductExtractionError(error_msg)
     
-    def extract_shopify_products(self, html_content: str, url: str = "") -> List[Product]:
-        """
-        Extract products specifically using Shopify analytics method.
+    def _extract_products_from_json_ld(self, data: Any) -> List[Dict[str, Any]]:
+        """Extract product objects from JSON-LD data"""
+        products = []
         
-        This method is kept for backward compatibility.
+        if isinstance(data, dict):
+            # Direct Product type
+            if data.get('@type') == 'Product':
+                products.append(data)
+            
+            # ItemList containing products
+            elif data.get('@type') == 'ItemList':
+                items = data.get('itemListElement', [])
+                for item in items:
+                    if isinstance(item, dict) and item.get('@type') == 'Product':
+                        products.append(item)
+            
+            # Search for nested products
+            else:
+                for key, value in data.items():
+                    if isinstance(value, dict) and value.get('@type') == 'Product':
+                        products.append(value)
+                    elif isinstance(value, list):
+                        for item in value:
+                            if isinstance(item, dict) and item.get('@type') == 'Product':
+                                products.append(item)
+        
+        elif isinstance(data, list):
+            for item in data:
+                if isinstance(item, dict):
+                    products.extend(self._extract_products_from_json_ld(item))
+        
+        return products
+    
+    def get_page_links(self, html_content: str, base_url: str) -> List[str]:
+        """
+        Extract all links from the page that might contain products.
         
         Args:
-            html_content: The HTML content of the Shopify page
-            url: Optional URL for logging purposes
+            html_content: The HTML content to extract links from
+            base_url: Base URL for resolving relative links
             
         Returns:
-            List of Product instances
+            List of absolute URLs
         """
-        return self.shopify_extractor.extract_products(html_content, url)
-    
-    def extract_from_atom_feeds(self, html_content: str, url: str = "") -> List[Product]:
-        """
-        Extract products specifically using Atom feed method.
-        
-        Args:
-            html_content: The HTML content to search for Atom feed links
-            url: Optional URL for context
+        try:
+            soup = BeautifulSoup(html_content, 'html.parser')
+            links = []
             
-        Returns:
-            List of Product instances
-        """
-        return self.atom_extractor.extract_products(html_content, url)
-    
-    def extract_from_html_heuristics(self, html_content: str, url: str = "") -> List[Product]:
-        """
-        Extract products specifically using HTML heuristic method.
-        
-        Args:
-            html_content: The HTML content to extract from
-            url: Optional URL for context
+            # Find all links
+            for link in soup.find_all('a', href=True):
+                href = link.get('href')
+                if not href:
+                    continue
+                
+                # Convert to absolute URL
+                absolute_url = urljoin(base_url, href)
+                
+                # Filter for product-like URLs
+                if self._is_product_link(absolute_url):
+                    links.append(absolute_url)
             
-        Returns:
-            List of Product instances
-        """
-        return self.html_extractor.extract_products(html_content, url)
+            # Remove duplicates while preserving order
+            unique_links = []
+            seen = set()
+            for link in links:
+                if link not in seen:
+                    seen.add(link)
+                    unique_links.append(link)
+            
+            logger.info(f"Found {len(unique_links)} product links")
+            return unique_links
+            
+        except Exception as e:
+            logger.error(f"Failed to extract links: {e}")
+            return []
     
-    async def scrape_and_extract_products(self, 
-                                        source_name: str, 
-                                        url: str, 
-                                        render_js: bool = True, 
-                                        wait: int = 2000) -> ProductCollection:
+    def _is_product_link(self, url: str) -> bool:
+        """Check if URL looks like a product page"""
+        if not url:
+            return False
+        
+        # Skip external links
+        parsed_base = urlparse(url)
+        if not parsed_base.netloc:
+            return False
+        
+        # Skip common non-product paths
+        skip_patterns = [
+            '/cart', '/checkout', '/account', '/login', '/register',
+            '/search', '/blog', '/about', '/contact', '/help',
+            '/privacy', '/terms', '/shipping', '/returns',
+            '.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg',
+            'mailto:', 'tel:', '#'
+        ]
+        
+        url_lower = url.lower()
+        for pattern in skip_patterns:
+            if pattern in url_lower:
+                return False
+        
+        # Look for product-like patterns
+        product_patterns = [
+            '/product', '/item', '/p/', '/products/',
+            '/shop', '/store', '/buy'
+        ]
+        
+        for pattern in product_patterns:
+            if pattern in url_lower:
+                return True
+        
+        return False
+    
+    async def scrape_and_extract_with_links(self, 
+                                           url: str, 
+                                           max_links: int = 10,
+                                           render_js: bool = True, 
+                                           wait: int = 2000) -> Dict[str, List[str]]:
         """
-        Scrape a URL and extract products, returning a ProductCollection.
+        Scrape a URL and extract JSON-LD products from it and linked pages.
         
         Args:
-            source_name: Meaningful name for the source (e.g., "zara_dresses")
             url: URL to scrape and extract products from
+            max_links: Maximum number of links to follow (default: 10)
             render_js: Whether to render JavaScript (default: True)
             wait: Time to wait in milliseconds after page load (default: 2000ms)
             
         Returns:
-            ProductCollection with extracted products
+            Dictionary with 'main_page' and 'linked_pages' containing product cards as strings
             
         Raises:
             ProductExtractionError: If scraping or extraction fails
         """
         try:
-            logger.info(f"Scraping and extracting products from {source_name}: {url}")
+            logger.info(f"Scraping and extracting products from {url} and its links")
             
-            # Step 1: Scrape the page content
+            # Step 1: Scrape the main page
             html_content = await self.scraper.scrape_url(
                 url, 
                 render_js=render_js, 
@@ -158,19 +212,48 @@ class ProductExtractor:
                 smart_js_detection=True
             )
             
-            # Step 2: Extract products from the scraped content
-            products = self.extract_products(html_content, url)
+            # Step 2: Extract products from main page
+            main_products = self.extract_json_ld_products(html_content, url)
             
-            # Step 3: Create ProductCollection
-            product_collection = ProductCollection(
-                source_name=source_name,
-                source_url=url,
-                products=products,
-                extraction_method="multi_method"
-            )
+            # Step 3: Get product links from the page
+            product_links = self.get_page_links(html_content, url)
             
-            logger.info(f"Successfully extracted {len(products)} products from {source_name}")
-            return product_collection
+            # Limit the number of links to follow
+            if len(product_links) > max_links:
+                product_links = product_links[:max_links]
+                logger.info(f"Limited to first {max_links} product links")
+            
+            # Step 4: Extract products from linked pages
+            linked_products = []
+            for link_url in product_links:
+                try:
+                    logger.info(f"Extracting from linked page: {link_url}")
+                    
+                    # Scrape the linked page
+                    link_html = await self.scraper.scrape_url(
+                        link_url,
+                        render_js=render_js,
+                        wait=wait,
+                        smart_js_detection=True
+                    )
+                    
+                    # Extract products from linked page
+                    link_products = self.extract_json_ld_products(link_html, link_url)
+                    linked_products.extend(link_products)
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to extract from {link_url}: {e}")
+                    continue
+            
+            result = {
+                'main_page': main_products,
+                'linked_pages': linked_products
+            }
+            
+            total_products = len(main_products) + len(linked_products)
+            logger.info(f"Successfully extracted {total_products} total products ({len(main_products)} from main page, {len(linked_products)} from {len(product_links)} linked pages)")
+            
+            return result
             
         except Exception as e:
             error_msg = f"Failed to scrape and extract products from {url}: {str(e)}"
@@ -180,141 +263,8 @@ class ProductExtractor:
             # Clean up scraper resources
             await self.scraper.cleanup()
     
-    async def scrape_and_extract_multiple(self, 
-                                         urls: Dict[str, str], 
-                                         render_js: bool = True, 
-                                         wait: int = 2000,
-                                         progress_callback=None,
-                                         max_concurrent: int = 3,
-                                         conversation_id: Optional[str] = None) -> List[ProductCollection]:
-        """
-        Scrape multiple URLs and extract products in parallel, returning ProductCollections.
-        
-        Args:
-            urls: Dictionary where keys are meaningful resource names and values are URLs
-            render_js: Whether to render JavaScript (default: True)
-            wait: Time to wait in milliseconds after page load (default: 2000ms)
-            progress_callback: Optional callback function for progress updates
-            max_concurrent: Maximum number of concurrent extractions (default: 3)
-            conversation_id: Optional conversation ID for saving files to conversation directory
-            
-        Returns:
-            List of ProductCollection instances
-            
-        Raises:
-            ProductExtractionError: If extraction fails
-        """
-        total_urls = len(urls)
-        logger.info(f"Starting parallel extraction from {total_urls} URLs with max_concurrent={max_concurrent}")
-        
-        # Create semaphore to limit concurrent extractions
-        semaphore = asyncio.Semaphore(max_concurrent)
-        
-        async def extract_single(resource_name: str, url: str, idx: int) -> ProductCollection:
-            """Extract products from a single URL with semaphore control"""
-            async with semaphore:
-                try:
-                    # Emit progress update if callback provided
-                    if progress_callback:
-                        progress_callback(
-                            f"🛒 Extracting products from {resource_name} ({idx}/{total_urls})",
-                            current=idx, total=total_urls, url=url
-                        )
-                    
-                    # Use default name if resource name is invalid
-                    if not resource_name or not isinstance(resource_name, str):
-                        resource_name = f"site_{idx}"
-                    
-                    # Create a new scraper instance for this extraction to avoid conflicts
-                    scraper = DirectScraper()
-                    try:
-                        # Step 1: Scrape the page content
-                        html_content = await scraper.scrape_url(
-                            url, 
-                            render_js=render_js, 
-                            wait=wait,
-                            smart_js_detection=True,
-                            resource_name=resource_name,
-                            conversation_id=conversation_id
-                        )
-                        
-                        # Step 2: Extract products from the scraped content
-                        products = self.extract_products(html_content, url)
-                        
-                        # Step 3: Create ProductCollection
-                        product_collection = ProductCollection(
-                            source_name=resource_name,
-                            source_url=url,
-                            products=products,
-                            extraction_method="multi_method"
-                        )
-                        
-                        # Step 4: Save ProductCollection if conversation_id is provided
-                        if conversation_id and len(products) > 0:
-                            try:
-                                saved_path = product_collection.save_to_file(conversation_id=conversation_id)
-                                logger.debug(f"Saved ProductCollection to: {saved_path}")
-                            except Exception as e:
-                                logger.warning(f"Failed to save ProductCollection: {e}")
-                        
-                        # Emit success/warning update
-                        if progress_callback:
-                            if len(product_collection) > 0:
-                                progress_callback(
-                                    f"✅ Extracted {len(product_collection)} products from {resource_name}!",
-                                    current=idx, total=total_urls, status="success"
-                                )
-                            else:
-                                progress_callback(
-                                    f"⚠️ No products found at {resource_name}",
-                                    current=idx, total=total_urls, status="warning"
-                                )
-                        
-                        logger.info(f"Successfully extracted {len(products)} products from {resource_name}")
-                        return product_collection
-                        
-                    finally:
-                        # Clean up this scraper instance
-                        await scraper.cleanup()
-                        
-                except Exception as e:
-                    # Log error and create empty collection
-                    error_msg = f"Failed to extract products from {url} as '{resource_name}': {str(e)}"
-                    logger.error(error_msg)
-                    
-                    # Create empty collection for failed extraction
-                    empty_collection = ProductCollection(
-                        source_name=resource_name,
-                        source_url=url,
-                        products=[],
-                        extraction_method="failed"
-                    )
-                    
-                    if progress_callback:
-                        progress_callback(
-                            f"❌ Couldn't extract products from {resource_name}",
-                            current=idx, total=total_urls, status="error"
-                        )
-                    
-                    return empty_collection
-        
-        # Create tasks for all URLs
-        tasks = [
-            extract_single(resource_name, url, idx)
-            for idx, (resource_name, url) in enumerate(urls.items(), 1)
-        ]
-        
-        # Execute all tasks in parallel (with semaphore limiting concurrency)
-        product_collections = await asyncio.gather(*tasks, return_exceptions=False)
-        
-        # Filter out any None results and log summary
-        valid_collections = [c for c in product_collections if c is not None]
-        successful_extractions = len([c for c in valid_collections if len(c) > 0])
-        
-        logger.info(f"Completed parallel extraction from {total_urls} URLs, found products in {successful_extractions} sources")
-        return valid_collections
-    
     async def cleanup(self):
         """Clean up resources"""
         if hasattr(self, 'scraper'):
             await self.scraper.cleanup()
+

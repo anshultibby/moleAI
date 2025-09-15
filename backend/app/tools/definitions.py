@@ -219,7 +219,6 @@ async def extract_products(
                     limit=5,
                     summary=False,
                     context_vars=context_vars,
-                    get_images=False,
                 )
                 summary_parts.append(f"\n{resource_summary}")
         
@@ -267,9 +266,10 @@ def get_resource(
     limit: int = 5,
     max_price: float = None,
     summary: bool = True,
-    get_images: bool = False,
     context_vars=None
 ) -> Union[List[VisionMultimodalContentItem], str]:
+    get_images = False
+
     resources = context_vars.get('resources')
     collection = resources.get(resource_id)
     if not collection:

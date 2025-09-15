@@ -62,6 +62,70 @@ VENDOR_SELECTORS = [
     '.product-brand'
 ]
 
+# Enhanced attribute selectors
+PRODUCT_TYPE_SELECTORS = [
+    '.product-type',
+    '.category',
+    '.product-category',
+    '[data-product-type]',
+    '[data-category]',
+    '.breadcrumb a:last-child',
+    '.product-meta .type'
+]
+
+COLOR_SELECTORS = [
+    '.color',
+    '.product-color',
+    '[data-color]',
+    '.variant-color',
+    '.color-option.selected',
+    '.swatch.selected',
+    '.color-name'
+]
+
+SIZE_SELECTORS = [
+    '.size',
+    '.product-size',
+    '[data-size]',
+    '.variant-size',
+    '.size-option.selected',
+    '.size-selector .selected'
+]
+
+MATERIAL_SELECTORS = [
+    '.material',
+    '.fabric',
+    '.product-material',
+    '[data-material]',
+    '.product-details .material',
+    '.composition'
+]
+
+TAG_SELECTORS = [
+    '.tags',
+    '.product-tags',
+    '.categories',
+    '[data-tags]',
+    '.tag',
+    '.product-tag'
+]
+
+COLOR_VARIANT_SELECTORS = [
+    '.color-options .color',
+    '.color-swatches .swatch',
+    '.variant-color',
+    '[data-color-option]',
+    '.color-selector option'
+]
+
+SIZE_VARIANT_SELECTORS = [
+    '.size-options .size',
+    '.size-selector option',
+    '.variant-size',
+    '[data-size-option]',
+    '.size-chart option'
+]
+
 
 class HtmlHeuristicExtractor(BaseProductExtractor):
     """Extract products using HTML heuristics and CSS selectors"""
@@ -167,6 +231,26 @@ class HtmlHeuristicExtractor(BaseProductExtractor):
         # Extract SKU if available
         sku = container.get('data-sku') or container.get('data-product-sku')
         
+        # Extract enhanced attributes
+        product_type = self._extract_text_from_selectors(container, PRODUCT_TYPE_SELECTORS)
+        color = self._extract_text_from_selectors(container, COLOR_SELECTORS)
+        size = self._extract_text_from_selectors(container, SIZE_SELECTORS)
+        material = self._extract_text_from_selectors(container, MATERIAL_SELECTORS)
+        
+        # Extract tags
+        tags = self._extract_tags(container)
+        
+        # Extract variant options
+        color_variants = self._extract_variant_options(container, COLOR_VARIANT_SELECTORS)
+        size_variants = self._extract_variant_options(container, SIZE_VARIANT_SELECTORS)
+        
+        # Build variant options dict
+        variant_options = {}
+        if color_variants:
+            variant_options['color'] = color_variants
+        if size_variants:
+            variant_options['size'] = size_variants
+        
         return self.create_product_from_data(
             title=title,
             price=price,
@@ -176,7 +260,16 @@ class HtmlHeuristicExtractor(BaseProductExtractor):
             image_url=image_url,
             product_id=product_id,
             product_url=product_url,
-            base_url=base_url
+            base_url=base_url,
+            # Enhanced attributes
+            product_type=product_type,
+            color=color,
+            size=size,
+            material=material,
+            tags=tags,
+            color_variants=color_variants,
+            size_variants=size_variants,
+            variant_options=variant_options if variant_options else None
         )
     
     def _extract_product_from_link(self, link: Tag, base_url: str = "") -> Optional[Product]:
@@ -297,6 +390,52 @@ class HtmlHeuristicExtractor(BaseProductExtractor):
                 return code
         
         return 'USD'  # Default fallback
+    
+    def _extract_tags(self, container: Tag) -> Optional[List[str]]:
+        """Extract product tags from container."""
+        tags = []
+        
+        # Try to extract from tag selectors
+        for selector in TAG_SELECTORS:
+            elements = container.select(selector)
+            for element in elements:
+                text = element.get_text(strip=True)
+                if text:
+                    # Handle comma-separated tags
+                    if ',' in text:
+                        tags.extend([tag.strip() for tag in text.split(',') if tag.strip()])
+                    else:
+                        tags.append(text)
+        
+        # Remove duplicates and return
+        unique_tags = list(dict.fromkeys(tags))  # Preserves order
+        return unique_tags if unique_tags else None
+    
+    def _extract_variant_options(self, container: Tag, selectors: List[str]) -> Optional[List[str]]:
+        """Extract variant options (colors, sizes, etc.) from container."""
+        options = []
+        
+        for selector in selectors:
+            elements = container.select(selector)
+            for element in elements:
+                # Try to get text content
+                text = element.get_text(strip=True)
+                if text:
+                    options.append(text)
+                
+                # Also try data attributes
+                value = element.get('data-value') or element.get('value')
+                if value and value not in options:
+                    options.append(str(value))
+                
+                # Try title or alt attributes
+                title = element.get('title') or element.get('alt')
+                if title and title not in options:
+                    options.append(str(title))
+        
+        # Remove duplicates and return
+        unique_options = list(dict.fromkeys(options))  # Preserves order
+        return unique_options if unique_options else None
     
     def _deduplicate_products(self, products: List[Product]) -> List[Product]:
         """Remove duplicate products based on product_id or title."""

@@ -154,7 +154,17 @@ class BaseProductExtractor(ABC):
                                 product_id: Optional[str] = None,
                                 variant_id: Optional[str] = None,
                                 product_url: Optional[str] = None,
-                                base_url: str = "") -> Optional[Product]:
+                                base_url: str = "",
+                                # Enhanced attributes
+                                product_type: Optional[str] = None,
+                                color: Optional[str] = None,
+                                size: Optional[str] = None,
+                                material: Optional[str] = None,
+                                tags: Optional[List[str]] = None,
+                                color_variants: Optional[List[str]] = None,
+                                size_variants: Optional[List[str]] = None,
+                                variant_options: Optional[Dict[str, List[str]]] = None,
+                                confidence_score: Optional[float] = None) -> Optional[Product]:
         """
         Create a Product instance from extracted data with validation.
         
@@ -169,6 +179,15 @@ class BaseProductExtractor(ABC):
             variant_id: Variant ID
             product_url: Product page URL
             base_url: Base URL for normalizing relative URLs
+            product_type: Product type/category
+            color: Primary color of this variant
+            size: Size of this variant
+            material: Material/fabric information
+            tags: Product tags/categories
+            color_variants: Available color options
+            size_variants: Available size options
+            variant_options: All variant options
+            confidence_score: Confidence score for the extraction (0.0-1.0)
             
         Returns:
             Product instance or None if essential data is missing
@@ -193,8 +212,21 @@ class BaseProductExtractor(ABC):
                 currency=currency or "USD",
                 sku=sku,
                 product_id=product_id,
-                variant_id=variant_id
+                variant_id=variant_id,
+                # Enhanced attributes
+                product_type=product_type,
+                color=color,
+                size=size,
+                material=material,
+                tags=tags,
+                color_variants=color_variants,
+                size_variants=size_variants,
+                variant_options=variant_options
             )
+            
+            # Add confidence score as attribute if provided
+            if confidence_score is not None:
+                product.confidence_score = confidence_score
             return product
             
         except Exception as e:

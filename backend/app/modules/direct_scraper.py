@@ -14,6 +14,9 @@ import time
 
 # Resource import removed - scraper now returns raw content
 
+# Vector store integration
+from .vector_store import get_vector_store
+
 # Try to import playwright for JS rendering
 try:
     from playwright.async_api import async_playwright
@@ -484,6 +487,19 @@ class DirectScraper:
                     logger.debug(f"Saved scraped data to: {saved_path}")
                 except Exception as e:
                     logger.warning(f"Failed to save scraped data: {e}")
+            
+            # Store in vector database
+            if resource_name:
+                try:
+                    vector_store = get_vector_store()
+                    doc_id = vector_store.store(
+                        url=url,
+                        content=content,
+                        resource_name=resource_name
+                    )
+                    logger.debug(f"Stored content in vector DB: {doc_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to store content in vector DB: {e}")
             
             return content
             

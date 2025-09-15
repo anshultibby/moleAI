@@ -31,14 +31,9 @@ So when asked to search for midi dresses, just search for "midi dresses" and not
 - ALWAYS continue until you have results from 3-5 different websites.
 - ALWAYS display products to the user as soon as you find them.
 
-# Search
-- Use broad, natural search queries like "trendy winter coats for women 2025" or "midi dresses under $100"
-- Let Google's algorithm naturally surface diverse retailers
-
 # Stopping criteria
 - Dont emit stop as finish reason until you have performed a search and displayed products to the user
 - Make sure to display products to the user when you have a list of good ones that match the user's criteria
-
 
 # Final response
 - Use assistant message to interact with the user and to figure out user's criteria better. 

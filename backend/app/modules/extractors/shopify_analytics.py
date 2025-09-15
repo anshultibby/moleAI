@@ -323,6 +323,63 @@ class ShopifyAnalyticsExtractor(BaseProductExtractor):
                 variant_data.get('productUrl')
             )
             
+            # Extract enhanced attributes
+            product_type = (
+                product_info.get('type') or
+                product_info.get('product_type') or
+                variant_data.get('type') or
+                variant_data.get('product_type')
+            )
+            
+            # Extract variant options (color, size, etc.)
+            color = None
+            size = None
+            material = None
+            variant_options = {}
+            color_variants = []
+            size_variants = []
+            
+            # Extract from variant options
+            options = variant_data.get('options') or []
+            if isinstance(options, list):
+                for option in options:
+                    if isinstance(option, dict):
+                        option_name = option.get('name', '').lower()
+                        option_value = option.get('value')
+                        
+                        if option_name in ['color', 'colour'] and option_value:
+                            color = str(option_value)
+                        elif option_name in ['size'] and option_value:
+                            size = str(option_value)
+                        elif option_name in ['material', 'fabric'] and option_value:
+                            material = str(option_value)
+            
+            # Extract from product options (all available variants)
+            product_options = product_info.get('options') or []
+            if isinstance(product_options, list):
+                for option in product_options:
+                    if isinstance(option, dict):
+                        option_name = option.get('name', '').lower()
+                        option_values = option.get('values', [])
+                        
+                        if option_name in ['color', 'colour'] and option_values:
+                            color_variants = [str(v) for v in option_values if v]
+                            variant_options['color'] = color_variants
+                        elif option_name in ['size'] and option_values:
+                            size_variants = [str(v) for v in option_values if v]
+                            variant_options['size'] = size_variants
+                        elif option_name and option_values:
+                            variant_options[option_name] = [str(v) for v in option_values if v]
+            
+            # Extract tags
+            tags = []
+            product_tags = product_info.get('tags') or variant_data.get('tags')
+            if isinstance(product_tags, list):
+                tags = [str(tag) for tag in product_tags if tag]
+            elif isinstance(product_tags, str):
+                # Sometimes tags are comma-separated strings
+                tags = [tag.strip() for tag in product_tags.split(',') if tag.strip()]
+            
             # Use base class method to create product
             return self.create_product_from_data(
                 title=title,
@@ -334,7 +391,16 @@ class ShopifyAnalyticsExtractor(BaseProductExtractor):
                 product_id=product_id if product_id else None,
                 variant_id=variant_id if variant_id else None,
                 product_url=product_url,
-                base_url=source_url
+                base_url=source_url,
+                # Enhanced attributes
+                product_type=product_type,
+                color=color,
+                size=size,
+                material=material,
+                tags=tags if tags else None,
+                color_variants=color_variants if color_variants else None,
+                size_variants=size_variants if size_variants else None,
+                variant_options=variant_options if variant_options else None
             )
             
         except Exception as e:

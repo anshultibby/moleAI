@@ -1,6 +1,6 @@
 """Product data models for e-commerce product representation"""
 
-from typing import Optional, Tuple, Any, Dict
+from typing import Optional, Tuple, Any, Dict, List
 from pydantic import BaseModel, Field, field_validator, model_validator
 import re
 
@@ -22,6 +22,16 @@ class Product(BaseModel):
     sku: Optional[str] = Field(default=None, description="Stock Keeping Unit")
     product_id: Optional[str] = Field(default=None, description="Unique product identifier")
     variant_id: Optional[str] = Field(default=None, description="Unique variant identifier")
+    
+    # Enhanced product attributes
+    product_type: Optional[str] = Field(default=None, description="Product type/category (e.g., 'Dress', 'Shirt')")
+    color: Optional[str] = Field(default=None, description="Primary color of this variant")
+    size: Optional[str] = Field(default=None, description="Size of this variant")
+    material: Optional[str] = Field(default=None, description="Material/fabric information")
+    tags: Optional[List[str]] = Field(default=None, description="Product tags/categories")
+    color_variants: Optional[List[str]] = Field(default=None, description="Available color options")
+    size_variants: Optional[List[str]] = Field(default=None, description="Available size options")
+    variant_options: Optional[Dict[str, List[str]]] = Field(default=None, description="All variant options (color, size, etc.)")
     
     @field_validator('product_name', mode='before')
     @classmethod
@@ -61,12 +71,19 @@ class Product(BaseModel):
                     domain = urlparse(product_url).netloc
                     if domain:
                         # Clean up domain to make it a nice store name
-                        store = domain.replace('www.', '').replace('.com', '').replace('.net', '').replace('.org', '').title()
+                        # Remove www. prefix
+                        clean_domain = domain.replace('www.', '')
+                        # Remove common TLDs and get the main domain name
+                        for tld in ['.com', '.net', '.org', '.co.uk', '.ca', '.au']:
+                            clean_domain = clean_domain.replace(tld, '')
+                        # Capitalize first letter of each word (for multi-word domains)
+                        store = clean_domain.replace('-', ' ').replace('_', ' ').title()
                         return store
-                except:
+                except Exception:
                     pass
         
-        raise ValueError("Store name is required and could not be extracted from URL")
+        # If we still don't have a store name, use a default
+        return "Unknown Store"
     
     @field_validator('price', mode='before')
     @classmethod
@@ -196,10 +213,16 @@ class Product(BaseModel):
             parts.append(f"'{self.product_name}'")
         if self.store:
             parts.append(f"by {self.store}")
+        if self.color:
+            parts.append(f"in {self.color}")
+        if self.size:
+            parts.append(f"size {self.size}")
         if self.price and self.currency:
             parts.append(f"- {self.price} {self.currency}")
         elif self.price:
             parts.append(f"- {self.price}")
+        if self.product_type:
+            parts.append(f"({self.product_type})")
         if self.sku:
             parts.append(f"(SKU: {self.sku})")
         
