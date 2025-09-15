@@ -255,6 +255,8 @@ class StreamEventType(str, Enum):
     MESSAGE = "message"
     PRODUCT = "product"
     PRODUCT_GRID = "product_grid"
+    CONTENT_DISPLAY = "content_display"  # New: Direct content streaming
+    CONTENT_UPDATE = "content_update"    # New: Content updates
     COMPLETE = "complete"
     ERROR = "error"
 
@@ -316,6 +318,22 @@ class ProductEvent(StreamEvent):
     type: Literal[StreamEventType.PRODUCT] = StreamEventType.PRODUCT
     product: Dict[str, Any] = Field(..., description="Product data")
 
+class ContentDisplayEvent(StreamEvent):
+    """Direct content display event for flexible UI updates"""
+    type: Literal[StreamEventType.CONTENT_DISPLAY] = StreamEventType.CONTENT_DISPLAY
+    content_type: str = Field(..., description="Type of content (products, comparison, summary, etc.)")
+    data: Dict[str, Any] = Field(..., description="Content data")
+    title: Optional[str] = Field(None, description="Optional title for the content")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Optional metadata")
+
+class ContentUpdateEvent(StreamEvent):
+    """Content update event for modifying existing content"""
+    type: Literal[StreamEventType.CONTENT_UPDATE] = StreamEventType.CONTENT_UPDATE
+    update_type: str = Field(..., description="Type of update (add, remove, modify, filter)")
+    target_id: str = Field(..., description="ID of content to update")
+    data: Dict[str, Any] = Field(..., description="Update data")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Optional metadata")
+
 class CompleteEvent(StreamEvent):
     """Completion event"""
     type: Literal[StreamEventType.COMPLETE] = StreamEventType.COMPLETE
@@ -334,6 +352,8 @@ StreamingEvent = Union[
     MessageEvent,
     ProductGridEvent,
     ProductEvent,
+    ContentDisplayEvent,
+    ContentUpdateEvent,
     CompleteEvent,
     ErrorEvent
 ]

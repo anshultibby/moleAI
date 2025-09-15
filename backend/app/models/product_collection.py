@@ -83,7 +83,7 @@ class ProductCollection(BaseModel):
         # Prepare products data based on summary flag
         if summary:
             # Return just the product names/titles
-            products_data = [product.title or "Untitled Product" for product in limited_products]
+            products_data = [product.product_name or "Untitled Product" for product in limited_products]
         else:
             # Return full Product objects as dictionaries
             products_data = [product.model_dump() for product in limited_products]

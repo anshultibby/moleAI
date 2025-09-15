@@ -16,6 +16,7 @@ import re
 import json
 import asyncio
 from datetime import datetime
+from loguru import logger
 
 
 class StreamHelper:
@@ -164,6 +165,13 @@ async def extract_products(
     wait: int = 2000,
     context_vars=None
 ) -> str:
+    # Handle case where urls is passed as a JSON string instead of dict
+    if isinstance(urls, str):
+        try:
+            urls = json.loads(urls)
+        except json.JSONDecodeError as e:
+            return f"Invalid URLs format: {str(e)}"
+    
     if not urls:
         return "URLs cannot be empty"
     
@@ -254,6 +262,8 @@ def get_resource_content(resource_id: str, context_vars) -> tuple[str, Optional[
     - context_vars: The context variables to use
 
     Returns JSON with collection metadata and filtered products.
+    
+    NOTE: Use 'display_items' to stream products to the user for better experience.
     """
 )
 def get_resource(
@@ -293,85 +303,47 @@ def list_resources(context_vars=None) -> str:
 
 @tool(
     name="display_items",
-    description="""Display products that will stream to the user in real-time as they are processed. 
-    Products appear immediately as each one is processed, creating a dynamic streaming experience.
-    This is a very important tool to call as it makes for a very delightful experience for the user, our main goal is to keep the user engaged.
-
-This tool accepts either Product instances from app.models.product.Product OR dictionaries with product data.
-
-The Product class has these fields:
-- title: Product name/title
-- price: Product price amount (float)
-- currency: Price currency (USD, EUR, etc.)
-- vendor: Brand or vendor name (used as store name)
-- sku: Stock Keeping Unit
-- image_url: Primary product image URL
-- product_id: Unique product identifier
-- variant_id: Unique variant identifier
-- product_url: URL to the product page
-
-Example usage:
-display_items([product1, product2, product3])
-display_items([{"title": "Product Name", "price": 99.99, "currency": "USD", "vendor": "Store Name", "image_url": "..."}])
-
-Products will appear one by one in real-time as they are processed, not all at once at the end."""
+    description="""Stream products to the user in real-time with smooth animations.
+    This is the primary tool for displaying products to create an engaging user experience.
+    
+    Accepts Product instances, dictionaries, or lists from collections.
+    Products stream in optimized chunks for smooth visual presentation.
+    
+    Parameters:
+    - products: List of products to display (Product objects or dicts)
+    - title: Optional title for the product display
+    """
 )
-def display_items(
-    items: List[Union[Product, Dict[str, Any]]],
-    title: Optional[str] = None,
+async def display_items(
+    products: List[Union[Product, Dict[str, Any]]],
+    title: str = "Products Found",
     context_vars=None
-) -> Dict[str, Any]:
-    if not items:
-        return {"error": "Items list cannot be empty"}
+) -> str:
+    """Stream products to the user"""
+    logger.info(f"🎯 display_items called with {len(products) if products else 0} products")
     
-    processed_items = []
+    if not products:
+        logger.warning("❌ display_items called with empty products list")
+        return "No products to display"
     
-    for i, item in enumerate(items):
-        # Convert dict to Product instance if needed
-        if isinstance(item, dict):
-            try:
-                product = Product(**item)
-            except Exception as e:
-                return {"error": f"Item {i+1} could not be converted to Product: {str(e)}"}
-        elif isinstance(item, Product):
-            product = item
-        else:
-            return {"error": f"Item {i+1} must be a Product instance or dict, got {type(item)}"}
-        
-        # Convert Product to dict using Pydantic and map to frontend format
-        product_dict = product.model_dump()
-        
-        # Generate unique ID
-        clean_store = str(product.vendor or '').lower().replace(' ', '-').replace('&', 'and')[:20]
-        clean_name = str(product.title or '').lower().replace(' ', '-')[:30]
-        item_id = f"{clean_store}-{clean_name}-{str(uuid.uuid4())[:8]}"
-        
-        # Map to frontend Product interface format
-        processed_item = {
-            "id": item_id,
-            "product_name": product.title or '',
-            "name": product.title or '',  # Alternative name field
-            "price": str(product.price or ''),
-            "currency": product.currency or 'USD',
-            "store": product.vendor or '',
-            "store_name": product.vendor or '',  # Alternative store field
-            "image_url": product.image_url or '',
-            "product_url": product.product_url or '',
-            "description": '',  # Product model doesn't have this field
-            "category": '',     # Product model doesn't have this field
-            "type": "streaming_product"
-        }
-        
-        processed_items.append(processed_item)
+    if not context_vars:
+        logger.error("❌ display_items called without context_vars")
+        return "Error: Context variables not available"
     
-    return {
-        "success": True,
-        "stream_products": True,
-        "title": title or "Products Found",
-        "items": processed_items,
-        "count": len(processed_items),
-        "message": f"Found {len(processed_items)} products"
-    }
+    agent = context_vars.get('agent')
+    if not agent:
+        logger.error("❌ display_items called without agent in context")
+        return "Error: Agent context not available"
+    
+    try:
+        await agent.stream_products(products=products, title=title)
+        return f"Displayed {len(products)} products"
+        
+    except Exception as e:
+        logger.error(f"❌ Error displaying products: {e}", exc_info=True)
+        return f"Error displaying products: {str(e)}"
+
+
 
 
 @tool(

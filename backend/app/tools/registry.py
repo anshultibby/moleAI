@@ -47,6 +47,11 @@ class ToolRegistry:
         if not tool:
             raise ValueError(f"Tool '{name}' not found in registry")
         
+        # Add logging for display_items specifically
+        if name == "display_items":
+            from loguru import logger
+            logger.info(f"🔧 Executing display_items with {len(kwargs.get('products', []))} products")
+        
         return tool.execute(context_vars=context_vars, **kwargs)
     
     def has_tool(self, name: str) -> bool:

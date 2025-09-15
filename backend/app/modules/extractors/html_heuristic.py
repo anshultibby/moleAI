@@ -305,7 +305,7 @@ class HtmlHeuristicExtractor(BaseProductExtractor):
         
         for product in products:
             # Create a key for deduplication
-            key = product.product_id or product.title
+            key = product.product_id or product.product_name
             if key and key not in seen:
                 seen.add(key)
                 unique_products.append(product)

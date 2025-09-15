@@ -182,24 +182,19 @@ class BaseProductExtractor(ABC):
             if not product_id and normalized_product_url:
                 product_id = self.extract_product_id_from_url(normalized_product_url)
             
-            # Create Product instance
+            # Create Product directly - Pydantic validators handle cleaning and URL extraction
             product = Product(
-                title=title,
+                product_name=title,
+                store=vendor,  # Will extract from product_url if None
                 price=price,
-                currency=currency,
-                vendor=vendor,
-                sku=sku,
+                price_value=price,  # Will be auto-calculated from price string
+                product_url=normalized_product_url,
                 image_url=normalized_image_url,
+                currency=currency or "USD",
+                sku=sku,
                 product_id=product_id,
-                variant_id=variant_id,
-                product_url=normalized_product_url
+                variant_id=variant_id
             )
-            
-            # Validate essential data
-            if not product.title and not product.product_id:
-                logger.warning("Product missing essential data (title or product_id)")
-                return None
-            
             return product
             
         except Exception as e:

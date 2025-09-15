@@ -1,33 +1,141 @@
 """Product data models for e-commerce product representation"""
 
-from typing import Optional, Tuple
-from pydantic import BaseModel, Field
+from typing import Optional, Tuple, Any, Dict
+from pydantic import BaseModel, Field, field_validator, model_validator
 import re
+
+
 
 
 class Product(BaseModel):
     """
-    Simple product data model with core fields:
-    - price: Product price amount
-    - currency: Price currency (USD, EUR, etc.)
-    - title: Product name/title
-    - vendor: Brand or vendor name
-    - sku: Stock Keeping Unit
-    - image_url: Primary product image URL
-    - product_id: Unique product identifier
-    - variant_id: Unique variant identifier (if applicable)
-    - product_url: URL to the product page
+    Strict product data model - all fields required with smart defaults
     """
     
-    title: Optional[str] = Field(default=None, description="Product name/title")
-    price: Optional[float] = Field(default=None, description="Product price amount")
-    currency: Optional[str] = Field(default=None, description="Price currency (USD, EUR, etc.)")
-    vendor: Optional[str] = Field(default=None, description="Brand or vendor name")
+    product_name: str = Field(description="Product name/title")
+    store: str = Field(description="Brand or store name")  
+    price: str = Field(description="Product price as string (e.g., '$89.99')")
+    price_value: float = Field(description="Product price as float for filtering/sorting")
+    product_url: str = Field(description="URL to the product page")
+    image_url: str = Field(description="Primary product image URL")
+    currency: str = Field(default="USD", description="Price currency")
     sku: Optional[str] = Field(default=None, description="Stock Keeping Unit")
-    image_url: Optional[str] = Field(default=None, description="Primary product image URL")
     product_id: Optional[str] = Field(default=None, description="Unique product identifier")
     variant_id: Optional[str] = Field(default=None, description="Unique variant identifier")
-    product_url: Optional[str] = Field(default=None, description="URL to the product page")
+    
+    @field_validator('product_name', mode='before')
+    @classmethod
+    def clean_product_name(cls, v: Any) -> str:
+        """Clean and validate product name"""
+        if not v:
+            raise ValueError("Product name is required")
+        
+        # Clean up the name
+        name = str(v).strip()
+        # Remove extra whitespace
+        name = ' '.join(name.split())
+        # Remove common prefixes/suffixes that aren't useful
+        name = name.replace('New!', '').replace('Sale!', '').strip()
+        
+        if not name:
+            raise ValueError("Product name cannot be empty after cleaning")
+        
+        return name
+    
+    @field_validator('store', mode='before')
+    @classmethod
+    def clean_store_name(cls, v: Any, info) -> str:
+        """Clean store name or extract from product_url if missing"""
+        if v:
+            # Clean existing store name
+            store = str(v).strip()
+            store = ' '.join(store.split())  # Remove extra whitespace
+            return store
+        
+        # Try to extract from product_url if available
+        if hasattr(info, 'data') and info.data and 'product_url' in info.data:
+            product_url = info.data.get('product_url')
+            if product_url:
+                from urllib.parse import urlparse
+                try:
+                    domain = urlparse(product_url).netloc
+                    if domain:
+                        # Clean up domain to make it a nice store name
+                        store = domain.replace('www.', '').replace('.com', '').replace('.net', '').replace('.org', '').title()
+                        return store
+                except:
+                    pass
+        
+        raise ValueError("Store name is required and could not be extracted from URL")
+    
+    @field_validator('price', mode='before')
+    @classmethod
+    def parse_price_field(cls, v: Any) -> str:
+        """
+        Clean and validate price field, keeping it as a string.
+        
+        Args:
+            v: Price value (can be string like '$89.99' or numeric)
+            
+        Returns:
+            Cleaned price string
+            
+        Raises:
+            ValueError: If price cannot be parsed or is None/empty
+        """
+        if v is None or v == '':
+            raise ValueError("Price is required and cannot be empty")
+        
+        # If it's a number, format it nicely
+        if isinstance(v, (int, float)):
+            return f"${v:.2f}"
+        
+        # If string, clean it up
+        if isinstance(v, str):
+            price_str = str(v).strip()
+            if not price_str:
+                raise ValueError("Price cannot be empty")
+            
+            # If it doesn't have a currency symbol, try to parse and add $
+            if not any(symbol in price_str for symbol in ['$', '€', '£', '¥', '₹']):
+                try:
+                    price_num = float(price_str.replace(',', ''))
+                    return f"${price_num:.2f}"
+                except ValueError:
+                    pass
+            
+            return price_str
+        
+        # Fallback: convert to string
+        return str(v)
+    
+    @field_validator('price_value', mode='before')
+    @classmethod
+    def calculate_price_value(cls, v: Any, info) -> float:
+        """
+        Calculate numeric price value from price string for filtering/sorting.
+        If price_value is provided directly, use it. Otherwise extract from price string.
+        """
+        # If price_value is explicitly provided, use it
+        if v is not None and v != '':
+            try:
+                return float(v)
+            except (ValueError, TypeError):
+                pass
+        
+        # Extract from price string if available
+        if hasattr(info, 'data') and info.data and 'price' in info.data:
+            price_str = info.data.get('price')
+            if price_str:
+                try:
+                    price_num, _ = cls.parse_price_and_currency(str(price_str))
+                    if price_num is not None:
+                        return price_num
+                except:
+                    pass
+        
+        # If we can't extract a price value, this will fail validation
+        raise ValueError("Could not determine numeric price value")
     
     @classmethod
     def parse_price_and_currency(cls, price_str: str, default_currency: str = "USD") -> Tuple[Optional[float], Optional[str]]:
@@ -84,10 +192,10 @@ class Product(BaseModel):
     def __str__(self) -> str:
         """String representation of the product"""
         parts = []
-        if self.title:
-            parts.append(f"'{self.title}'")
-        if self.vendor:
-            parts.append(f"by {self.vendor}")
+        if self.product_name:
+            parts.append(f"'{self.product_name}'")
+        if self.store:
+            parts.append(f"by {self.store}")
         if self.price and self.currency:
             parts.append(f"- {self.price} {self.currency}")
         elif self.price:

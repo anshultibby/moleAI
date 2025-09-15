@@ -135,13 +135,13 @@ export function useChat() {
                   if (data.product) {
                     const product: Product = {
                       ...data.product,
-                      product_name: data.product.product_name || data.product.name || data.product.title || 'Unknown Product',
-                      store: data.product.store || data.product.store_name || 'Unknown Store',
-                      price: data.product.price || 'Price not available',
+                      product_name: data.product.product_name,
+                      store: data.product.store,
+                      price: data.product.price,
                       image_url: data.product.image_url || '',
                       product_url: data.product.product_url || '',
                       description: data.product.description || '',
-                      id: data.product.id || `${(data.product.store || data.product.store_name || 'unknown')}-${(data.product.product_name || data.product.name || data.product.title || 'unknown')}`.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+                      id: data.product.id || `${data.product.store}-${data.product.product_name}`.toLowerCase().replace(/[^a-z0-9]+/g, '-')
                     }
                     
                     // Add product to streaming products message or create new one
@@ -180,6 +180,71 @@ export function useChat() {
                 case 'product_removal':
                   if (data.product_id && onProductRemoved) {
                     onProductRemoved(data.product_id)
+                  }
+                  break
+                
+                case 'content_display':
+                  if (data.content_type && data.data) {
+                    // Handle different content types
+                    if (data.content_type === 'products') {
+                      // Handle product streaming with chunking
+                      const products = data.data.products || []
+                      const isFirstChunk = data.data.chunk_index === 0
+                      const isFinalChunk = data.data.is_final_chunk
+                      
+                      // Add products to streaming products message or create new one
+                      setMessages(prev => {
+                        const lastMessage = prev[prev.length - 1]
+                        
+                        // If this is the first chunk or no existing streaming message, create new one
+                        if (isFirstChunk || !lastMessage || 
+                            lastMessage.type !== 'streaming_products' || 
+                            lastMessage.turnId !== turnId) {
+                          const streamingMessage: Message = {
+                            role: 'assistant',
+                            content: '',
+                            timestamp: new Date().toISOString(),
+                            type: 'streaming_products',
+                            products: products,
+                            productGridTitle: data.title || 'Products Found',
+                            turnId: turnId
+                          }
+                          return [...prev, streamingMessage]
+                        } else {
+                          // Append to existing streaming message
+                          const updatedMessage = {
+                            ...lastMessage,
+                            products: [...(lastMessage.products || []), ...products]
+                          }
+                          return [...prev.slice(0, -1), updatedMessage]
+                        }
+                      })
+                      
+                      // Also call the callback for each product
+                      products.forEach((product: Product) => {
+                        const processedProduct: Product = {
+                          ...product,
+                          product_name: product.product_name,
+                          store: product.store,
+                          price: product.price,
+                          image_url: product.image_url || '',
+                          product_url: product.product_url || '',
+                          description: product.description || '',
+                          id: product.id || `${(product.store || 'unknown')}-${(product.product_name || 'unknown')}`.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+                        }
+                        onProductReceived(processedProduct)
+                      })
+                    } else {
+                      // Handle other content types (future expansion)
+                      console.log('Received content display:', data.content_type, data)
+                    }
+                  }
+                  break
+                
+                case 'content_update':
+                  if (data.update_type && data.target_id) {
+                    // Handle content updates (future expansion)
+                    console.log('Received content update:', data.update_type, data.target_id, data)
                   }
                   break
                 

@@ -14,9 +14,11 @@ You can choose to render products to be displayed to the user from what you find
 Use the following algorithm:
 1. Perform an initial search using NATURAL, GENERAL queries (no site: restrictions).
 2. Go through the results and potentially do one more search to fill any gaps.
-3. Extract products from the URLs returned by the search tool.
-4. Display products to the user as soon as you find them.
-5. Extract products from the URLs returned by the search tool.
+3. Extract products from the URLs returned by the search tool. 
+Make sure to extract from several URLs as it happens in parallel, is cheap and can fail so we need to have multiple sources.
+4. Display products to the user as soon as you find them. Use tool call to do this by the way.
+5. Continue browsing and extracting a few more products while the user goes through the first ones. 
+Its important to go through results multiple times to get a good list for the user.
 
 
 Guidelines:

@@ -63,9 +63,9 @@ class Resource(BaseModel):
             if collection.products and max_products and max_products > 0:
                 summary_lines.append("\nSample Products:")
                 for i, product in enumerate(collection.products[:max_products]):
-                    title = product.title or 'Untitled Product'
+                    title = product.product_name or 'Untitled Product'
                     price_info = f"{product.price} {product.currency}" if product.price and product.currency else "Price not available"
-                    vendor_info = f" by {product.vendor}" if product.vendor else ""
+                    vendor_info = f" by {product.store}" if product.store else ""
                     summary_lines.append(f"  {i+1}. {title}{vendor_info} - {price_info}")
                 
                 if len(collection.products) > max_products:

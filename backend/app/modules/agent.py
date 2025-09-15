@@ -23,6 +23,8 @@ from app.models.chat import (
     MessageEvent,
     ProductGridEvent,
     ProductEvent,
+    ContentDisplayEvent,
+    ContentUpdateEvent,
     CompleteEvent,
     ErrorEvent,
     StreamingEvent
@@ -243,51 +245,117 @@ class Agent:
             )
             self.stream_callback(event)
     
-    async def _handle_display_items_result(self, tool_result: str, tool_call_id: str):
-        """Handle display_items tool result and stream products"""
-        try:
-            # Parse the tool result as JSON
-            if isinstance(tool_result, str):
+    # =============================================================================
+    # DIRECT CONTENT STREAMING METHODS
+    # =============================================================================
+    
+    async def stream_content(self, content_type: str, data: Dict[str, Any], 
+                           title: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None):
+        """Stream content directly to the frontend without tool overhead"""
+        if self.stream_callback:
+            event = ContentDisplayEvent(
+                content_type=content_type,
+                data=data,
+                title=title,
+                metadata=metadata,
+                timestamp=datetime.now().isoformat()
+            )
+            logger.info(f"📡 Streaming {content_type} content to frontend: {len(data.get('products', []))} products")
+            self.stream_callback(event.model_dump())
+        else:
+            logger.error("❌ No stream_callback available - products won't be displayed")
+    
+    async def stream_products(self, products: List[Any], title: str = "Products Found", 
+                            chunk_size: int = 10, delay_ms: int = 100):
+        """Stream products directly with optional chunking for smooth animation"""
+        from app.models.product import Product
+        import asyncio
+        import uuid
+        
+        logger.info(f"🌊 stream_products called with {len(products)} products, stream_callback: {self.stream_callback is not None}")
+        
+        # Convert products to frontend format
+        processed_products = []
+        for i, product in enumerate(products):
+            if isinstance(product, dict):
+                # Create Product directly with strict field mapping
                 try:
-                    result_data = json.loads(tool_result)
-                except json.JSONDecodeError:
-                    logger.warning(f"Failed to parse display_items result as JSON: {tool_result}")
-                    return
-            else:
-                # tool_result is already a dict (shouldn't happen with current implementation)
-                result_data = tool_result
-            
-            # Check if this is an error result
-            if isinstance(result_data, dict) and result_data.get('error'):
-                logger.warning(f"display_items tool returned error: {result_data['error']}")
-                return
-            
-            # Check if this is a successful display_items result
-            if (isinstance(result_data, dict) and 
-                result_data.get('stream_products') and 
-                result_data.get('items')):
-                
-                # Stream product grid event
-                yield ProductGridEvent(
-                    title=result_data.get('title', 'Products Found'),
-                    products=result_data['items'],
-                    count=len(result_data['items']),
-                    timestamp=datetime.now().isoformat()
-                )
-                
-                # Optionally stream individual products for real-time effect
-                for product in result_data['items']:
-                    yield ProductEvent(
-                        product=product,
-                        timestamp=datetime.now().isoformat()
+                    # Map common field variations to strict Product fields - no defaults
+                    product_obj = Product(
+                        product_name=product.get('name') or product.get('product_name') or product.get('title'),
+                        store=product.get('source') or product.get('brand') or product.get('store') or product.get('retailer'),
+                        price=product.get('price'),
+                        price_value=product.get('price'),  # Will be auto-calculated from price string
+                        currency=product.get('currency') or "USD",
+                        image_url=product.get('image_url') or product.get('image'),
+                        product_url=product.get('product_url') or product.get('url'),
+                        sku=product.get('sku'),
+                        product_id=product.get('product_id') or product.get('id'),
+                        variant_id=product.get('variant_id')
                     )
-                    # Small delay for streaming effect (optional)
-                    import asyncio
-                    await asyncio.sleep(0.1)
-                    
-        except (TypeError, KeyError) as e:
-            logger.warning(f"Failed to process display_items result: {e}")
-            # Don't yield anything if processing fails
+                except Exception as e:
+                    logger.warning(f"❌ Failed to convert dict to Product: {e}. Product data: {product}")
+                    continue
+            elif hasattr(product, 'model_dump'):
+                # Already a Product instance
+                product_obj = product
+            else:
+                logger.warning(f"❌ Unknown product type: {type(product)}")
+                continue
+            
+            # Generate unique ID and use Product model directly
+            clean_store = str(product_obj.store).lower().replace(' ', '-').replace('&', 'and')[:20]
+            clean_name = str(product_obj.product_name).lower().replace(' ', '-')[:30]
+            item_id = f"{clean_store}-{clean_name}-{str(uuid.uuid4())[:8]}"
+            
+            # Convert Product to dict and add streaming metadata
+            processed_item = product_obj.model_dump()
+            processed_item["id"] = item_id
+            processed_item["type"] = "streaming_product"
+            
+            processed_products.append(processed_item)
+        
+        if not processed_products:
+            logger.warning("❌ No products were successfully processed for streaming")
+            return
+        
+        # Stream products in chunks for smooth animation
+        for i in range(0, len(processed_products), chunk_size):
+            chunk = processed_products[i:i + chunk_size]
+            
+            await self.stream_content(
+                content_type="products",
+                data={
+                    "products": chunk,
+                    "chunk_index": i // chunk_size,
+                    "total_chunks": (len(processed_products) + chunk_size - 1) // chunk_size,
+                    "is_final_chunk": (i + chunk_size >= len(processed_products)),
+                    "total_count": len(processed_products)
+                },
+                title=title,
+                metadata={
+                    "streaming": True,
+                    "chunk_size": chunk_size
+                }
+            )
+            
+            # Small delay for smooth streaming effect
+            if delay_ms > 0 and i + chunk_size < len(processed_products):
+                await asyncio.sleep(delay_ms / 1000.0)
+    
+    async def update_content(self, target_id: str, update_type: str, data: Dict[str, Any], 
+                           metadata: Optional[Dict[str, Any]] = None):
+        """Update existing content on the frontend"""
+        if self.stream_callback:
+            event = ContentUpdateEvent(
+                update_type=update_type,
+                target_id=target_id,
+                data=data,
+                metadata=metadata,
+                timestamp=datetime.now().isoformat()
+            )
+            self.stream_callback(event.model_dump())
+    
     
     def execute_tool_call(self, tool_call: ToolCall) -> str:
         """Execute a tool call using the tool registry"""
@@ -418,9 +486,6 @@ class Agent:
                     tool_result = self.execute_tool_call(tool_call)
                     
                     # Check if this is display_items tool and handle product streaming
-                    if tool_call.function.name == "display_items":
-                        async for product_event in self._handle_display_items_result(tool_result, tool_call.id):
-                            yield product_event
                     
                     # Yield tool execution completion event
                     yield ToolExecutionEvent(
@@ -471,9 +536,43 @@ class Agent:
                     break
                     
             else:
+                # No tool calls, but conversation should continue unless explicitly stopped
                 if choice.message.content:
                     assistant_msg = AssistantMessage(content=choice.message.content)
                     self.add_to_history(assistant_msg)
+                
+                # Continue the conversation by making another LLM call
+                # Yield continuation LLM call event
+                yield LLMCallEvent(
+                    status=LLMCallStatus.CONTINUING,
+                    message="Continuing conversation",
+                    timestamp=datetime.now().isoformat()
+                )
+                
+                messages_with_checklist = self._prepare_messages_with_checklist()
+                
+                try:
+                    response = self.llm_router.create_completion(
+                        messages=messages_with_checklist,
+                        model=self.model,
+                        tools=self.tools,
+                        thinking=self.thinking
+                    )
+                    
+                    # Yield thinking content if available
+                    if response.choices and response.choices[0].message.reasoning_content:
+                        yield ThinkingEvent(
+                            content=response.choices[0].message.reasoning_content,
+                            timestamp=datetime.now().isoformat()
+                        )
+                except Exception as e:
+                    logger.error(f"LLM API call failed during conversation continuation: {e}")
+                    error_msg = f"Error during conversation continuation: {str(e)}"
+                    assistant_msg = AssistantMessage(content=error_msg)
+                    self.add_to_history(assistant_msg)
+                    choice.message.content = error_msg
+                    choice.message.tool_calls = None
+                    break
         
         # Yield final response
         if response.choices and response.choices[0].message.content:

@@ -120,9 +120,15 @@ async def stream_chat(request: ChatRequest):
         
         async def generate_stream():
             agent = None
+            events_to_yield = []
+            
+            def stream_callback(event_data):
+                """Callback to collect streaming events for yielding"""
+                events_to_yield.append(event_data)
+            
             try:
-                # Get or create agent
-                agent = get_or_create_agent(request.conversation_id or "default", None, request.model)
+                # Get or create agent with stream callback
+                agent = get_or_create_agent(request.conversation_id or "default", stream_callback, request.model)
                 
                 # Send start signal
                 yield f"data: {json.dumps({'type': 'start'})}\n\n"
@@ -133,6 +139,14 @@ async def stream_chat(request: ChatRequest):
                 # Run the agent conversation and stream events in real-time
                 final_response = None
                 async for event in agent.run(user_message):
+                    # Yield any events collected by stream_callback
+                    while events_to_yield:
+                        callback_event = events_to_yield.pop(0)
+                        # Convert pydantic model to dict if needed
+                        if hasattr(callback_event, 'model_dump'):
+                            callback_event = callback_event.model_dump()
+                        yield f"data: {json.dumps(callback_event)}\n\n"
+                    
                     if event.type == StreamEventType.COMPLETE:
                         final_response = event.response
                         break
@@ -140,6 +154,14 @@ async def stream_chat(request: ChatRequest):
                         # Convert pydantic model to dict for JSON serialization
                         event_dict = event.model_dump()
                         yield f"data: {json.dumps(event_dict)}\n\n"
+                
+                # Yield any remaining events from stream_callback
+                while events_to_yield:
+                    callback_event = events_to_yield.pop(0)
+                    # Convert pydantic model to dict if needed
+                    if hasattr(callback_event, 'model_dump'):
+                        callback_event = callback_event.model_dump()
+                    yield f"data: {json.dumps(callback_event)}\n\n"
                 
                 # End conversation tracking
                 end_conversation_tracking(request.conversation_id, request.message, agent, "completed")

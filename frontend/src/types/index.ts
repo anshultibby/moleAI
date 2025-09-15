@@ -11,17 +11,48 @@ export interface Message {
 
 export interface Product {
   product_name: string
-  name?: string  // Alternative name field
   price: string
-  currency?: string  // Currency code (USD, EUR, GBP, etc.)
+  currency: string
   store: string
-  store_name?: string  // Alternative store field
-  image_url?: string
-  product_url?: string
-  description?: string
-  category?: string  // Product category
+  image_url: string
+  product_url: string
+  sku?: string
+  product_id?: string
+  variant_id?: string
   type?: string
   id?: string
+}
+
+export interface ProductCollection {
+  source_name: string  // Meaningful name for the source (e.g., 'zara_dresses')
+  source_url: string  // Original URL that was scraped
+  pages_scraped: number[]  // List of page numbers scraped
+  products: Product[]  // List of extracted products
+  
+  // Extraction metadata
+  extraction_method?: string  // Method used for extraction (e.g., 'shopify_analytics')
+  
+  // Source metadata
+  site_name?: string  // Human-readable site name (e.g., 'Zara')
+  category?: string  // Product category if known
+  
+  // Computed field
+  total_products: number  // Total product count
+}
+
+export interface ResourceMetadata {
+  content_type: 'product_collection'
+  product_count: number
+  source_url: string
+  extraction_method?: string
+  site_name?: string
+  extra?: Record<string, any>
+}
+
+export interface Resource {
+  id: string
+  product_collection: ProductCollection
+  metadata: ResourceMetadata
 }
 
 export interface SearchLink {
@@ -66,8 +97,26 @@ export interface ToolExecutionEvent {
   error?: string
 }
 
+export interface ContentDisplayEvent {
+  type: 'content_display'
+  content_type: string
+  data: any
+  title?: string
+  metadata?: any
+  timestamp: string
+}
+
+export interface ContentUpdateEvent {
+  type: 'content_update'
+  update_type: string
+  target_id: string
+  data: any
+  metadata?: any
+  timestamp: string
+}
+
 export interface StreamMessage {
-  type: 'start' | 'message' | 'product' | 'complete' | 'error' | 'tool_execution' | 'thinking' | 'llm_call'
+  type: 'start' | 'message' | 'product' | 'complete' | 'error' | 'tool_execution' | 'thinking' | 'llm_call' | 'content_display' | 'content_update'
   content?: string
   product?: Product
   error?: string
@@ -78,21 +127,38 @@ export interface StreamMessage {
   result?: string
   tool_call_id?: string
   final?: boolean
+  
+  // New content streaming fields
+  content_type?: string
+  data?: any
+  title?: string
+  metadata?: any
+  update_type?: string
+  target_id?: string
 }
 
 // Price bucket helper function
-export function getPriceBucket(priceStr: string): string {
-  // Handle undefined, null, or empty strings
-  if (!priceStr || typeof priceStr !== 'string') {
+export function getPriceBucket(price: string | number | undefined | null): string {
+  // Handle undefined, null, or empty values
+  if (price === undefined || price === null || price === '') {
     return 'Unknown'
   }
   
-  const price = parseFloat(priceStr.replace(/[^0-9.]/g, ''))
-  if (isNaN(price)) return 'Unknown'
-  if (price < 20) return 'Under $20'
-  if (price < 50) return '$20-$50'
-  if (price < 100) return '$50-$100'
-  if (price < 200) return '$100-$200'
+  let numericPrice: number
+  
+  if (typeof price === 'number') {
+    numericPrice = price
+  } else if (typeof price === 'string') {
+    numericPrice = parseFloat(price.replace(/[^0-9.]/g, ''))
+  } else {
+    return 'Unknown'
+  }
+  
+  if (isNaN(numericPrice)) return 'Unknown'
+  if (numericPrice < 20) return 'Under $20'
+  if (numericPrice < 50) return '$20-$50'
+  if (numericPrice < 100) return '$50-$100'
+  if (numericPrice < 200) return '$100-$200'
   return 'Over $200'
 }
 
