@@ -152,6 +152,8 @@ class DirectScraper:
         # Playwright browser instance (lazy initialization)
         self._playwright = None
         self._browser = None
+        self._current_browser_type = 'chromium'  # Track current browser type
+        self._browser_rotation = ['chromium', 'firefox', 'webkit']  # Available browsers
         self._browser_lock = asyncio.Lock()
         
         # Base directory for storing raw scraped data
@@ -239,83 +241,217 @@ class DirectScraper:
                     except:
                         pass
                 
-                # Create new browser instance
+                # Create new browser instance with HTTP/2 fixes
                 self._playwright = await async_playwright().start()
-                self._browser = await self._playwright.chromium.launch(
-                    headless=True,
-                    args=[
-                        '--no-sandbox',
-                        '--disable-dev-shm-usage',
-                        '--disable-gpu',
-                        '--disable-web-security',
-                        '--disable-features=VizDisplayCompositor',
-                        '--disable-background-networking',
-                        '--disable-background-timer-throttling',
-                        '--disable-renderer-backgrounding',
-                        '--disable-backgrounding-occluded-windows',
-                        '--disable-blink-features=AutomationControlled',
-                        '--disable-extensions',
-                    ]
-                )
+                self._browser = await self._launch_browser_with_type(self._current_browser_type)
         return self._browser
     
+    async def _launch_browser_with_type(self, browser_type: str):
+        """Launch a browser of the specified type with optimized settings"""
+        browser_engine = getattr(self._playwright, browser_type)
+        
+        if browser_type == 'chromium':
+            return await browser_engine.launch(
+                headless=True,
+                args=[
+                    '--no-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--disable-web-security',
+                    '--disable-features=VizDisplayCompositor',
+                    '--disable-background-networking',
+                    '--disable-background-timer-throttling',
+                    '--disable-renderer-backgrounding',
+                    '--disable-backgrounding-occluded-windows',
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-extensions',
+                    # HTTP/2 protocol error fixes
+                    '--disable-http2',
+                    '--disable-quic',
+                    '--force-http1',
+                    '--disable-features=NetworkService',
+                    '--disable-features=VizDisplayCompositor,VizServiceDisplayCompositor',
+                    '--disable-ipc-flooding-protection',
+                    '--disable-site-isolation-trials',
+                    '--disable-features=TranslateUI',
+                    '--disable-component-extensions-with-background-pages',
+                    '--disable-default-apps',
+                    '--mute-audio',
+                    '--no-default-browser-check',
+                    '--no-first-run',
+                    '--force-color-profile=srgb',
+                    '--metrics-recording-only',
+                ]
+            )
+        elif browser_type == 'firefox':
+            return await browser_engine.launch(
+                headless=True,
+                firefox_user_prefs={
+                    'network.http.http2.enabled': False,  # Disable HTTP/2
+                    'network.http.http3.enabled': False,  # Disable HTTP/3
+                    'dom.webdriver.enabled': False,
+                    'useAutomationExtension': False,
+                    'general.platform.override': 'Win32',
+                }
+            )
+        elif browser_type == 'webkit':
+            return await browser_engine.launch(headless=True)
+        else:
+            raise ValueError(f"Unsupported browser type: {browser_type}")
+    
+    async def _try_browser_rotation(self, url: str, wait: int = 1000) -> str:
+        """Try different browser engines for problematic URLs"""
+        for browser_type in self._browser_rotation:
+            try:
+                logger.info(f"Trying {browser_type} browser for {url}")
+                
+                # Switch to different browser type
+                old_browser_type = self._current_browser_type
+                self._current_browser_type = browser_type
+                
+                # Force browser restart with new type
+                if self._browser:
+                    try:
+                        await self._browser.close()
+                    except:
+                        pass
+                    self._browser = None
+                
+                # Try rendering with new browser
+                content = await self._render_with_playwright(url, wait)
+                logger.info(f"Successfully rendered {url} with {browser_type}")
+                return content
+                
+            except Exception as e:
+                logger.warning(f"{browser_type} browser failed for {url}: {e}")
+                # Restore original browser type if this one failed
+                self._current_browser_type = old_browser_type
+                continue
+        
+        raise Exception(f"All browser engines failed for {url}")
+    
     async def _render_with_playwright(self, url: str, wait: int = 1000) -> str:
-        """Render page with Playwright with improved error handling"""
+        """Render page with Playwright with improved error handling and HTTP/2 fallbacks"""
         browser = await self._get_browser()
         if not browser:
             raise Exception("Playwright not available")
         
-        # Create a fresh context for each request to avoid context issues
-        context = await browser.new_context(
-            user_agent=self.session.headers['User-Agent'],
-            viewport={'width': 1280, 'height': 720},
-            ignore_https_errors=True,
-            java_script_enabled=True,
-            extra_http_headers={
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
-                'Accept-Encoding': 'gzip, deflate',
-                'Connection': 'keep-alive',
-                'Upgrade-Insecure-Requests': '1',
+        # Multiple strategies to handle different types of errors
+        strategies = [
+            {
+                'name': 'standard',
+                'context_options': {
+                    'user_agent': self.session.headers['User-Agent'],
+                    'viewport': {'width': 1280, 'height': 720},
+                    'ignore_https_errors': True,
+                    'java_script_enabled': True,
+                    'extra_http_headers': {
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.5',
+                        'Accept-Encoding': 'gzip, deflate',
+                        'Connection': 'keep-alive',
+                        'Upgrade-Insecure-Requests': '1',
+                    }
+                },
+                'goto_options': {'wait_until': 'domcontentloaded', 'timeout': self.timeout * 1000}
+            },
+            {
+                'name': 'networkidle_fallback',
+                'context_options': {
+                    'user_agent': self.session.headers['User-Agent'],
+                    'viewport': {'width': 1280, 'height': 720},
+                    'ignore_https_errors': True,
+                    'java_script_enabled': True,
+                    'extra_http_headers': {
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.5',
+                        'Accept-Encoding': 'gzip, deflate',
+                        'Connection': 'close',  # Force connection close for HTTP/2 issues
+                        'Upgrade-Insecure-Requests': '1',
+                    }
+                },
+                'goto_options': {'wait_until': 'networkidle', 'timeout': self.timeout * 1000}
+            },
+            {
+                'name': 'minimal_headers',
+                'context_options': {
+                    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'viewport': {'width': 1280, 'height': 720},
+                    'ignore_https_errors': True,
+                    'java_script_enabled': True,
+                    'extra_http_headers': {
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                        'Connection': 'close',
+                    }
+                },
+                'goto_options': {'wait_until': 'load', 'timeout': self.timeout * 1000}
             }
-        )
+        ]
         
-        page = None
-        try:
-            page = await context.new_page()
-            
-            # Block unnecessary resources for faster loading
-            await page.route("**/*.{png,jpg,jpeg,gif,svg,css,woff,woff2,ttf,eot}", lambda route: route.abort())
-            
-            # Navigate to page with better error handling
+        last_error = None
+        
+        for strategy in strategies:
+            context = None
+            page = None
             try:
-                await page.goto(url, wait_until='domcontentloaded', timeout=self.timeout * 1000)
+                logger.debug(f"Trying strategy '{strategy['name']}' for {url}")
+                
+                # Create a fresh context for each request
+                context = await browser.new_context(**strategy['context_options'])
+                page = await context.new_page()
+                
+                # Block unnecessary resources for faster loading (except for minimal strategy)
+                if strategy['name'] != 'minimal_headers':
+                    await page.route("**/*.{png,jpg,jpeg,gif,svg,css,woff,woff2,ttf,eot}", lambda route: route.abort())
+                
+                # Navigate to page
+                await page.goto(url, **strategy['goto_options'])
+                
+                # Smart waiting based on strategy
+                if strategy['name'] == 'standard':
+                    try:
+                        await page.wait_for_load_state('networkidle', timeout=min(wait, 3000))
+                    except:
+                        await page.wait_for_timeout(min(wait, 1000))
+                elif strategy['name'] == 'networkidle_fallback':
+                    await page.wait_for_timeout(min(wait, 2000))
+                else:  # minimal_headers
+                    await page.wait_for_timeout(min(wait, 1500))
+                
+                content = await page.content()
+                logger.debug(f"Strategy '{strategy['name']}' succeeded for {url}")
+                return content
+                
             except Exception as e:
-                # Try with networkidle if domcontentloaded fails
-                logger.debug(f"domcontentloaded failed for {url}, trying networkidle: {e}")
-                await page.goto(url, wait_until='networkidle', timeout=self.timeout * 1000)
-            
-            # Smart waiting - wait for network idle or specific time, whichever is shorter
-            try:
-                await page.wait_for_load_state('networkidle', timeout=min(wait, 3000))
-            except:
-                # If network idle times out, just wait the specified time
-                await page.wait_for_timeout(min(wait, 1000))
-            
-            content = await page.content()
-            return content
-            
-        finally:
-            # Always clean up resources
-            if page:
-                try:
-                    await page.close()
-                except:
-                    pass
-            try:
-                await context.close()
-            except:
-                pass
+                last_error = e
+                error_msg = str(e).lower()
+                
+                # Log specific error types for debugging
+                if 'http2_protocol_error' in error_msg or 'net::err_http2_protocol_error' in error_msg:
+                    logger.warning(f"HTTP/2 protocol error with strategy '{strategy['name']}' for {url}: {e}")
+                elif 'timeout' in error_msg:
+                    logger.warning(f"Timeout with strategy '{strategy['name']}' for {url}: {e}")
+                else:
+                    logger.warning(f"Strategy '{strategy['name']}' failed for {url}: {e}")
+                
+                # Continue to next strategy
+                continue
+                
+            finally:
+                # Always clean up resources
+                if page:
+                    try:
+                        await page.close()
+                    except:
+                        pass
+                if context:
+                    try:
+                        await context.close()
+                    except:
+                        pass
+        
+        # If all strategies failed, raise the last error
+        raise last_error or Exception(f"All Playwright strategies failed for {url}")
     
     async def _retry_with_backoff(self, func, *args, **kwargs):
         """Execute function with exponential backoff retry logic"""
@@ -510,22 +646,49 @@ class DirectScraper:
     
     async def _render_with_js(self, url: str, wait: int = 1000, fallback_content: str = None) -> str:
         """
-        Render page with JavaScript using the best available method
+        Render page with JavaScript using the best available method with enhanced error handling
         """
-        # Try Playwright first (fastest and most reliable)
+        playwright_error = None
+        requests_html_error = None
+        
+        # Try Playwright first with multiple strategies
         if PLAYWRIGHT_AVAILABLE:
             try:
                 return await self._render_with_playwright(url, wait)
             except Exception as e:
-                logger.warning(f"Playwright rendering failed for {url}: {e}")
+                playwright_error = e
+                error_msg = str(e).lower()
+                
+                # Log specific error types for better debugging
+                if 'http2_protocol_error' in error_msg or 'net::err_http2_protocol_error' in error_msg:
+                    logger.warning(f"Playwright HTTP/2 protocol error for {url}: {e}")
+                    # Try browser rotation for HTTP/2 errors
+                    try:
+                        logger.info(f"Attempting browser rotation for HTTP/2 error on {url}")
+                        return await self._try_browser_rotation(url, wait)
+                    except Exception as rotation_error:
+                        logger.warning(f"Browser rotation also failed for {url}: {rotation_error}")
+                        playwright_error = rotation_error
+                elif 'timeout' in error_msg:
+                    logger.warning(f"Playwright timeout for {url}: {e}")
+                elif 'net::err_connection_refused' in error_msg:
+                    logger.warning(f"Playwright connection refused for {url}: {e}")
+                elif 'net::err_name_not_resolved' in error_msg:
+                    logger.warning(f"Playwright DNS resolution failed for {url}: {e}")
+                else:
+                    logger.warning(f"Playwright rendering failed for {url}: {e}")
+                    # Try browser rotation for other errors too
+                    try:
+                        logger.info(f"Attempting browser rotation for general error on {url}")
+                        return await self._try_browser_rotation(url, wait)
+                    except Exception as rotation_error:
+                        logger.warning(f"Browser rotation also failed for {url}: {rotation_error}")
+                        playwright_error = rotation_error
         
         # Fallback to requests-html (with threading fix)
         if REQUESTS_HTML_AVAILABLE:
             try:
-                # Create session on-demand to avoid threading issues
-                if self.html_session is None:
-                    self.html_session = AsyncHTMLSession()
-                    self.html_session.headers.update(self.session.headers)
+                logger.info(f"Trying requests-html fallback for {url}")
                 
                 # Run in executor to avoid threading issues
                 loop = asyncio.get_event_loop()
@@ -535,23 +698,36 @@ class DirectScraper:
                     # Create a new session for this thread
                     session = requests_html.HTMLSession()
                     session.headers.update(self.session.headers)
+                    # Force HTTP/1.1 for requests-html
+                    session.headers['Connection'] = 'close'
                     response = session.get(url, timeout=self.timeout)
                     response.html.render(timeout=wait/1000, wait=0.5)
                     return response.html.html
                 
                 with ThreadPoolExecutor(max_workers=1) as executor:
                     future = loop.run_in_executor(executor, _sync_render)
-                    return await future
+                    content = await future
+                    logger.info(f"requests-html fallback succeeded for {url}")
+                    return content
                     
             except Exception as e:
+                requests_html_error = e
                 logger.warning(f"requests-html rendering failed for {url}: {e}")
         
         # If all JS rendering fails, return fallback content or raise error
         if fallback_content:
-            logger.warning(f"JS rendering failed for {url}, using static content")
+            logger.warning(f"All JS rendering methods failed for {url}, using static content as fallback")
             return fallback_content
         else:
-            raise DirectScraperError(f"JavaScript rendering failed and no fallback available for {url}")
+            # Create a comprehensive error message
+            error_parts = []
+            if playwright_error:
+                error_parts.append(f"Playwright: {playwright_error}")
+            if requests_html_error:
+                error_parts.append(f"requests-html: {requests_html_error}")
+            
+            comprehensive_error = "; ".join(error_parts) if error_parts else "No JS rendering methods available"
+            raise DirectScraperError(f"JavaScript rendering failed for {url}. Errors: {comprehensive_error}")
     
     async def scrape_multiple_urls(
         self, 

@@ -14,14 +14,14 @@ class Organization(BaseModel):
     """Schema.org Organization"""
     type: str = Field(alias="@type", default="Organization")
     name: Optional[str] = None
-    url: Optional[HttpUrl] = None
+    url: Optional[Union[HttpUrl, str]] = None  # Allow both full URLs and relative URLs
 
 
 class Brand(BaseModel):
     """Schema.org Brand"""
     type: str = Field(alias="@type", default="Brand")
     name: Optional[str] = None
-    url: Optional[HttpUrl] = None
+    url: Optional[Union[HttpUrl, str]] = None  # Allow both full URLs and relative URLs
 
 
 class Offer(BaseModel):
@@ -30,7 +30,7 @@ class Offer(BaseModel):
     price: Optional[Union[str, float]] = None
     price_currency: Optional[str] = Field(alias="priceCurrency", default="USD")
     availability: Optional[str] = None
-    url: Optional[HttpUrl] = None
+    url: Optional[Union[HttpUrl, str]] = None  # Allow both full URLs and relative URLs
     seller: Optional[Union[Organization, str]] = None
     valid_from: Optional[date] = Field(alias="validFrom", default=None)
     valid_through: Optional[date] = Field(alias="validThrough", default=None)
@@ -49,7 +49,7 @@ class AggregateRating(BaseModel):
 class ImageObject(BaseModel):
     """Schema.org ImageObject"""
     type: str = Field(alias="@type", default="ImageObject")
-    url: Optional[HttpUrl] = None
+    url: Optional[Union[HttpUrl, str]] = None  # Allow both full URLs and relative URLs
     width: Optional[int] = None
     height: Optional[int] = None
 
@@ -78,7 +78,7 @@ class SchemaOrgProduct(BaseModel):
     # Core product information
     name: Optional[str] = None
     description: Optional[str] = None
-    url: Optional[HttpUrl] = None
+    url: Optional[Union[HttpUrl, str]] = None  # Allow both full URLs and relative URLs
     image: Optional[Union[HttpUrl, List[HttpUrl], str, List[str], ImageObject, List[ImageObject], dict, List[dict]]] = None
     
     # Identifiers
@@ -126,7 +126,7 @@ class SchemaOrgProduct(BaseModel):
     
     # Additional properties
     model: Optional[str] = None
-    logo: Optional[Union[HttpUrl, str]] = None
+    logo: Optional[str] = None  # Allow any string for logo URLs
     slogan: Optional[str] = None
     award: Optional[Union[str, List[str]]] = None
     

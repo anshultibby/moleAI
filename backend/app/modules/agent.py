@@ -425,7 +425,7 @@ class Agent:
             
             # Check if conversation should stop based on finish reason
             if choice.finish_reason in ["stop", "length"]:
-                logger.info(f"→ Conversation finished: {choice.finish_reason}")
+                logger.info(f"→ Conversation finished: {choice.finish_reason} {choice}")
                 # Add final assistant response to history and stop
                 if choice.message.content:
                     assistant_msg = AssistantMessage(content=choice.message.content)

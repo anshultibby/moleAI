@@ -5,6 +5,7 @@ from app.tools import tool
 from app.modules.serp import search_web
 from app.modules.product_extractor import ProductExtractor
 from app.models.product import Product
+from app.models.product_collection import ProductCollection
 from app.models.chat.content import TextContent, ImageContent, VisionMultimodalContentItem, create_multimodal_product_content
 
 import json
@@ -191,10 +192,18 @@ async def extract_products(
                 
                 all_products.extend(url_products)
                 
-                # Store products for this URL as a separate resource
+                # Store products for this URL as a ProductCollection resource
                 domain = url.split('//')[-1].split('/')[0]  # Extract domain
                 resource_name = f"products_from_{domain}"
-                resources[resource_name] = url_products
+                
+                # Create ProductCollection for this URL
+                collection = ProductCollection(
+                    source_name=resource_name,
+                    source_url=url,
+                    products=url_products,
+                    extraction_method="json_ld_schema_org"
+                )
+                resources[resource_name] = collection
                 
                 streamer.progress(f"✅ Found {len(url_products)} products from {domain}", 
                                 current=i, total=len(urls), products_found=len(url_products))
@@ -204,8 +213,15 @@ async def extract_products(
                 streamer.progress(f"❌ Failed to extract from {url}: {e}", current=i, total=len(urls))
                 continue
         
-        # Store all products combined
-        resources["all_extracted_products"] = all_products
+        # Store all products combined as a ProductCollection
+        if all_products:
+            combined_collection = ProductCollection(
+                source_name="all_extracted_products",
+                source_url=urls[0] if len(urls) == 1 else f"combined_from_{len(urls)}_urls",
+                products=all_products,
+                extraction_method="json_ld_schema_org"
+            )
+            resources["all_extracted_products"] = combined_collection
         
         # Send completion message
         if all_products:
@@ -224,8 +240,9 @@ async def extract_products(
             for url in urls:
                 domain = url.split('//')[-1].split('/')[0]
                 resource_name = f"products_from_{domain}"
-                url_products = resources.get(resource_name, [])
-                summary_parts.append(f"  - {resource_name}: {len(url_products)} products")
+                collection = resources.get(resource_name)
+                product_count = len(collection.products) if collection else 0
+                summary_parts.append(f"  - {resource_name}: {product_count} products")
             
             summary_parts.append(f"  - all_extracted_products: {len(all_products)} products (combined)\n")
             
@@ -357,6 +374,7 @@ def list_resources(context_vars=None) -> str:
     description="""
 Stream products to the user in real-time with smooth animations.
 This is the primary tool for displaying products to create an engaging user experience.
+MAKE SURE YOU SHOW THE USER SOME RELEVANT PRODUCTS.
 
 REQUIRED FIELDS for each product dict:
 - product_name: Product name/title (string)
@@ -395,81 +413,3 @@ async def display_items(
     except Exception as e:
         logger.error(f"❌ Error displaying products: {e}", exc_info=True)
         return f"Error displaying products: {str(e)}"
-
-
-
-
-@tool(
-    name="checklist",
-    description="""Manage checklists with create, update, and get operations.
-    
-    Operations:
-    - create: Create a new checklist with title and items
-    - update: Mark checklist items as completed or uncompleted
-    - get: Retrieve existing checklist
-    
-    The checklist is stored in the agent's context and automatically included in conversations.
-    When a checklist exists, always include it and ask the user to mark completed items.
-    
-    Parameters:
-    - operation: "create", "update", or "get"
-    - title: Title for the checklist (required for create)
-    - items: List of checklist items as strings (required for create)
-    - item_updates: Dictionary mapping item indices to completion status for update
-                   Example: {0: True, 2: False} marks first item complete, third incomplete
-    """
-)
-def checklist(
-    operation: str,
-    title: str = None,
-    items: List[str] = None,
-    item_updates: Dict[int, bool] = None,
-    context_vars=None
-) -> str:
-    if not operation or operation not in ["create", "update", "get"]:
-        return "Error: operation must be 'create', 'update', or 'get'"
-    
-    agent = context_vars.get('agent')
-    if not agent:
-        return "Error: Agent context not available"
-    
-    if operation == "get":
-        if agent.checklist:
-            return f"Current checklist: {json.dumps(agent.checklist, indent=2)}"
-        else:
-            return "No checklist found"
-    
-    elif operation == "create":
-        if not title or not items:
-            return "Error: title and items are required for create operation"
-        
-        # Create new checklist
-        agent.checklist = {
-            "title": title,
-            "items": [{"text": item, "completed": False} for item in items],
-            "created_at": datetime.now().isoformat()
-        }
-        
-        return f"Created checklist '{title}' with {len(items)} items"
-    
-    elif operation == "update":
-        if not agent.checklist:
-            return "Error: No existing checklist found to update"
-        
-        if not item_updates:
-            return "Error: item_updates required for update operation"
-        
-        # Update checklist items
-        for item_index, completed in item_updates.items():
-            if 0 <= item_index < len(agent.checklist["items"]):
-                agent.checklist["items"][item_index]["completed"] = completed
-        
-        agent.checklist["updated_at"] = datetime.now().isoformat()
-        
-        # Count completed items
-        completed_count = sum(1 for item in agent.checklist["items"] if item["completed"])
-        total_count = len(agent.checklist["items"])
-        
-        return f"Updated checklist: {completed_count}/{total_count} items completed"
-
-
