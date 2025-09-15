@@ -24,7 +24,7 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
   // Extract store name from URL
   const getStoreName = () => {
     // Try different possible store field names
-    const store = product.store || product.store_name || ''
+    const store = product.store || ''
     if (store && store !== 'Unknown Store' && store !== 'unknown' && store.trim()) {
       return store
     }
@@ -110,7 +110,7 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
   }
 
   const getProductDisplayName = () => {
-    const name = product.product_name || product.name || 'Fashion Item'
+    const name = product.product_name || 'Fashion Item'
     
     // Clean up common issues with product names
     const cleanName = name
@@ -120,7 +120,7 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
     
     // If the name is too generic, try to make it more descriptive
     if (cleanName.toLowerCase() === 'unknown product' || cleanName.length < 3) {
-      const category = product.description || product.category || ''
+      const category = product.description || ''
       if (category) {
         return category.charAt(0).toUpperCase() + category.slice(1)
       }
@@ -132,7 +132,7 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
 
   const getProductCategory = () => {
     const description = product.description || ''
-    const name = product.product_name || product.name || ''
+    const name = product.product_name || ''
     
     // Extract category information from description or name
     const categories = ['dress', 'shirt', 'top', 'blouse', 'jacket', 'coat', 'pants', 'jeans', 'skirt', 'sweater', 'cardigan', 'blazer', 'shoes', 'bag', 'accessory']

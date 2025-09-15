@@ -1,19 +1,22 @@
 """
-Simple JSON-LD Product Extractor
+Robust Product Extractor using extruct library
 
 This module extracts product data from e-commerce sites by:
-1. Finding JSON-LD structured data on pages
-2. Following product links and extracting from those pages in parallel
-3. Returning product data as JSON strings
+1. Using extruct to find JSON-LD, Microdata, and RDFa structured data
+2. Following product links and extracting from those pages sequentially
+3. Returning normalized product data as SchemaOrgProduct objects
 """
 
 import asyncio
 import json
-from typing import Dict, List
+import re
+from typing import Dict, List, Set, Tuple, Any, Optional
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 from loguru import logger
+from extruct import extract
+from w3lib.html import get_base_url
 
 from .direct_scraper import DirectScraper
 from app.models.product import SchemaOrgProduct
@@ -21,87 +24,149 @@ from app.models.product import SchemaOrgProduct
 
 class ProductExtractor:
     """
-    Simple product extractor that only looks for JSON-LD data.
+    Robust product extractor using extruct library for multiple structured data formats.
     
     Usage:
         extractor = ProductExtractor()
         result = await extractor.extract_from_url_and_links(url)
-        print(f"Found {len(result['products'])} products")
+        print(f"Found {len(result)} products")
     """
     
     def __init__(self):
         self.scraper = DirectScraper()
     
-    def find_json_ld_products(self, html: str) -> List[SchemaOrgProduct]:
+    def extract_products_from_html(self, html: str, url: str) -> List[SchemaOrgProduct]:
         """
-        Find all JSON-LD products in HTML and return them as SchemaOrgProduct objects.
+        Extract products from HTML using extruct library for comprehensive structured data parsing.
         
         Args:
             html: HTML content to search
+            url: Base URL for resolving relative URLs
             
         Returns:
             List of SchemaOrgProduct objects
         """
-        soup = BeautifulSoup(html, 'html.parser')
-        products = []
-        
-        # Find all JSON-LD script tags
-        for script in soup.find_all('script', {'type': 'application/ld+json'}):
-            if not script.string:
-                continue
-                
-            try:
-                data = json.loads(script.string)
-                found_products = self._find_products_in_data(data)
-                
-                # Convert each product dict to SchemaOrgProduct
-                for product_data in found_products:
-                    try:
-                        product = SchemaOrgProduct(**product_data)
-                        products.append(product)
-                    except Exception as e:
-                        logger.debug(f"Failed to parse product data: {e}")
-                        continue
-                    
-            except json.JSONDecodeError:
-                continue  # Skip invalid JSON
-        
-        return products
-    
-    def _find_products_in_data(self, data) -> List[Dict]:
-        """
-        Recursively find all Product objects in JSON-LD data.
-        
-        Args:
-            data: JSON-LD data (dict, list, or other)
-            
-        Returns:
-            List of product dictionaries
-        """
-        products = []
-        
-        if isinstance(data, dict):
-            # Check if this is a Product
-            if data.get('@type') == 'Product':
-                products.append(data)
-            
-            # Check if this is an ItemList with products
-            elif data.get('@type') == 'ItemList':
-                for item in data.get('itemListElement', []):
-                    if isinstance(item, dict) and item.get('@type') == 'Product':
+        try:
+            base_url = get_base_url(html, url)
+            data = extract(html, base_url=base_url, syntaxes=['json-ld', 'microdata', 'rdfa'])
+            products = []
+
+            # 1) JSON-LD items
+            for block in data.get('json-ld', []):
+                items = block if isinstance(block, list) else [block]
+                for item in items:
+                    # Handle @graph or single objects
+                    nodes = item.get('@graph', []) if isinstance(item, dict) else []
+                    if nodes:
+                        for n in nodes:
+                            if self._is_product_like(n): 
+                                products.append(n)
+                    elif self._is_product_like(item):
                         products.append(item)
+
+            # 2) Microdata and RDFa items
+            for md in data.get('microdata', []):
+                if self._is_product_like(md.get('type') or md.get('itemtype') or md):
+                    products.append(md)
+            for r in data.get('rdfa', []):
+                if self._is_product_like(r):
+                    products.append(r)
+
+            # 3) Normalize and convert to SchemaOrgProduct objects
+            normalized = [self._normalize_product(p, base_url) for p in products]
+            deduped = self._dedupe_products(normalized)
             
-            # Search all values for more products
-            else:
-                for value in data.values():
-                    products.extend(self._find_products_in_data(value))
+            # Convert to SchemaOrgProduct objects
+            schema_products = []
+            for product_data in deduped:
+                try:
+                    # Map the normalized data to SchemaOrgProduct fields
+                    schema_product = SchemaOrgProduct(
+                        name=product_data.get('name'),
+                        brand=product_data.get('brand'),
+                        sku=product_data.get('sku'),
+                        gtin=product_data.get('gtin'),
+                        url=product_data.get('url'),
+                        image=product_data.get('image'),
+                        description=product_data.get('description'),
+                        price=product_data.get('price'),
+                        priceCurrency=product_data.get('priceCurrency'),
+                        availability=product_data.get('availability'),
+                        raw_data=product_data.get('raw', {})
+                    )
+                    schema_products.append(schema_product)
+                except Exception as e:
+                    logger.debug(f"Failed to convert to SchemaOrgProduct: {e}")
+                    continue
+            
+            return schema_products
+            
+        except Exception as e:
+            logger.error(f"Failed to extract products from HTML: {e}")
+            return []
+
+    def _is_product_like(self, obj: Any) -> bool:
+        """Check if an object represents a product-like entity."""
+        def get_types(o):
+            t = o.get('@type') if isinstance(o, dict) else None
+            return [t] if isinstance(t, str) else (t or [])
         
-        elif isinstance(data, list):
-            # Search each item in the list
-            for item in data:
-                products.extend(self._find_products_in_data(item))
+        if not isinstance(obj, dict):
+            return False
+            
+        types_set = {t.lower() for t in get_types(obj)}
+        return any(t in types_set for t in ['product', 'offer', 'aggregateoffer'])
+
+    def _normalize_product(self, p: Dict, base_url: str) -> Dict:
+        """Normalize product data to a consistent format."""
+        def get_value(*keys, default=None):
+            """Get value from product data with fallback keys."""
+            for k in keys:
+                v = p.get(k)
+                if v: 
+                    return v
+            return default
         
-        return products
+        # Handle offers data
+        offers = get_value('offers', default={})
+        if isinstance(offers, list): 
+            offers = offers[0] if offers else {}
+        
+        # Extract brand name if it's an object
+        brand = get_value('brand', default={})
+        if isinstance(brand, dict):
+            brand = brand.get('name', brand)
+        
+        return {
+            "name": get_value('name', 'title'),
+            "brand": brand,
+            "sku": get_value('sku'),
+            "gtin": get_value('gtin13') or get_value('gtin12') or get_value('gtin14') or get_value('gtin'),
+            "url": get_value('url'),
+            "image": get_value('image'),
+            "description": get_value('description'),
+            "price": (offers or {}).get('price'),
+            "priceCurrency": (offers or {}).get('priceCurrency'),
+            "availability": (offers or {}).get('availability'),
+            "raw": p
+        }
+
+    def _dedupe_products(self, items: List[Dict]) -> List[Dict]:
+        """Remove duplicate products based on SKU, GTIN, name, and price."""
+        seen: Set[Tuple] = set()
+        out = []
+        
+        for item in items:
+            # Create a key for deduplication
+            key = (
+                item.get("sku") or item.get("gtin") or item.get("name"), 
+                item.get("price")
+            )
+            if key not in seen:
+                seen.add(key)
+                out.append(item)
+        
+        return out
     
     def find_product_links(self, html: str, base_url: str) -> List[str]:
         """
@@ -170,7 +235,7 @@ class ProductExtractor:
     
     async def _scrape_links_for_products(self, urls: List[str]) -> List[SchemaOrgProduct]:
         """
-        Scrape multiple URLs in parallel and extract JSON-LD products.
+        Scrape multiple URLs sequentially using the shared scraper to avoid connection conflicts.
         
         Args:
             urls: List of URLs to scrape
@@ -181,31 +246,21 @@ class ProductExtractor:
         if not urls:
             return []
         
-        async def scrape_one_url(url: str) -> List[SchemaOrgProduct]:
-            """Scrape a single URL and return its products"""
+        all_products = []
+        
+        # Scrape URLs sequentially to avoid Playwright connection conflicts
+        logger.info(f"Scraping {len(urls)} URLs sequentially to avoid connection conflicts...")
+        
+        for i, url in enumerate(urls):
             try:
-                scraper = DirectScraper()
-                try:
-                    html = await scraper.scrape_url(url, render_js=True, wait=2000, smart_js_detection=True)
-                    products = self.find_json_ld_products(html)
-                    logger.info(f"Found {len(products)} products from {url}")
-                    return products
-                finally:
-                    await scraper.cleanup()
+                logger.info(f"Scraping URL {i+1}/{len(urls)}: {url}")
+                html = await self.scraper.scrape_url(url, render_js=True, wait=2000, smart_js_detection=True)
+                products = self.extract_products_from_html(html, url)
+                all_products.extend(products)
+                logger.info(f"Found {len(products)} products from {url}")
             except Exception as e:
                 logger.warning(f"Failed to scrape {url}: {e}")
-                return []
-        
-        # Scrape all URLs in parallel
-        logger.info(f"Scraping {len(urls)} URLs in parallel...")
-        tasks = [scrape_one_url(url) for url in urls]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # Collect all products
-        all_products = []
-        for result in results:
-            if isinstance(result, list):
-                all_products.extend(result)
+                continue
         
         logger.info(f"Collected {len(all_products)} total products from {len(urls)} URLs")
         return all_products

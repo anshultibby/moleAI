@@ -144,7 +144,12 @@ function ToolExecutionItem({ execution }: { execution: ToolExecutionEvent }) {
               View result
             </summary>
             <pre className="text-xs text-slate-600 dark:text-slate-400 mt-1 bg-slate-100 dark:bg-slate-700 p-2 rounded overflow-x-auto max-h-32">
-              {execution.result.length > 500 ? execution.result.substring(0, 500) + '...' : execution.result}
+              {(() => {
+                const resultStr = Array.isArray(execution.result) 
+                  ? JSON.stringify(execution.result, null, 2)
+                  : execution.result;
+                return resultStr.length > 500 ? resultStr.substring(0, 500) + '...' : resultStr;
+              })()}
             </pre>
           </details>
         )}

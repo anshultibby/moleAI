@@ -10,8 +10,10 @@ export default function Home() {
 
   // Handle mounting and check authentication status
   useEffect(() => {
-    // Check if user was previously authenticated
-    const wasAuthenticated = sessionStorage.getItem('shopmole_authenticated') === 'true'
+    // Check if user was previously authenticated (only in browser)
+    const wasAuthenticated = typeof window !== 'undefined' 
+      ? sessionStorage.getItem('shopmole_authenticated') === 'true'
+      : false
     setIsAuthenticated(wasAuthenticated)
     setIsMounted(true)
   }, [])

@@ -12,7 +12,7 @@ export function useProducts() {
   const getUniqueProducts = (products: Product[]): Product[] => {
     const seen = new Set<string>()
     return products.filter(product => {
-      const key = `${product.product_name || product.name}-${product.store}-${product.price}`
+      const key = `${product.product_name}-${product.store}-${product.price}`
       if (seen.has(key)) {
         console.log(`Duplicate product filtered out: ${key}`)
         return false

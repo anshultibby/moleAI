@@ -277,7 +277,7 @@ class Agent:
                         product_name=product.get('name') or product.get('product_name') or product.get('title'),
                         store=product.get('source') or product.get('brand') or product.get('store') or product.get('retailer'),
                         price=product.get('price'),
-                        price_value=product.get('price'),  # Will be auto-calculated from price string
+                        price_value=product.get('price_value'),  # Use the numeric price_value field
                         currency=product.get('currency') or "USD",
                         image_url=product.get('image_url') or product.get('image'),
                         product_url=product.get('product_url') or product.get('url'),

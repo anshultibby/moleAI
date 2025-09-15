@@ -213,7 +213,7 @@ class DirectScraper:
             return ""
     
     async def _get_browser(self):
-        """Lazy initialization of Playwright browser with proper locking"""
+        """Lazy initialization of Playwright browser with proper locking and error handling"""
         if not PLAYWRIGHT_AVAILABLE:
             return None
             
@@ -224,26 +224,51 @@ class DirectScraper:
             else:
                 try:
                     # Check if browser is still connected
-                    await self._browser.version()
-                except:
+                    if not self._browser.is_connected():
+                        logger.debug("Browser is not connected, needs restart")
+                        browser_needs_restart = True
+                    else:
+                        # Try a simple operation to verify connection
+                        await self._browser.version()
+                except Exception as e:
+                    logger.debug(f"Browser connection check failed: {e}")
                     browser_needs_restart = True
             
             if browser_needs_restart:
                 # Clean up old browser if it exists
                 if self._browser:
                     try:
-                        await self._browser.close()
-                    except:
-                        pass
+                        if self._browser.is_connected():
+                            await self._browser.close()
+                    except Exception as e:
+                        logger.debug(f"Error closing old browser: {e}")
+                    finally:
+                        self._browser = None
+                        
                 if self._playwright:
                     try:
                         await self._playwright.stop()
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Error stopping old playwright: {e}")
+                    finally:
+                        self._playwright = None
                 
                 # Create new browser instance with HTTP/2 fixes
-                self._playwright = await async_playwright().start()
-                self._browser = await self._launch_browser_with_type(self._current_browser_type)
+                try:
+                    self._playwright = await async_playwright().start()
+                    self._browser = await self._launch_browser_with_type(self._current_browser_type)
+                    logger.debug(f"Successfully created new {self._current_browser_type} browser")
+                except Exception as e:
+                    logger.error(f"Failed to create new browser: {e}")
+                    # Clean up on failure
+                    if self._playwright:
+                        try:
+                            await self._playwright.stop()
+                        except:
+                            pass
+                        self._playwright = None
+                    raise
+                    
         return self._browser
     
     async def _launch_browser_with_type(self, browser_type: str):
@@ -495,21 +520,37 @@ class DirectScraper:
         raise last_exception
     
     async def cleanup(self):
-        """Cleanup browser resources"""
-        if self._browser:
-            try:
-                await self._browser.close()
-            except:
-                pass
-        if self._playwright:
-            try:
-                await self._playwright.stop()
-            except:
-                pass
+        """Cleanup browser resources with proper error handling"""
+        # Use lock to prevent concurrent cleanup
+        async with self._browser_lock:
+            if self._browser:
+                try:
+                    # Check if browser is still connected before closing
+                    if not self._browser.is_connected():
+                        logger.debug("Browser already disconnected, skipping close")
+                    else:
+                        await self._browser.close()
+                        logger.debug("Browser closed successfully")
+                except Exception as e:
+                    logger.debug(f"Error closing browser (expected if already closed): {e}")
+                finally:
+                    self._browser = None
+            
+            if self._playwright:
+                try:
+                    await self._playwright.stop()
+                    logger.debug("Playwright stopped successfully")
+                except Exception as e:
+                    logger.debug(f"Error stopping playwright (expected if already stopped): {e}")
+                finally:
+                    self._playwright = None
         
         # Close requests session
         if hasattr(self, 'session'):
-            self.session.close()
+            try:
+                self.session.close()
+            except Exception as e:
+                logger.debug(f"Error closing requests session: {e}")
     
     async def scrape_url(
         self, 
