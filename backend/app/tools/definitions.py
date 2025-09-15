@@ -2,19 +2,11 @@
 
 from typing import Optional, List, Dict, Any, Union
 from app.tools import tool
-from app.modules.serp import search_web, SearchError
-from app.modules.direct_scraper import DirectScraper, DirectScraperError
-from app.models.resource import (
-    Resource,
-    ResourceMetadata
-)
+from app.modules.serp import search_web
 from app.modules.product_extractor import ProductExtractor
 from app.models.product import Product
 
-import uuid
-import re
 import json
-import asyncio
 from datetime import datetime
 from loguru import logger
 
@@ -303,16 +295,31 @@ def list_resources(context_vars=None) -> str:
 
 @tool(
     name="display_items",
-    description="""Stream products to the user in real-time with smooth animations.
-    This is the primary tool for displaying products to create an engaging user experience.
-    
-    Accepts Product instances, dictionaries, or lists from collections.
-    Products stream in optimized chunks for smooth visual presentation.
-    
-    Parameters:
-    - products: List of products to display (Product objects or dicts)
-    - title: Optional title for the product display
-    """
+    description="""
+Stream products to the user in real-time with smooth animations.
+This is the primary tool for displaying products to create an engaging user experience.
+
+REQUIRED FIELDS for each product dict:
+- product_name: Product name/title (string)
+- store: Brand or store name (string)
+- price: Product price as string (e.g., '$89.99')
+- price_value: Product price as float for filtering/sorting
+- product_url: URL to the product page (string)
+- image_url: Primary product image URL (string)
+
+OPTIONAL FIELDS:
+- currency: Price currency (default: "USD")
+- sku: Stock Keeping Unit
+- product_id: Unique product identifier
+- variant_id: Unique variant identifier
+
+Use get_resource(resource_id, summary=false) to get properly formatted product data.
+NEVER create fictional product data - always use real scraped data.
+
+Parameters:
+- products: List of products to display (Product objects or properly formatted dicts)
+- title: Optional title for the product display
+"""
 )
 async def display_items(
     products: List[Union[Product, Dict[str, Any]]],
@@ -321,22 +328,9 @@ async def display_items(
 ) -> str:
     """Stream products to the user"""
     logger.info(f"🎯 display_items called with {len(products) if products else 0} products")
-    
-    if not products:
-        logger.warning("❌ display_items called with empty products list")
-        return "No products to display"
-    
-    if not context_vars:
-        logger.error("❌ display_items called without context_vars")
-        return "Error: Context variables not available"
-    
-    agent = context_vars.get('agent')
-    if not agent:
-        logger.error("❌ display_items called without agent in context")
-        return "Error: Agent context not available"
-    
+
     try:
-        await agent.stream_products(products=products, title=title)
+        await context_vars.get('agent').stream_products(products=products, title=title)
         return f"Displayed {len(products)} products"
         
     except Exception as e:
