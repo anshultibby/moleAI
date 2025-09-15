@@ -34,7 +34,7 @@ class LLMRouter:
             raise ValueError("XLM API key is required for GLM-4.5V model")
             
         self.xlm_provider = XLMProvider(xlm_api_key)
-        self.default_model = ModelType.GLM_4_5V
+        self.default_model = ModelType.GLM_4_5
         
         logger.info(f"LLM Router initialized with GLM-4.5V as default model")
     

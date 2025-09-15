@@ -22,7 +22,8 @@ class XLMProvider(BaseLLMProvider):
     
     # XLM models that this provider supports (based on the API spec)
     SUPPORTED_MODELS = [
-        "glm-4.5v"  # Vision model
+        "glm-4.5v",
+        "glm-4.5"  # Vision model
     ]
     
     # API endpoint

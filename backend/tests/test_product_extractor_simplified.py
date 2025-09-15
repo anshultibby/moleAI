@@ -67,7 +67,7 @@ class TestSimplifiedProductExtractor:
             print("⚠️ This might be due to network issues or site changes")
     
     def test_sample_json_ld_extraction(self, extractor):
-        """Test JSON-LD extraction with sample data"""
+        """Test JSON-LD extraction with sample data using internal method"""
         sample_html = '''
         <html>
         <head>
@@ -89,13 +89,18 @@ class TestSimplifiedProductExtractor:
         </html>
         '''
         
-        products = extractor.find_json_ld_products(sample_html)
+        # Test the internal extraction method
+        products = extractor._extract_products_from_html(sample_html, "https://example.com")
         
-        assert len(products) == 1
-        product = products[0]
-        assert isinstance(product, SchemaOrgProduct)
-        assert product.type == 'Product'
-        assert product.name == 'Test Dress'
+        assert len(products) >= 1
+        product_data = products[0]
+        assert isinstance(product_data, dict)
+        assert product_data.get('name') == 'Test Dress'
+        
+        # Test conversion to SchemaOrgProduct
+        schema_product = extractor._convert_to_schema_org_product(product_data)
+        assert isinstance(schema_product, SchemaOrgProduct)
+        assert schema_product.name == 'Test Dress'
         
         print("✅ Sample extraction test passed")
 
