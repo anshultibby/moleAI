@@ -13,7 +13,7 @@ export function useChat() {
 
   // Generate conversationId only on client side to avoid hydration mismatch
   useEffect(() => {
-    setConversationId(`conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`)
+    setConversationId(`conv_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`)
   }, [])
 
   const sendMessage = async (
@@ -27,7 +27,7 @@ export function useChat() {
     setHasStartedConversation(true)
 
     // Create a unique turn ID for this conversation turn
-    const turnId = `turn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const turnId = `turn_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
     setCurrentTurnId(turnId)
 
     const userMessage: Message = {
@@ -337,7 +337,7 @@ export function useChat() {
     setCurrentToolExecutions({})
     setHasStartedConversation(false)
     // Generate new conversation ID
-    setConversationId(`conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`)
+    setConversationId(`conv_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`)
   }
 
   return {
