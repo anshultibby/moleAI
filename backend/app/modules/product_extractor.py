@@ -129,7 +129,7 @@ class ProductExtractor:
             return [t] if isinstance(t, str) else (t or [])
         
         types = {t.lower() for t in get_types(obj)}
-        return any(t in types for t in ['product', 'offer', 'aggregateoffer'])
+        return any(t in types for t in ['product', 'productgroup', 'offer', 'aggregateoffer'])
     
     def _normalize_product(self, product_data: dict) -> dict:
         """Normalize product data to a consistent format."""
