@@ -33,7 +33,7 @@ class ProductExtractor:
     """
     
     # Configuration
-    MAX_DEPTH = 2
+    MAX_DEPTH = 1  # Conservative depth to avoid excessive crawling
     CONCURRENCY = 8
     TIMEOUT = 20
     
@@ -98,18 +98,27 @@ class ProductExtractor:
         product_links = []
         
         # Common selectors for product links on e-commerce sites
+        # Prioritize grid-based selectors for better product discovery
         selectors = [
-            'a[href*="/product"]',
-            'a[href*="/p/"]', 
-            'a[href*="/item"]',
-            'a[href*="/dp/"]',  # Amazon
+            # Grid-based selectors (prioritized)
+            '.grid-product__link',
+            '.product-grid a',
+            '.grid-item a',
+            '.product-tile a',
+            '.grid .product a',
+            '[class*="grid"] .product a',
+            '[class*="grid"] [class*="product"] a',
+            # Standard product selectors
             '.product-item a',
             '.product-card a',
             '.product-link',
-            '[data-product-url]',
             'a.product',
-            '.grid-product__link',
-            '.product-tile a'
+            '[data-product-url]',
+            # URL-based selectors
+            'a[href*="/product"]',
+            'a[href*="/p/"]', 
+            'a[href*="/item"]',
+            'a[href*="/dp/"]'  # Amazon
         ]
         
         for selector in selectors:
@@ -298,7 +307,7 @@ class ProductExtractor:
                         logger.info(f"Extracted {len(product_links)} product links from listing page {final_url}")
                         
                         # Add product links to queue with higher priority
-                        for product_url in product_links[:20]:  # Limit to avoid overwhelming
+                        for product_url in product_links[:30]:  # Conservative limit for better coverage
                             if product_url not in seen:
                                 seen.add(product_url)
                                 queue.appendleft((product_url, d + 1))  # Add to front for priority

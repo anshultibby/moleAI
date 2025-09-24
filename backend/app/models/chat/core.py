@@ -63,6 +63,20 @@ class FunctionTool(BaseModel):
 Tool = FunctionTool
 
 # =============================================================================
+# OPENAI-SPECIFIC TOOL MODELS
+# =============================================================================
+
+class OpenAIFunctionTool(BaseModel):
+    """OpenAI function tool schema - flattened format"""
+    type: Literal[ToolType.FUNCTION] = ToolType.FUNCTION
+    name: str = Field(..., description="Function name")
+    description: str = Field(..., description="Function description")
+    parameters: FunctionParameters = Field(..., description="Parameters defined using JSON Schema")
+
+# Union type for OpenAI tools
+OpenAITool = OpenAIFunctionTool
+
+# =============================================================================
 # MESSAGE MODELS
 # =============================================================================
 
@@ -159,7 +173,7 @@ class ChatCompletionRequestBase(BaseModel):
 
 class ChatCompletionTextRequest(ChatCompletionRequestBase):
     """Chat completion request for text models - text content only"""
-    model: Literal[ModelType.GLM_4_5] = Field(default=ModelType.GLM_4_5, description="Text model")
+    model: Literal[ModelType.GLM_4_5, ModelType.GPT_5] = Field(default=ModelType.GPT_5, description="Text model")
     messages: List[TextMessage] = Field(..., min_items=1, description="Text-only conversation messages")
     temperature: float = Field(default=0.6, ge=0.0, le=1.0, description="Sampling temperature")
     top_p: float = Field(default=0.95, ge=0.0, le=1.0, description="Top-p sampling parameter")

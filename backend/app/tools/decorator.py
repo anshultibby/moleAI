@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Callable, get_type_hints, get_orig
 from functools import wraps
 from loguru import logger
 from app.tools.registry import tool_registry
-from app.models.chat import Tool, FunctionObject, FunctionParameters
+from app.models.chat import Tool, FunctionObject, FunctionParameters, OpenAITool, OpenAIFunctionTool
 
 
 def _python_type_to_json_schema(py_type: Any, description: str = "") -> Dict[str, Any]:
@@ -116,6 +116,52 @@ class ToolFunction:
         )
         
         return tool_schema
+    
+    def to_openai_format_direct(self) -> OpenAITool:
+        """Convert the function to direct OpenAI function calling format (flattened)"""
+        
+        properties = {}
+        required = []
+        
+        for param_name, param in self.signature.parameters.items():
+            # Skip 'self' parameter and context_vars parameter
+            if param_name == 'self' or param_name == 'context_vars':
+                continue
+                
+            # Get type hint
+            param_type = self.type_hints.get(param_name, str)
+            
+            # Convert to JSON schema
+            param_schema = _python_type_to_json_schema(param_type, f"The {param_name} parameter")
+            properties[param_name] = param_schema
+            
+            # Check if parameter is required (no default value and not Optional)
+            if param.default is inspect.Parameter.empty:
+                # Check if it's Optional type
+                origin = get_origin(param_type)
+                if origin is not None:
+                    args = get_args(param_type)
+                    # If it's Union[T, None] (Optional), it's not required
+                    if not (len(args) == 2 and type(None) in args):
+                        required.append(param_name)
+                else:
+                    required.append(param_name)
+        
+        # Create the function parameters
+        function_params = FunctionParameters(
+            type="object",
+            properties=properties,
+            required=required
+        )
+        
+        # Create the OpenAI tool schema (flattened format)
+        openai_tool_schema = OpenAIFunctionTool(
+            name=self.name,
+            description=self.description,
+            parameters=function_params
+        )
+        
+        return openai_tool_schema
     
     def execute(self, context_vars: Dict[str, Any] = None, **kwargs) -> Any:
         """Execute the function with given parameters and context variables"""

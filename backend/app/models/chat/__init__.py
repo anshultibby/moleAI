@@ -28,6 +28,10 @@ from .core import (
     FunctionTool,
     Tool,
     
+    # OpenAI-specific tool models
+    OpenAIFunctionTool,
+    OpenAITool,
+    
     # Message models
     ChatThinking,
     ResponseFormat,
@@ -105,6 +109,10 @@ __all__ = [
     "FunctionObject",
     "FunctionTool",
     "Tool",
+    
+    # OpenAI-specific tool models
+    "OpenAIFunctionTool",
+    "OpenAITool",
     
     # Message models
     "ChatThinking",

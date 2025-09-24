@@ -81,7 +81,11 @@ class BaseLLMProvider(ABC):
         formatted_messages = []
         for msg in messages:
             if msg is not None:
-                formatted_messages.append(msg.dict())
+                msg_dict = msg.model_dump()
+                # Remove tool_calls if it's None or empty list to avoid API errors
+                if "tool_calls" in msg_dict and (msg_dict["tool_calls"] is None or msg_dict["tool_calls"] == []):
+                    del msg_dict["tool_calls"]
+                formatted_messages.append(msg_dict)
         return formatted_messages
     
     def format_tools_for_api(self, tools: Optional[List[Dict[str, Any]]]) -> Optional[List[Dict[str, Any]]]:

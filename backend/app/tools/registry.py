@@ -1,7 +1,7 @@
 """Tool registry for managing registered tools"""
 
 from typing import Dict, List, Any, Optional
-from app.models.chat import Tool
+from app.models.chat import Tool, OpenAITool
 
 
 class ToolRegistry:
@@ -40,6 +40,10 @@ class ToolRegistry:
     def to_openai_format(self) -> List[Tool]:
         """Convert all registered tools to OpenAI function calling format"""
         return [tool.to_openai_format() for tool in self._tools.values()]
+    
+    def to_openai_format_direct(self) -> List[OpenAITool]:
+        """Convert all registered tools to direct OpenAI function calling format (flattened)"""
+        return [tool.to_openai_format_direct() for tool in self._tools.values()]
     
     def execute_tool(self, name: str, context_vars: Dict[str, Any] = None, **kwargs) -> Any:
         """Execute a registered tool by name with given parameters and context variables"""

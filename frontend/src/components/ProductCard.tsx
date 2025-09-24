@@ -19,6 +19,11 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     setImageLoading(false)
     setImageError(true)
+    console.warn('Image failed to load:', {
+      src: e.currentTarget.src,
+      product_name: product.product_name,
+      original_url: product.image_url
+    })
   }
 
   // Extract store name from URL
@@ -81,6 +86,7 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
       }
     }
     
+    
     // Handle relative URLs
     if (url.startsWith('//')) {
       return 'https:' + url
@@ -97,6 +103,11 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
         }
       }
       return null
+    }
+    
+    // Ensure HTTPS for all URLs to avoid mixed content issues
+    if (url.startsWith('http:')) {
+      url = url.replace('http:', 'https:')
     }
     
     // Validate URL format
@@ -237,6 +248,12 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
         <div className="flex items-center justify-between mb-1">
           <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">
             {(() => {
+              // If price already includes currency symbol, use it as is
+              if (product.price && (product.price.includes('$') || product.price.includes('€') || product.price.includes('£') || product.price.includes('¥') || product.price.includes('₹'))) {
+                return product.price;
+              }
+              
+              // Otherwise, add currency symbol
               const currency = product.currency || 'USD';
               const currencySymbols: Record<string, string> = {
                 'USD': '$',

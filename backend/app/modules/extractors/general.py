@@ -60,6 +60,8 @@ class GeneralProductExtractor(BaseProductExtractor):
         '[data-product-image]',
         'img[alt*="product" i]',
         '.product img',
+        'img[data-src]',
+        'img[data-original]',
         'img'
     ]
     
@@ -399,14 +401,69 @@ class GeneralProductExtractor(BaseProductExtractor):
         return None
     
     def _extract_image_url(self, container: Tag) -> Optional[str]:
-        """Extract image URL from container"""
+        """Extract image URL from container, prioritizing high-quality images"""
+        # Collect all potential image URLs with quality scores
+        image_candidates = []
+        
         for selector in self.IMAGE_SELECTORS:
-            img = container.select_one(selector)
-            if img:
-                src = img.get('src') or img.get('data-src') or img.get('data-original')
+            imgs = container.select(selector)
+            for img in imgs:
+                # Try different source attributes
+                src = img.get('src') or img.get('data-src') or img.get('data-original') or img.get('data-lazy')
                 if src:
-                    return src
+                    quality_score = self._calculate_image_quality_score(img, src)
+                    image_candidates.append((src, quality_score))
+        
+        # Sort by quality score (highest first) and return the best one
+        if image_candidates:
+            image_candidates.sort(key=lambda x: x[1], reverse=True)
+            return image_candidates[0][0]
+        
         return None
+    
+    def _calculate_image_quality_score(self, img_tag: Tag, src: str) -> float:
+        """Calculate a quality score for an image URL"""
+        score = 0.0
+        src_lower = src.lower()
+        
+        # Higher score for larger images (based on URL patterns)
+        if any(size in src_lower for size in ['large', 'xlarge', 'xxl', 'big', 'master']):
+            score += 3.0
+        elif any(size in src_lower for size in ['medium', 'med', 'regular']):
+            score += 2.0
+        elif any(size in src_lower for size in ['small', 'thumb', 'mini', 'tiny']):
+            score -= 1.0
+        
+        # Prefer specific image dimensions that suggest product photos
+        if any(dim in src_lower for dim in ['400x', '500x', '600x', '800x', '1000x', '1200x']):
+            score += 2.0
+        elif any(dim in src_lower for dim in ['200x', '300x']):
+            score += 1.0
+        elif any(dim in src_lower for dim in ['50x', '100x', '150x']):
+            score -= 1.0
+        
+        # Prefer images with product-related keywords in URL
+        if any(keyword in src_lower for keyword in ['product', 'item', 'catalog']):
+            score += 1.5
+        
+        # Prefer images with good alt text
+        alt_text = (img_tag.get('alt') or '').lower()
+        if alt_text and any(keyword in alt_text for keyword in ['product', 'item', 'clothing', 'fashion']):
+            score += 1.0
+        
+        # Prefer images that are not lazy-loaded placeholders
+        if img_tag.get('data-src') and not img_tag.get('src'):
+            score += 0.5  # Lazy loaded but real image
+        
+        # Penalize common placeholder patterns
+        if any(pattern in src_lower for pattern in ['placeholder', 'loading', 'spinner', 'blank']):
+            score -= 2.0
+        
+        # Prefer HTTPS
+        if src.startswith('https://'):
+            score += 0.5
+        
+        return score
     
     def _extract_product_url(self, container: Tag) -> Optional[str]:
         """Extract product URL from container"""

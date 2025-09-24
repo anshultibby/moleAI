@@ -190,6 +190,23 @@ async def extract_products(
                         logger.warning(f"Failed to convert schema product: {e}")
                         continue
                 
+                # Enhance products with better images from their product pages
+                if url_products:
+                    try:
+                        streamer.progress(f"🖼️ Enhancing {len(url_products)} products with better images...")
+                        
+                        # Get agent from context to use image enhancement
+                        agent = context_vars.get('agent')
+                        if agent and hasattr(agent, 'enhance_products_with_images'):
+                            enhanced_products = await agent.enhance_products_with_images(url_products, max_concurrent=3)
+                            url_products = enhanced_products
+                            streamer.progress(f"✅ Enhanced product images")
+                        else:
+                            logger.warning("Agent not available for image enhancement")
+                    except Exception as e:
+                        logger.warning(f"Failed to enhance product images: {e}")
+                        # Continue with original products if enhancement fails
+                
                 all_products.extend(url_products)
                 
                 # Store products for this URL as a ProductCollection resource

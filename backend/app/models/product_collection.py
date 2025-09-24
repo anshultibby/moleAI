@@ -71,7 +71,7 @@ class ProductCollection(BaseModel):
         if max_price is not None:
             filtered_products = [
                 product for product in self.products 
-                if product.price is not None and product.price <= max_price
+                if product.price_value is not None and product.price_value <= max_price
             ]
         
         # Then apply limit (if limit is -1, return all products)

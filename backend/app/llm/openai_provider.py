@@ -60,9 +60,6 @@ class OpenAIProvider(BaseLLMProvider):
         
         
         try:
-            # Call OpenAI chat completions API
-            logger.info(f"Calling OpenAI API with model: {model}")
-            
             # Prepare standard OpenAI API parameters
             openai_params = {
                 "model": model,
@@ -75,10 +72,28 @@ class OpenAIProvider(BaseLLMProvider):
                 if formatted_tools:
                     openai_params["tools"] = formatted_tools
             
-            # Add other parameters
-            openai_params.update(kwargs)
+            # Add other parameters (filter out unsupported ones and None values)
+            supported_params = {
+                'temperature', 'max_tokens', 'top_p', 'frequency_penalty', 
+                'presence_penalty', 'stop', 'stream', 'user', 'seed',
+                'response_format', 'tool_choice', 'reasoning_effort', 'include'
+            }
+            filtered_kwargs = {
+                k: v for k, v in kwargs.items() 
+                if k in supported_params and v is not None
+            }
+            openai_params.update(filtered_kwargs)
             
+            # Always include reasoning content if reasoning_effort is specified
+            if 'reasoning_effort' in openai_params:
+                openai_params['include'] = ['reasoning.encrypted_content']
+            
+            logger.info(f"Calling OpenAI Chat Completions API with model: {model}")
+            logger.info(f"Parameters: {openai_params}")
             raw_response = self.client.chat.completions.create(**openai_params)
+            logger.info(f"Raw OpenAI response: {raw_response}")
+            logger.info(f"Raw response type: {type(raw_response)}")
+            logger.info(f"Raw response dict: {raw_response.model_dump() if hasattr(raw_response, 'model_dump') else 'No model_dump method'}")
             
             # Convert OpenAI response to our ChatCompletionResponse format
             response_dict = {
@@ -90,6 +105,24 @@ class OpenAIProvider(BaseLLMProvider):
                 "usage": None
             }
             
+            # Extract reasoning content from top-level reasoning field if available
+            reasoning_content = None
+            if hasattr(raw_response, 'reasoning') and raw_response.reasoning:
+                logger.info(f"Reasoning field found: {raw_response.reasoning}")
+                
+                # Try to get encrypted_content first (when include parameter is used)
+                if hasattr(raw_response.reasoning, 'encrypted_content') and raw_response.reasoning.encrypted_content:
+                    reasoning_content = raw_response.reasoning.encrypted_content
+                    logger.info(f"Reasoning encrypted_content extracted: {len(reasoning_content)} characters")
+                # Fallback to summary if available
+                elif hasattr(raw_response.reasoning, 'summary') and raw_response.reasoning.summary:
+                    reasoning_content = raw_response.reasoning.summary
+                    logger.info(f"Reasoning summary extracted: {len(reasoning_content)} characters")
+                else:
+                    logger.info("Reasoning field exists but neither encrypted_content nor summary found")
+            else:
+                logger.info("No reasoning field found in response")
+            
             # Convert choices
             for choice in raw_response.choices:
                 choice_dict = {
@@ -97,7 +130,7 @@ class OpenAIProvider(BaseLLMProvider):
                     "message": {
                         "role": choice.message.role,
                         "content": choice.message.content,
-                        "reasoning_content": None,  # OpenAI doesn't have reasoning_content
+                        "reasoning_content": reasoning_content,
                         "tool_calls": None
                     },
                     "finish_reason": choice.finish_reason
@@ -155,7 +188,11 @@ class OpenAIProvider(BaseLLMProvider):
         formatted_messages = []
         for msg in messages:
             if msg is not None:
-                msg_dict = msg.dict()
+                msg_dict = msg.model_dump()
+                
+                # Remove tool_calls if it's None or empty list to avoid API errors
+                if "tool_calls" in msg_dict and (msg_dict["tool_calls"] is None or msg_dict["tool_calls"] == []):
+                    del msg_dict["tool_calls"]
                 
                 # Handle multimodal content (ensure image_url format is preserved)
                 content = msg_dict["content"]
@@ -186,7 +223,7 @@ class OpenAIProvider(BaseLLMProvider):
         Format tools for OpenAI API.
         
         Args:
-            tools: List of tool definitions
+            tools: List of tool definitions (should already be in OpenAI format from router)
             
         Returns:
             Optional[List[Dict[str, Any]]]: Tools formatted for OpenAI API
@@ -194,6 +231,15 @@ class OpenAIProvider(BaseLLMProvider):
         if not tools:
             return None
         
-        # OpenAI expects tools to be in a specific format
-        # The existing tool registry should already provide the correct format
-        return tools
+        # Tools should already be in the correct OpenAI format when passed here
+        # Just convert to dict if they're Pydantic models
+        formatted_tools = []
+        for tool in tools:
+            if hasattr(tool, 'model_dump'):
+                formatted_tools.append(tool.model_dump())
+            elif hasattr(tool, 'dict'):
+                formatted_tools.append(tool.dict())
+            else:
+                formatted_tools.append(tool)
+        
+        return formatted_tools

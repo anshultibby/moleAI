@@ -86,7 +86,10 @@ class ChatHistoryStorage:
                 if msg is not None:
                     try:
                         # Use the model's dict() method for proper serialization
-                        msg_dict = msg.dict()
+                        msg_dict = msg.model_dump()
+                        # Remove tool_calls if it's None or empty list to keep storage clean
+                        if "tool_calls" in msg_dict and (msg_dict["tool_calls"] is None or msg_dict["tool_calls"] == []):
+                            del msg_dict["tool_calls"]
                         serializable_messages.append(msg_dict)
                     except Exception as e:
                         # Fallback for messages that can't be serialized
@@ -193,7 +196,10 @@ class ChatHistoryStorage:
             # Convert message to serializable format
             if message is not None:
                 try:
-                    msg_dict = message.dict()
+                    msg_dict = message.model_dump()
+                    # Remove tool_calls if it's None or empty list to keep storage clean
+                    if "tool_calls" in msg_dict and (msg_dict["tool_calls"] is None or msg_dict["tool_calls"] == []):
+                        del msg_dict["tool_calls"]
                     # Clean any control characters that might cause JSON issues
                     msg_dict = self._clean_control_characters(msg_dict)
                     chat_data["messages"].append(msg_dict)

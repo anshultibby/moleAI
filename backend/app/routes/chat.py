@@ -31,25 +31,25 @@ router = APIRouter()
 # Available LLM models enum
 class AvailableModels(str, Enum):
     """Enum of available LLM models"""
+    # OpenAI models (default)
+    GPT_5 = "gpt-5"
+    
     # XLM (Z.AI) models
     GLM_4_5V = "glm-4.5v"
-    
-    # OpenAI models  
-    GPT_5 = "gpt-5"
 
 # Simple request model for the API endpoint
 class ChatRequest(BaseModel):
     message: str
     conversation_id: str = None
-    model: AvailableModels = AvailableModels.GLM_4_5V  # Default to XLM model
+    model: AvailableModels = AvailableModels.GPT_5  # Default to GPT-5
 
 # Initialize global LLM router
-llm_router = LLMRouter(xlm_api_key=XLM_API_KEY)
+llm_router = LLMRouter(openai_api_key=OPENAI_API_KEY, xlm_api_key=XLM_API_KEY)
 
 # Store agents by conversation ID
 agents: Dict[str, Agent] = {}
 
-def get_or_create_agent(conversation_id: str, stream_callback=None, model: AvailableModels = AvailableModels.GLM_4_5V) -> Agent:
+def get_or_create_agent(conversation_id: str, stream_callback=None, model: AvailableModels = AvailableModels.GPT_5) -> Agent:
     """Get existing agent or create new one for conversation"""
     if conversation_id not in agents:
         agents[conversation_id] = Agent(
