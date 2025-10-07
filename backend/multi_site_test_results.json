@@ -1,0 +1,24 @@
+[
+  {
+    "site": "ABC Fashion",
+    "success": true,
+    "links_found": 10,
+    "products_extracted": 10,
+    "success_rate": 1.0
+  },
+  {
+    "site": "Mango",
+    "success": false,
+    "error": "Failed to fetch HTML"
+  },
+  {
+    "site": "Zara",
+    "success": false,
+    "error": "No product links found"
+  },
+  {
+    "site": "Shein",
+    "success": false,
+    "error": "No product links found"
+  }
+]

@@ -80,6 +80,12 @@ def find_product_links(html: str, base_url: str) -> List[str]:
             # Convert to absolute URL
             full_url = urljoin(base_url, href)
             
+            # Simple filter: only keep product pages (ignore collections for now)
+            # Keep URLs with /products/ or /product/
+            lower_url = full_url.lower()
+            if not any(pattern in lower_url for pattern in ['/products/', '/product/']):
+                continue
+            
             # Remove duplicates and fragments
             clean_url = full_url.split('#')[0].split('?')[0]  # Remove query params too
             

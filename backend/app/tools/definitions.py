@@ -3,7 +3,7 @@
 from typing import Optional, List, Dict, Any, Union
 from app.tools import tool
 from app.modules.serp import search_web
-from app.modules.product_extractor import ProductExtractor
+from app.modules.extractors.simple_extractor import extract_products_simple
 from app.models.product import Product
 from app.models.product_collection import ProductCollection
 from app.models.chat.content import TextContent, ImageContent, VisionMultimodalContentItem, create_multimodal_product_content
@@ -130,30 +130,29 @@ def search_web_tool(
 
 @tool(
     name="extract_products",
-    description="""Extract product information from e-commerce website URLs using JSON-LD structured data.
-    This tool scrapes product pages and extracts schema.org Product data including:
+    description="""Extract product information from e-commerce website URLs using the simple 3-step approach:
+    
+    1. Get HTML from the listing page URL
+    2. Find product links in containers with 'product' text
+    3. Extract JSON-LD structured data from each product page
+    
+    This extracts:
     - Product names, prices, and currencies
     - Brand/vendor information
     - SKUs and product IDs
     - Product images and URLs
-    - Colors, sizes, and descriptions
+    - Descriptions
     
-    The extractor:
-    1. Scrapes each URL and finds JSON-LD structured data
-    2. Finds product links on each page
-    3. Scrapes those links in parallel to extract more products
-    4. Returns structured Product objects based on schema.org standard
+    Works best with Shopify sites and others that use JSON-LD structured data.
     
     Parameters:
-    - urls: List of URLs to scrape (each URL will be processed to find and follow product links)
-    - max_links: Maximum number of product links to follow per URL (default: 10)
-    
-    The tool automatically converts schema.org products to our core Product model for consistency.
+    - urls: List of URLs to scrape (collection/listing pages)
+    - max_products: Maximum number of products to extract per URL (default: 30)
     """
 )
 async def extract_products(
     urls: List[str],
-    max_links: int = 30,
+    max_products: int = 30,
     context_vars=None
 ) -> str:
     if not urls or not isinstance(urls, list) or len(urls) == 0:
