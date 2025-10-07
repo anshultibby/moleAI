@@ -198,19 +198,18 @@ async def extract_products(
                 for product_dict in result.get('products', []):
                     try:
                         # Convert simple extractor format to Product
-                        # Handle SKU - convert to string if it's an integer
-                        sku_value = product_dict.get('sku')
-                        sku_str = str(sku_value) if sku_value is not None else None
+                        # The Product model's validators will handle price parsing and SKU conversion
+                        raw_price = product_dict.get('price', 0)
                         
                         core_product = Product(
                             product_name=product_dict.get('title', ''),
-                            price=f"{product_dict.get('price', 0)} {product_dict.get('currency', 'USD')}",
-                            price_value=float(product_dict.get('price', 0)),
+                            price=str(raw_price),
+                            price_value=raw_price,  # Validator will parse this automatically
                             currency=product_dict.get('currency', 'USD'),
                             store=product_dict.get('brand', ''),
                             product_url=product_dict.get('product_url', ''),
                             image_url=product_dict.get('image_url', ''),
-                            sku=sku_str,
+                            sku=product_dict.get('sku'),  # Validator will convert to string
                             description=product_dict.get('description', '')
                         )
                         url_products.append(core_product)

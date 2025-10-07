@@ -22,35 +22,234 @@ from loguru import logger
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
 
-async def get_html_with_js(url: str, timeout: int = 20) -> Optional[str]:
-    """Get HTML from URL with JavaScript rendering using Playwright"""
+async def get_html_with_js(url: str, timeout: int = 45, use_stealth: bool = True) -> Optional[str]:
+    """
+    Get HTML from URL with JavaScript rendering using Playwright.
+    
+    Enhanced bot detection evasion for sites using PerimeterX, Cloudflare, etc:
+    - playwright-stealth library for automatic evasion
+    - Advanced stealth mode with full browser fingerprint masking
+    - Realistic browser behavior simulation  
+    - Human-like interactions (scrolling, delays)
+    
+    Args:
+        url: URL to render
+        timeout: Timeout in seconds (default: 45)
+        use_stealth: Enable advanced stealth techniques (default: True)
+    """
     try:
         from playwright.async_api import async_playwright
+        from playwright_stealth import Stealth
         
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
+            # Launch with comprehensive bot detection evasion
+            browser = await p.chromium.launch(
+                headless=True,
+                args=[
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-dev-shm-usage',
+                    '--no-sandbox',
+                    '--disable-infobars',
+                    '--window-size=1920,1080',
+                    '--disable-features=IsolateOrigins,site-per-process',
+                    '--disable-site-isolation-trials',
+                    '--disable-web-security',
+                    '--disable-setuid-sandbox',
+                    '--no-first-run',
+                    '--no-default-browser-check',
+                    '--disable-background-networking',
+                    '--disable-background-timer-throttling',
+                    '--disable-backgrounding-occluded-windows',
+                    '--disable-renderer-backgrounding',
+                    '--disable-sync',
+                    '--metrics-recording-only',
+                    '--mute-audio',
+                    '--no-report-upload',
+                    '--lang=en-US',
+                ]
+            )
             
-            # Set user agent
-            await page.set_extra_http_headers({'User-Agent': USER_AGENT})
+            # Create context with maximum realism
+            context = await browser.new_context(
+                viewport={'width': 1920, 'height': 1080},
+                user_agent=USER_AGENT,
+                locale='en-US',
+                timezone_id='America/New_York',
+                permissions=['geolocation'],
+            )
+            
+            # Set additional headers
+            await context.set_extra_http_headers({
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'DNT': '1',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1',
+                'Cache-Control': 'max-age=0',
+            })
+            
+            page = await context.new_page()
+            
+            # Apply playwright-stealth for automatic evasion
+            if use_stealth:
+                stealth_config = Stealth()
+                await stealth_config.apply_stealth_async(page)
+            
+            # Additional manual stealth overrides
+            if use_stealth:
+                # Comprehensive stealth script to mask automation
+                await page.add_init_script("""
+                    // Override navigator.webdriver
+                    Object.defineProperty(navigator, 'webdriver', {
+                        get: () => undefined
+                    });
+                    
+                    // Overwrite the `plugins` property
+                    Object.defineProperty(navigator, 'plugins', {
+                        get: () => [1, 2, 3, 4, 5]
+                    });
+                    
+                    // Mock languages
+                    Object.defineProperty(navigator, 'languages', {
+                        get: () => ['en-US', 'en']
+                    });
+                    
+                    // Add chrome object
+                    window.chrome = {
+                        runtime: {},
+                        loadTimes: function() {},
+                        csi: function() {},
+                        app: {}
+                    };
+                    
+                    // Mock permissions
+                    const originalQuery = window.navigator.permissions.query;
+                    window.navigator.permissions.query = (parameters) => (
+                        parameters.name === 'notifications' ?
+                            Promise.resolve({ state: Notification.permission }) :
+                            originalQuery(parameters)
+                    );
+                    
+                    // Mock hardware
+                    Object.defineProperty(navigator, 'hardwareConcurrency', {
+                        get: () => 8
+                    });
+                    
+                    Object.defineProperty(navigator, 'deviceMemory', {
+                        get: () => 8
+                    });
+                    
+                    // Mock battery
+                    Object.defineProperty(navigator, 'getBattery', {
+                        value: () => Promise.resolve({
+                            charging: true,
+                            chargingTime: 0,
+                            dischargingTime: Infinity,
+                            level: 1.0
+                        })
+                    });
+                    
+                    // Override toString to hide proxy
+                    const originalToString = Function.prototype.toString;
+                    Function.prototype.toString = function() {
+                        if (this === Function.prototype.toString) {
+                            return 'function toString() { [native code] }';
+                        }
+                        return originalToString.call(this);
+                    };
+                    
+                    // Mock canvas fingerprint
+                    const originalGetContext = HTMLCanvasElement.prototype.getContext;
+                    HTMLCanvasElement.prototype.getContext = function(type, attributes) {
+                        const context = originalGetContext.call(this, type, attributes);
+                        if (type === '2d') {
+                            const originalGetImageData = context.getImageData;
+                            context.getImageData = function() {
+                                const imageData = originalGetImageData.apply(this, arguments);
+                                for (let i = 0; i < imageData.data.length; i += 4) {
+                                    imageData.data[i] = imageData.data[i] ^ 1;
+                                }
+                                return imageData;
+                            };
+                        }
+                        return context;
+                    };
+                    
+                    // Mock WebGL vendor
+                    const getParameter = WebGLRenderingContext.prototype.getParameter;
+                    WebGLRenderingContext.prototype.getParameter = function(parameter) {
+                        if (parameter === 37445) {
+                            return 'Intel Inc.';
+                        }
+                        if (parameter === 37446) {
+                            return 'Intel Iris OpenGL Engine';
+                        }
+                        return getParameter.call(this, parameter);
+                    };
+                    
+                    // Mock notification permission
+                    Object.defineProperty(Notification, 'permission', {
+                        get: () => 'default'
+                    });
+                """)
             
             logger.info(f"Rendering page with JavaScript: {url}")
-            await page.goto(url, wait_until='networkidle', timeout=timeout * 1000)
             
-            # Wait a bit for content to render
-            await asyncio.sleep(2)
-            
-            # Try to close any popups/modals
             try:
-                await page.keyboard.press('Escape')
-                await asyncio.sleep(0.5)
-            except:
-                pass
+                # Navigate with domcontentloaded (faster)
+                await page.goto(url, wait_until='domcontentloaded', timeout=timeout * 1000)
+                
+                # Wait a bit for JS to initialize (mimics human reading time)
+                await asyncio.sleep(2)
+                
+                # Simulate human-like scrolling to trigger lazy loading
+                if use_stealth:
+                    logger.debug("Simulating human scrolling...")
+                    await page.evaluate('window.scrollTo(0, 300)')
+                    await asyncio.sleep(0.5)
+                    await page.evaluate('window.scrollTo(0, 700)')
+                    await asyncio.sleep(0.5)
+                    await page.evaluate('window.scrollTo(0, 1200)')
+                    await asyncio.sleep(0.5)
+                    await page.evaluate('window.scrollTo(0, 0)')
+                    await asyncio.sleep(1)
+                
+                # Try to wait for network idle, but don't fail if it times out
+                try:
+                    await page.wait_for_load_state('networkidle', timeout=10000)
+                except:
+                    logger.debug("Network idle timeout, continuing...")
+                
+                # Try to close any popups/modals
+                try:
+                    await page.keyboard.press('Escape')
+                    await asyncio.sleep(0.5)
+                except:
+                    pass
+                    
+            except Exception as e:
+                logger.debug(f"Navigation error: {e}")
             
             html = await page.content()
             await browser.close()
             
             logger.info(f"Rendered HTML length: {len(html)} characters")
+            
+            # Check for bot detection indicators
+            html_lower = html.lower()
+            if 'captcha' in html_lower or 'perimeterx' in html_lower:
+                logger.warning("🚫 Bot detection (PerimeterX/Cloudflare) - skipping this site")
+                return None
+            
+            # Check if response is suspiciously small
+            if len(html) < 15000:
+                logger.warning(f"Response suspiciously small ({len(html)} chars), possible bot detection")
+            
             return html
             
     except ImportError:
@@ -62,12 +261,29 @@ async def get_html_with_js(url: str, timeout: int = 20) -> Optional[str]:
 
 
 def get_html(url: str, timeout: int = 20) -> Optional[str]:
-    """Get HTML from URL with basic error handling"""
+    """Get HTML from URL with realistic headers to avoid bot detection"""
     try:
         import requests
+        
+        # More realistic headers to avoid bot detection
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Cache-Control': 'max-age=0',
+            'Referer': 'https://www.google.com/',
+        }
+        
         response = requests.get(
             url, 
-            headers={'User-Agent': USER_AGENT},
+            headers=headers,
             timeout=timeout,
             allow_redirects=True
         )

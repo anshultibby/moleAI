@@ -42,6 +42,31 @@ class Product(BaseModel):
             return None
         return str(v)
     
+    @field_validator('price_value', mode='before')
+    @classmethod
+    def validate_price_value(cls, v):
+        """Parse price value, handling currency symbols and formatting"""
+        if v is None:
+            return 0.0
+        
+        if isinstance(v, (int, float)):
+            return float(v)
+        
+        if isinstance(v, str):
+            # Remove currency symbols, commas, and whitespace
+            cleaned_price = re.sub(r'[^\d.-]', '', v)
+            try:
+                return float(cleaned_price) if cleaned_price else 0.0
+            except ValueError:
+                # If we can't parse it, default to 0.0
+                return 0.0
+        
+        # Fallback for any other type
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return 0.0
+    
     @classmethod
     def from_json_ld(cls, data: Dict[str, Any], url: str = "") -> "Product":
         """

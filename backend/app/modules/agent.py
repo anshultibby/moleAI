@@ -261,99 +261,19 @@ class Agent:
         """
         Enhance products by fetching better quality images from their product pages.
         
+        NOTE: This feature is currently disabled as it requires BaseProductExtractor
+        which is not implemented. Products are returned unchanged.
+        
         Args:
             products: List of products to enhance
             max_concurrent: Maximum number of concurrent image fetches
             
         Returns:
-            Enhanced products with better image URLs
+            Products unchanged (enhancement disabled)
         """
-        import asyncio
-        import aiohttp
-        from app.modules.extractors.base import BaseProductExtractor
-        from app.models.product import Product
-        
-        if not products:
-            return products
-        
-        logger.info(f"🖼️ Enhancing {len(products)} products with better images...")
-        
-        # Create a base extractor instance for image fetching
-        extractor = BaseProductExtractor()
-        
-        async def enhance_single_product(session: aiohttp.ClientSession, product: Any) -> Any:
-            """Enhance a single product with a better image"""
-            try:
-                # Get product URL
-                if isinstance(product, dict):
-                    product_url = product.get('product_url') or product.get('url')
-                    current_image = product.get('image_url') or product.get('image')
-                else:
-                    product_url = getattr(product, 'product_url', None)
-                    current_image = getattr(product, 'image_url', None)
-                
-                # Skip if no product URL or already has a good image
-                if not product_url:
-                    return product
-                
-                # Try to fetch better image from product page
-                better_image = await extractor.fetch_product_page_image(product_url, session)
-                
-                if better_image and better_image != current_image:
-                    logger.debug(f"✅ Enhanced image for product: {better_image}")
-                    
-                    # Update the product with the better image
-                    if isinstance(product, dict):
-                        product = product.copy()  # Don't mutate original
-                        product['image_url'] = better_image
-                        product['image'] = better_image  # For backward compatibility
-                    else:
-                        # For Product objects, create a new instance with updated image
-                        if hasattr(product, 'model_copy'):
-                            product = product.model_copy(update={'image_url': better_image})
-                        else:
-                            # Fallback for other object types
-                            product.image_url = better_image
-                
-                return product
-                
-            except Exception as e:
-                logger.debug(f"Failed to enhance product image: {e}")
-                return product
-        
-        # Create semaphore to limit concurrent requests
-        semaphore = asyncio.Semaphore(max_concurrent)
-        
-        async def enhance_with_limit(session: aiohttp.ClientSession, product: Any) -> Any:
-            async with semaphore:
-                return await enhance_single_product(session, product)
-        
-        # Create HTTP session for reuse
-        timeout = aiohttp.ClientTimeout(total=8)  # Short timeout for image fetching
-        async with aiohttp.ClientSession(
-            timeout=timeout,
-            headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'}
-        ) as session:
-            # Process products concurrently
-            enhanced_products = await asyncio.gather(
-                *[enhance_with_limit(session, product) for product in products],
-                return_exceptions=True
-            )
-            
-            # Filter out exceptions and return successful enhancements
-            result = []
-            for i, enhanced in enumerate(enhanced_products):
-                if isinstance(enhanced, Exception):
-                    logger.debug(f"Failed to enhance product {i}: {enhanced}")
-                    result.append(products[i])  # Use original product
-                else:
-                    result.append(enhanced)
-            
-            enhanced_count = sum(1 for orig, enh in zip(products, result) 
-                               if self._product_image_changed(orig, enh))
-            logger.info(f"🖼️ Enhanced {enhanced_count}/{len(products)} products with better images")
-            
-            return result
+        # Image enhancement is disabled - return products as-is
+        logger.debug(f"Image enhancement skipped for {len(products)} products (feature disabled)")
+        return products
     
     def _product_image_changed(self, original: Any, enhanced: Any) -> bool:
         """Check if the product image was actually enhanced"""
