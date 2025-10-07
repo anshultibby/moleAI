@@ -165,10 +165,9 @@ async def extract_products(
     
     try:
         # Start extraction
-        streamer.progress(f"🔍 Extracting products from {len(urls)} URLs", total_urls=len(urls), max_links=max_links)
+        streamer.progress(f"🔍 Extracting products from {len(urls)} URLs", total_urls=len(urls), max_products=max_products)
         
-        # Use the new simplified ProductExtractor
-        product_extractor = ProductExtractor()
+        # Use the simple extractor
         all_products = []
         
         # Process each URL
@@ -176,17 +175,34 @@ async def extract_products(
             try:
                 streamer.progress(f"Processing URL {i}/{len(urls)}: {url}", current=i, total=len(urls))
                 
-                schema_products = await product_extractor.extract_from_url_and_links(url, max_links)
+                # Use simple extractor (returns dict with products list)
+                result = await extract_products_simple(url, max_products=max_products, context_vars=context_vars)
                 
-                # Convert SchemaOrgProduct objects to our core Product model
+                if not result.get('success'):
+                    logger.warning(f"Failed to extract from {url}: {result.get('error')}")
+                    streamer.progress(f"❌ Failed to extract from {url}: {result.get('error')}", current=i, total=len(urls))
+                    continue
+                
+                # Convert product dicts to our core Product model
                 from app.models.product import Product
                 url_products = []
-                for schema_product in schema_products:
+                for product_dict in result.get('products', []):
                     try:
-                        core_product = Product.from_schema_org_product(schema_product)
+                        # Convert simple extractor format to Product
+                        core_product = Product(
+                            product_name=product_dict.get('title', ''),
+                            price=f"{product_dict.get('price', 0)} {product_dict.get('currency', 'USD')}",
+                            price_value=float(product_dict.get('price', 0)),
+                            currency=product_dict.get('currency', 'USD'),
+                            store=product_dict.get('brand', ''),
+                            product_url=product_dict.get('product_url', ''),
+                            image_url=product_dict.get('image_url', ''),
+                            sku=product_dict.get('sku', ''),
+                            description=product_dict.get('description', '')
+                        )
                         url_products.append(core_product)
                     except Exception as e:
-                        logger.warning(f"Failed to convert schema product: {e}")
+                        logger.warning(f"Failed to convert product: {e}")
                         continue
                 
                 # Enhance products with better images from their product pages
