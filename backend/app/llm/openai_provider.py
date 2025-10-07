@@ -88,12 +88,7 @@ class OpenAIProvider(BaseLLMProvider):
             if 'reasoning_effort' in openai_params:
                 openai_params['include'] = ['reasoning.encrypted_content']
             
-            logger.info(f"Calling OpenAI Chat Completions API with model: {model}")
-            logger.info(f"Parameters: {openai_params}")
             raw_response = self.client.chat.completions.create(**openai_params)
-            logger.info(f"Raw OpenAI response: {raw_response}")
-            logger.info(f"Raw response type: {type(raw_response)}")
-            logger.info(f"Raw response dict: {raw_response.model_dump() if hasattr(raw_response, 'model_dump') else 'No model_dump method'}")
             
             # Convert OpenAI response to our ChatCompletionResponse format
             response_dict = {
@@ -108,20 +103,13 @@ class OpenAIProvider(BaseLLMProvider):
             # Extract reasoning content from top-level reasoning field if available
             reasoning_content = None
             if hasattr(raw_response, 'reasoning') and raw_response.reasoning:
-                logger.info(f"Reasoning field found: {raw_response.reasoning}")
                 
                 # Try to get encrypted_content first (when include parameter is used)
                 if hasattr(raw_response.reasoning, 'encrypted_content') and raw_response.reasoning.encrypted_content:
                     reasoning_content = raw_response.reasoning.encrypted_content
-                    logger.info(f"Reasoning encrypted_content extracted: {len(reasoning_content)} characters")
                 # Fallback to summary if available
                 elif hasattr(raw_response.reasoning, 'summary') and raw_response.reasoning.summary:
                     reasoning_content = raw_response.reasoning.summary
-                    logger.info(f"Reasoning summary extracted: {len(reasoning_content)} characters")
-                else:
-                    logger.info("Reasoning field exists but neither encrypted_content nor summary found")
-            else:
-                logger.info("No reasoning field found in response")
             
             # Convert choices
             for choice in raw_response.choices:
@@ -167,7 +155,6 @@ class OpenAIProvider(BaseLLMProvider):
                 }
             
             response = ChatCompletionResponse.model_validate(response_dict)
-            logger.info(f"← OpenAI response with {len(response.choices)} choices")
             return response
             
         except Exception as e:

@@ -1,0 +1,50 @@
+{
+  "url": "https://www.hellomolly.com/collections/formal/color_black",
+  "timestamp": "2025-10-07T15:13:09.229836",
+  "all_links": {
+    "total_links": 2,
+    "unique_links": 1,
+    "links": [
+      {
+        "original_href": "/",
+        "full_url": "https://www.hellomolly.com/",
+        "clean_url": "https://www.hellomolly.com/",
+        "link_text": "",
+        "link_classes": [
+          "flex",
+          "justify-center",
+          "mt-[18px]",
+          "md:mt-3",
+          "translate-y-0",
+          "opacity-100",
+          "transition",
+          "duration-700",
+          "ease-out",
+          "shrunk:mt-[0px]"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/",
+        "full_url": "https://www.hellomolly.com/",
+        "clean_url": "https://www.hellomolly.com/",
+        "link_text": "",
+        "link_classes": [],
+        "link_data_attrs": {}
+      }
+    ]
+  },
+  "product_containers": {
+    "total_containers": 0,
+    "containers": []
+  },
+  "product_links_analysis": {
+    "product_containers_found": 0,
+    "links_in_containers": 0,
+    "links_before_filter": [],
+    "product_links_filtered": 0,
+    "product_links": []
+  },
+  "collection_page_json_ld": [],
+  "product_pages_json_ld": []
+}

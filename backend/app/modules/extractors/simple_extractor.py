@@ -1,12 +1,12 @@
 """
 Simple Product Extractor
 
-Simple heuristic:
-1. Get HTML from URL
-2. Find all href links in divs containing the word "product"
+Enhanced heuristic:
+1. Get HTML from URL (with JavaScript rendering support for SPAs)
+2. Find all product links by filtering URLs with /product/ or /products/
 3. Extract JSON-LD from each product page
 
-Clean, focused, and effective.
+Clean, focused, and effective - now with SPA support!
 """
 
 import json
@@ -18,11 +18,47 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 from loguru import logger
 
-from app.tools import tool
-
-
 # Common user agent to avoid basic bot detection
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+
+async def get_html_with_js(url: str, timeout: int = 20) -> Optional[str]:
+    """Get HTML from URL with JavaScript rendering using Playwright"""
+    try:
+        from playwright.async_api import async_playwright
+        
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            
+            # Set user agent
+            await page.set_extra_http_headers({'User-Agent': USER_AGENT})
+            
+            logger.info(f"Rendering page with JavaScript: {url}")
+            await page.goto(url, wait_until='networkidle', timeout=timeout * 1000)
+            
+            # Wait a bit for content to render
+            await asyncio.sleep(2)
+            
+            # Try to close any popups/modals
+            try:
+                await page.keyboard.press('Escape')
+                await asyncio.sleep(0.5)
+            except:
+                pass
+            
+            html = await page.content()
+            await browser.close()
+            
+            logger.info(f"Rendered HTML length: {len(html)} characters")
+            return html
+            
+    except ImportError:
+        logger.warning("Playwright not available, falling back to simple requests")
+        return None
+    except Exception as e:
+        logger.warning(f"JavaScript rendering failed: {e}, falling back to simple requests")
+        return None
 
 
 def get_html(url: str, timeout: int = 20) -> Optional[str]:
@@ -43,184 +79,284 @@ def get_html(url: str, timeout: int = 20) -> Optional[str]:
 
 
 def find_product_links(html: str, base_url: str) -> List[str]:
-    """Find all href links in divs containing the word 'product'"""
+    """
+    Find all product links by scanning ALL links and filtering by URL pattern.
+    
+    Strategy: Instead of looking for 'product' containers (which may not exist),
+    find ALL links and keep those with /product/ or /products/ in the URL.
+    This is more reliable for modern SPAs and various e-commerce platforms.
+    """
     soup = BeautifulSoup(html, 'html.parser')
     product_links = []
+    seen_urls = set()
     
-    # Find all divs that contain the word 'product' anywhere in their text or attributes
-    product_divs = []
+    # Find ALL links on the page
+    all_links = soup.find_all('a', href=True)
+    logger.info(f"Found {len(all_links)} total links on page")
     
-    # Look for divs with 'product' in class names, data attributes, or text
-    for div in soup.find_all('div'):
-        div_text = div.get_text().lower()
-        div_attrs = ' '.join([str(v) for v in div.attrs.values()]).lower()
+    for link in all_links:
+        href = link['href']
         
-        if 'product' in div_text or 'product' in div_attrs:
-            product_divs.append(div)
-    
-    # Also look for other common product container elements
-    for element in soup.find_all(['article', 'li', 'section']):
-        element_text = element.get_text().lower()
-        element_attrs = ' '.join([str(v) for v in element.attrs.values()]).lower()
+        # Skip empty hrefs, anchors, and javascript links
+        if not href or href.startswith('#') or href.startswith('javascript:'):
+            continue
         
-        if 'product' in element_text or 'product' in element_attrs:
-            product_divs.append(element)
-    
-    logger.info(f"Found {len(product_divs)} potential product containers")
-    
-    # Extract all links from these product containers
-    for container in product_divs:
-        for link in container.find_all('a', href=True):
-            href = link['href']
+        # Convert to absolute URL
+        full_url = urljoin(base_url, href)
+        
+        # Parse URL to check if it's from the same domain
+        try:
+            base_domain = urlparse(base_url).netloc
+            link_domain = urlparse(full_url).netloc
             
-            # Skip empty hrefs, anchors, and javascript links
-            if not href or href.startswith('#') or href.startswith('javascript:'):
+            # Only keep links from the same domain
+            if link_domain != base_domain:
                 continue
+        except:
+            continue
+        
+        # Filter: only keep product pages
+        # Common patterns: /products/, /product/, /p/
+        lower_url = full_url.lower()
+        is_product_url = any(pattern in lower_url for pattern in [
+            '/products/',
+            '/product/',
+            '/p/',
+        ])
+        
+        # Exclude collection/category pages
+        is_collection_url = any(pattern in lower_url for pattern in [
+            '/collections/',
+            '/collection/',
+            '/category/',
+            '/categories/',
+        ])
+        
+        # Only keep if it's a product URL but NOT just a collection URL
+        # (some URLs have both, like /collections/xyz/products/abc - those are OK)
+        if not is_product_url:
+            continue
             
-            # Convert to absolute URL
-            full_url = urljoin(base_url, href)
-            
-            # Simple filter: only keep product pages (ignore collections for now)
-            # Keep URLs with /products/ or /product/
-            lower_url = full_url.lower()
-            if not any(pattern in lower_url for pattern in ['/products/', '/product/']):
-                continue
-            
-            # Remove duplicates and fragments
-            clean_url = full_url.split('#')[0].split('?')[0]  # Remove query params too
-            
-            if clean_url not in product_links and clean_url != base_url:
-                product_links.append(clean_url)
+        # Remove duplicates and fragments
+        clean_url = full_url.split('#')[0].split('?')[0]  # Remove query params too
+        
+        # Deduplicate
+        if clean_url not in seen_urls and clean_url != base_url:
+            seen_urls.add(clean_url)
+            product_links.append(clean_url)
     
     logger.info(f"Found {len(product_links)} unique product links")
     return product_links
 
 
-def extract_json_ld(html: str) -> List[Dict[str, Any]]:
-    """Extract JSON-LD structured data from HTML"""
-    soup = BeautifulSoup(html, 'html.parser')
-    json_ld_data = []
-    
-    # Find all JSON-LD script tags
-    scripts = soup.find_all('script', type='application/ld+json')
-    
-    for script in scripts:
-        try:
-            data = json.loads(script.string)
-            
-            # Handle both single objects and arrays
-            if isinstance(data, list):
-                json_ld_data.extend(data)
-            else:
-                json_ld_data.append(data)
-                
-        except json.JSONDecodeError:
-            continue
-    
-    return json_ld_data
+# ============================================================================
+# EXTRACTION STRATEGIES
+# ============================================================================
 
-
-def extract_product_from_json_ld(json_ld_data: List[Dict]) -> Optional[Dict[str, Any]]:
-    """Extract product information from JSON-LD data"""
-    for item in json_ld_data:
-        # Look for Product type
-        if item.get('@type') == 'Product':
-            return normalize_product(item)
-        
-        # Sometimes it's nested in @graph
-        if '@graph' in item:
-            for graph_item in item['@graph']:
-                if graph_item.get('@type') == 'Product':
-                    return normalize_product(graph_item)
+def extract_product_json_ld_strategy(html: str, url: str) -> Optional[Dict[str, Any]]:
+    """
+    Strategy 1: Extract product using JSON-LD structured data.
     
-    return None
-
-
-def normalize_product(product_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Normalize JSON-LD product data to our format"""
+    Returns raw JSON-LD data to be normalized by Product.from_json_ld()
+    """
     try:
-        product = {
-            'title': product_data.get('name', ''),
-            'description': product_data.get('description', ''),
-            'brand': '',
-            'price': None,
-            'currency': 'USD',
-            'image_url': '',
-            'sku': product_data.get('sku', ''),
-            'product_url': product_data.get('url', ''),
-        }
+        from app.models.product import Product
         
-        # Extract brand
-        brand = product_data.get('brand')
-        if isinstance(brand, dict):
-            product['brand'] = brand.get('name', '')
-        elif isinstance(brand, str):
-            product['brand'] = brand
+        soup = BeautifulSoup(html, 'html.parser')
+        json_ld_data = []
         
-        # Extract price from offers
-        offers = product_data.get('offers')
-        if offers:
-            if isinstance(offers, list):
-                offer = offers[0] if offers else {}
-            else:
-                offer = offers
+        # Find all JSON-LD script tags
+        scripts = soup.find_all('script', type='application/ld+json')
+        
+        for script in scripts:
+            try:
+                if script.string:
+                    data = json.loads(script.string)
+                    
+                    # Handle both single objects and arrays
+                    if isinstance(data, list):
+                        json_ld_data.extend(data)
+                    else:
+                        json_ld_data.append(data)
+            except json.JSONDecodeError:
+                continue
+        
+        # Look for Product type
+        for item in json_ld_data:
+            if item.get('@type') == 'Product':
+                product = Product.from_json_ld(item, url)
+                logger.info(f"✓ JSON-LD: {product.product_name}")
+                return product.to_dict()
             
-            if isinstance(offer, dict):
-                price = offer.get('price')
-                if price:
-                    try:
-                        product['price'] = float(price)
-                    except (ValueError, TypeError):
-                        pass
-                
-                currency = offer.get('priceCurrency', 'USD')
-                product['currency'] = currency
+            # Sometimes it's nested in @graph
+            if '@graph' in item:
+                for graph_item in item['@graph']:
+                    if graph_item.get('@type') == 'Product':
+                        product = Product.from_json_ld(graph_item, url)
+                        logger.info(f"✓ JSON-LD: {product.product_name}")
+                        return product.to_dict()
         
-        # Extract image
-        image = product_data.get('image')
-        if image:
-            if isinstance(image, list):
-                product['image_url'] = image[0] if image else ''
-            elif isinstance(image, dict):
-                product['image_url'] = image.get('url', '')
-            elif isinstance(image, str):
-                product['image_url'] = image
+        return None
+    except Exception as e:
+        logger.debug(f"JSON-LD strategy failed: {e}")
+        return None
+
+
+def extract_product_nextjs_strategy(html: str, url: str) -> Optional[Dict[str, Any]]:
+    """
+    Strategy 2: Extract product from Next.js __NEXT_DATA__ object.
+    
+    Returns raw Next.js data to be normalized by Product.from_nextjs_data()
+    """
+    try:
+        from app.models.product import Product
         
-        return product
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        # Find the __NEXT_DATA__ script tag
+        next_data_script = soup.find('script', id='__NEXT_DATA__')
+        if not next_data_script or not next_data_script.string:
+            return None
+        
+        data = json.loads(next_data_script.string)
+        
+        # Navigate to product data (structure varies by site)
+        product_data = None
+        
+        # Try common paths
+        if 'props' in data and 'pageProps' in data['props']:
+            page_props = data['props']['pageProps']
+            
+            # Direct product key
+            if 'product' in page_props:
+                product_data = page_props['product']
+            # Initial props
+            elif 'initialProps' in page_props and 'product' in page_props['initialProps']:
+                product_data = page_props['initialProps']['product']
+        
+        if not product_data:
+            return None
+        
+        product = Product.from_nextjs_data(product_data, url)
+        logger.info(f"✓ Next.js: {product.product_name}")
+        return product.to_dict()
         
     except Exception as e:
-        logger.error(f"Error normalizing product: {e}")
+        logger.debug(f"Next.js strategy failed: {e}")
+        return None
+
+
+def extract_product_meta_tags_strategy(html: str, url: str) -> Optional[Dict[str, Any]]:
+    """
+    Strategy 3: Extract product from Open Graph and meta tags.
+    
+    Returns product data normalized by Product.from_meta_tags()
+    """
+    try:
+        from app.models.product import Product
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        # Extract title
+        title = ""
+        og_title = soup.find('meta', property='og:title')
+        if og_title:
+            title = og_title.get('content', '')
+        elif soup.title:
+            title = soup.title.string or ''
+        
+        # Extract description
+        description = ""
+        og_desc = soup.find('meta', property='og:description')
+        if og_desc:
+            description = og_desc.get('content', '')
+        else:
+            meta_desc = soup.find('meta', attrs={'name': 'description'})
+            if meta_desc:
+                description = meta_desc.get('content', '')
+        
+        # Extract image
+        image_url = ""
+        og_image = soup.find('meta', property='og:image')
+        if og_image:
+            image_url = og_image.get('content', '')
+        
+        # Extract price from meta tags (if available)
+        price = None
+        price_meta = soup.find('meta', property='product:price:amount')
+        if price_meta:
+            try:
+                price = float(price_meta.get('content', 0))
+            except (ValueError, TypeError):
+                pass
+        
+        currency = "USD"
+        currency_meta = soup.find('meta', property='product:price:currency')
+        if currency_meta:
+            currency = currency_meta.get('content', 'USD')
+        
+        # Only return if we got at least title and image
+        if title and image_url:
+            product = Product.from_meta_tags(
+                title=title,
+                description=description,
+                image_url=image_url,
+                price=price,
+                currency=currency,
+                url=url
+            )
+            logger.info(f"✓ Meta tags: {product.product_name}")
+            return product.to_dict()
+        
+        return None
+        
+    except Exception as e:
+        logger.debug(f"Meta tags strategy failed: {e}")
         return None
 
 
 async def extract_products_from_links(product_links: List[str], max_concurrent: int = 5) -> List[Dict[str, Any]]:
-    """Extract products from list of product URLs concurrently"""
+    """
+    Extract products from list of product URLs concurrently.
+    
+    Tries multiple extraction strategies in order:
+    1. JSON-LD structured data (most reliable)
+    2. Next.js __NEXT_DATA__ object (for modern SPAs)
+    3. Open Graph meta tags (fallback)
+    """
     semaphore = asyncio.Semaphore(max_concurrent)
     
     async def extract_single_product(session: aiohttp.ClientSession, url: str) -> Optional[Dict[str, Any]]:
         async with semaphore:
             try:
                 async with session.get(url, timeout=aiohttp.ClientTimeout(total=20)) as response:
-                    if response.status == 200:
-                        html = await response.text()
-                        json_ld_data = extract_json_ld(html)
-                        product = extract_product_from_json_ld(json_ld_data)
-                        
+                    if response.status != 200:
+                        logger.warning(f"HTTP {response.status} for {url}")
+                        return None
+                    
+                    html = await response.text()
+                    
+                    # Try extraction strategies in order
+                    strategies = [
+                        ('JSON-LD', extract_product_json_ld_strategy),
+                        ('Next.js Data', extract_product_nextjs_strategy),
+                        ('Meta Tags', extract_product_meta_tags_strategy),
+                    ]
+                    
+                    for strategy_name, strategy_func in strategies:
+                        product = strategy_func(html, url)
                         if product:
                             # Ensure product_url is set
                             if not product.get('product_url'):
                                 product['product_url'] = url
-                            logger.info(f"Extracted product: {product.get('title', 'Unknown')}")
                             return product
-                        else:
-                            logger.warning(f"No product JSON-LD found in {url}")
-                    else:
-                        logger.warning(f"HTTP {response.status} for {url}")
+                    
+                    logger.warning(f"No extraction strategy worked for {url}")
+                    return None
                         
             except Exception as e:
                 logger.error(f"Failed to extract from {url}: {e}")
-            
-            return None
+                return None
     
     # Extract products concurrently
     async with aiohttp.ClientSession(
@@ -239,35 +375,48 @@ async def extract_products_from_links(product_links: List[str], max_concurrent: 
     return products
 
 
-@tool(
-    name="extract_products_simple",
-    description="""Simple product extraction using a 3-step heuristic:
-    
-    1. Get HTML from the listing page URL
-    2. Find all href links in divs/containers containing the word 'product'
-    3. Extract JSON-LD structured data from each product page
-    
-    This approach is clean, focused, and works well for most e-commerce sites
-    that use proper structured data markup.
-    """
-)
 async def extract_products_simple(
     url: str,
     max_products: int = 50,
     context_vars=None
 ) -> Dict[str, Any]:
     """
-    Simple product extraction following the 3-step heuristic:
-    1. Get HTML from URL
-    2. Find product links
-    3. Extract JSON-LD from each
+    Extract products from an e-commerce listing page.
+    
+    Uses multiple strategies to handle different site architectures:
+    1. Render JavaScript (for SPAs like Hello Molly)
+    2. Find product links via URL pattern matching
+    3. Extract product data using:
+       - JSON-LD structured data (most reliable)
+       - Next.js __NEXT_DATA__ object (React/Next.js sites)
+       - Open Graph meta tags (fallback)
+    
+    Args:
+        url: E-commerce listing/collection page URL
+        max_products: Maximum number of products to extract (default: 50)
+        context_vars: Optional context variables (stream_callback, resources, etc.)
+    
+    Returns:
+        Dict with:
+        - success: bool
+        - products: List[Dict] of extracted products
+        - meta: Dict with extraction statistics
+        - error: str (if failed)
     """
     
     try:
-        logger.info(f"Starting simple extraction for: {url}")
+        logger.info(f"Starting enhanced extraction for: {url}")
         
-        # Step 1: Get HTML from listing page
-        html = get_html(url)
+        # Step 1: Try to get HTML with JavaScript rendering first
+        html = await get_html_with_js(url)
+        used_js_rendering = True
+        
+        # Fall back to simple requests if JS rendering failed
+        if not html:
+            logger.info("Falling back to simple HTTP request")
+            html = get_html(url)
+            used_js_rendering = False
+        
         if not html:
             return {
                 "success": False,
@@ -275,13 +424,25 @@ async def extract_products_simple(
                 "products": []
             }
         
-        # Step 2: Find product links
+        # Step 2: Find product links using improved strategy
         product_links = find_product_links(html, url)
+        
+        # If no links found with JS rendering, try again without it
+        if not product_links and used_js_rendering:
+            logger.info("No links found with JS rendering, trying simple request...")
+            html = get_html(url)
+            if html:
+                product_links = find_product_links(html, url)
+        
         if not product_links:
             return {
                 "success": False,
                 "error": "No product links found",
-                "products": []
+                "products": [],
+                "meta": {
+                    "used_js_rendering": used_js_rendering,
+                    "html_length": len(html) if html else 0
+                }
             }
         
         # Limit number of products to extract
@@ -298,15 +459,17 @@ async def extract_products_simple(
             "success": True,
             "products": products,
             "meta": {
-                "strategy": "simple_json_ld",
+                "strategy": "enhanced_simple_json_ld",
+                "used_js_rendering": used_js_rendering,
                 "total_links_found": len(product_links),
                 "products_extracted": len(products),
-                "success_rate": len(products) / len(product_links) if product_links else 0
+                "success_rate": len(products) / len(product_links) if product_links else 0,
+                "html_length": len(html) if html else 0
             }
         }
         
     except Exception as e:
-        logger.error(f"Simple extraction failed: {e}")
+        logger.error(f"Enhanced extraction failed: {e}")
         return {
             "success": False,
             "error": str(e),

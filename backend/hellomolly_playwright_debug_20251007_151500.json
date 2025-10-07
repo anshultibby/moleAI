@@ -1,0 +1,2644 @@
+{
+  "url": "https://www.hellomolly.com/collections/formal/color_black",
+  "timestamp": "2025-10-07T15:15:00.946392",
+  "rendering_method": "playwright",
+  "html_length": 472963,
+  "all_links": {
+    "total_links": 153,
+    "unique_links": 68,
+    "links": [
+      {
+        "original_href": "https://www.cookiebot.com/en/what-is-behind-powered-by-cookiebot/",
+        "full_url": "https://www.cookiebot.com/en/what-is-behind-powered-by-cookiebot/",
+        "clean_url": "https://www.cookiebot.com/en/what-is-behind-powered-by-cookiebot/",
+        "link_text": "",
+        "link_classes": [],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.hellomolly.com/pages/privacy-policy",
+        "full_url": "https://www.hellomolly.com/pages/privacy-policy",
+        "clean_url": "https://www.hellomolly.com/pages/privacy-policy",
+        "link_text": "Privacy policy",
+        "link_classes": [],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.cookiebot.com/goto/privacy-policy/",
+        "full_url": "https://www.cookiebot.com/goto/privacy-policy/",
+        "clean_url": "https://www.cookiebot.com/goto/privacy-policy/",
+        "link_text": "Learn more about this provider",
+        "link_classes": [
+          "CybotCookiebotDialogDetailBodyContentCookieLink"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://business.safety.google/privacy/",
+        "full_url": "https://business.safety.google/privacy/",
+        "clean_url": "https://business.safety.google/privacy/",
+        "link_text": "Learn more about this provider",
+        "link_classes": [
+          "CybotCookiebotDialogDetailBodyContentCookieLink"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.scarabresearch.com/privacy/",
+        "full_url": "https://www.scarabresearch.com/privacy/",
+        "clean_url": "https://www.scarabresearch.com/privacy/",
+        "link_text": "Learn more about this provider",
+        "link_classes": [
+          "CybotCookiebotDialogDetailBodyContentCookieLink"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.shopify.com/legal/privacy",
+        "full_url": "https://www.shopify.com/legal/privacy",
+        "clean_url": "https://www.shopify.com/legal/privacy",
+        "link_text": "Learn more about this provider",
+        "link_classes": [
+          "CybotCookiebotDialogDetailBodyContentCookieLink"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.zendesk.com/company/customers-partners/privacy-policy/",
+        "full_url": "https://www.zendesk.com/company/customers-partners/privacy-policy/",
+        "clean_url": "https://www.zendesk.com/company/customers-partners/privacy-policy/",
+        "link_text": "Learn more about this provider",
+        "link_classes": [
+          "CybotCookiebotDialogDetailBodyContentCookieLink"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.zendesk.com/company/customers-partners/privacy-policy/",
+        "full_url": "https://www.zendesk.com/company/customers-partners/privacy-policy/",
+        "clean_url": "https://www.zendesk.com/company/customers-partners/privacy-policy/",
+        "link_text": "Learn more about this provider",
+        "link_classes": [
+          "CybotCookiebotDialogDetailBodyContentCookieLink"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.tiktok.com/legal/privacy-policy?lang=en",
+        "full_url": "https://www.tiktok.com/legal/privacy-policy?lang=en",
+        "clean_url": "https://www.tiktok.com/legal/privacy-policy?lang=en",
+        "link_text": "Learn more about this provider",
+        "link_classes": [
+          "CybotCookiebotDialogDetailBodyContentCookieLink"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.zendesk.com/company/customers-partners/privacy-policy/",
+        "full_url": "https://www.zendesk.com/company/customers-partners/privacy-policy/",
+        "clean_url": "https://www.zendesk.com/company/customers-partners/privacy-policy/",
+        "link_text": "Learn more about this provider",
+        "link_classes": [
+          "CybotCookiebotDialogDetailBodyContentCookieLink"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.facebook.com/policy.php/",
+        "full_url": "https://www.facebook.com/policy.php/",
+        "clean_url": "https://www.facebook.com/policy.php/",
+        "link_text": "Learn more about this provider",
+        "link_classes": [
+          "CybotCookiebotDialogDetailBodyContentCookieLink"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://business.safety.google/privacy/",
+        "full_url": "https://business.safety.google/privacy/",
+        "clean_url": "https://business.safety.google/privacy/",
+        "link_text": "Learn more about this provider",
+        "link_classes": [
+          "CybotCookiebotDialogDetailBodyContentCookieLink"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.scarabresearch.com/privacy/",
+        "full_url": "https://www.scarabresearch.com/privacy/",
+        "clean_url": "https://www.scarabresearch.com/privacy/",
+        "link_text": "Learn more about this provider",
+        "link_classes": [
+          "CybotCookiebotDialogDetailBodyContentCookieLink"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.tiktok.com/legal/privacy-policy?lang=en",
+        "full_url": "https://www.tiktok.com/legal/privacy-policy?lang=en",
+        "clean_url": "https://www.tiktok.com/legal/privacy-policy?lang=en",
+        "link_text": "Learn more about this provider",
+        "link_classes": [
+          "CybotCookiebotDialogDetailBodyContentCookieLink"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.amazon.com/gp/help/customer/display.html/ref=footer_privacy?ie=UTF8&nodeId=468496",
+        "full_url": "https://www.amazon.com/gp/help/customer/display.html/ref=footer_privacy?ie=UTF8&nodeId=468496",
+        "clean_url": "https://www.amazon.com/gp/help/customer/display.html/ref=footer_privacy?ie=UTF8&nodeId=468496",
+        "link_text": "Learn more about this provider",
+        "link_classes": [
+          "CybotCookiebotDialogDetailBodyContentCookieLink"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.scarabresearch.com/privacy/",
+        "full_url": "https://www.scarabresearch.com/privacy/",
+        "clean_url": "https://www.scarabresearch.com/privacy/",
+        "link_text": "Learn more about this provider",
+        "link_classes": [
+          "CybotCookiebotDialogDetailBodyContentCookieLink"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.tiktok.com/legal/privacy-policy?lang=en",
+        "full_url": "https://www.tiktok.com/legal/privacy-policy?lang=en",
+        "clean_url": "https://www.tiktok.com/legal/privacy-policy?lang=en",
+        "link_text": "Learn more about this provider",
+        "link_classes": [
+          "CybotCookiebotDialogDetailBodyContentCookieLink"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.cookiebot.com",
+        "full_url": "https://www.cookiebot.com",
+        "clean_url": "https://www.cookiebot.com",
+        "link_text": "Cookiebot",
+        "link_classes": [],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/",
+        "full_url": "https://www.hellomolly.com/",
+        "clean_url": "https://www.hellomolly.com/",
+        "link_text": "",
+        "link_classes": [
+          "flex",
+          "justify-center",
+          "mt-[18px]",
+          "md:mt-3",
+          "translate-y-0",
+          "opacity-100",
+          "transition",
+          "duration-700",
+          "ease-out",
+          "shrunk:mt-[0px]"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/new",
+        "full_url": "https://www.hellomolly.com/collections/new",
+        "clean_url": "https://www.hellomolly.com/collections/new",
+        "link_text": "NEW IN",
+        "link_classes": [
+          "group",
+          "flex",
+          "h-10",
+          "items-center",
+          "justify-center",
+          "rounded-md",
+          "bg-background",
+          "py-2",
+          "text-sm",
+          "font-medium",
+          "transition-colors",
+          "hover:bg-accent",
+          "hover:text-accent-foreground",
+          "focus:bg-accent",
+          "focus:text-accent-foreground",
+          "focus:outline-none",
+          "disabled:pointer-events-none",
+          "disabled:opacity-50",
+          "data-[state=open]:text-accent-foreground",
+          "data-[state=open]:bg-accent/50",
+          "data-[state=open]:hover:bg-accent",
+          "data-[state=open]:focus:bg-accent",
+          "group",
+          "w-fit",
+          "pr-3",
+          "xl:pr-5",
+          "pl-0",
+          "xl:pl-0",
+          "w-full",
+          "flex",
+          "py-2",
+          "items-center",
+          "text-center",
+          "text-sm",
+          "tracking-[0.015em]",
+          "whitespace-nowrap",
+          "relative",
+          "hover:underline",
+          "hover:underline-offset-[6px]"
+        ],
+        "link_data_attrs": {
+          "data-state": "closed",
+          "data-radix-collection-item": ""
+        }
+      },
+      {
+        "original_href": "/collections/dresses",
+        "full_url": "https://www.hellomolly.com/collections/dresses",
+        "clean_url": "https://www.hellomolly.com/collections/dresses",
+        "link_text": "DRESSES",
+        "link_classes": [
+          "group",
+          "flex",
+          "h-10",
+          "items-center",
+          "justify-center",
+          "rounded-md",
+          "bg-background",
+          "py-2",
+          "text-sm",
+          "font-medium",
+          "transition-colors",
+          "hover:bg-accent",
+          "hover:text-accent-foreground",
+          "focus:bg-accent",
+          "focus:text-accent-foreground",
+          "focus:outline-none",
+          "disabled:pointer-events-none",
+          "disabled:opacity-50",
+          "data-[state=open]:text-accent-foreground",
+          "data-[state=open]:bg-accent/50",
+          "data-[state=open]:hover:bg-accent",
+          "data-[state=open]:focus:bg-accent",
+          "group",
+          "w-fit",
+          "pl-3",
+          "pr-3",
+          "xl:pl-5",
+          "xl:pr-5",
+          "w-full",
+          "flex",
+          "py-2",
+          "items-center",
+          "text-center",
+          "text-sm",
+          "tracking-[0.015em]",
+          "whitespace-nowrap",
+          "relative",
+          "hover:underline",
+          "hover:underline-offset-[6px]"
+        ],
+        "link_data_attrs": {
+          "data-state": "closed",
+          "data-radix-collection-item": ""
+        }
+      },
+      {
+        "original_href": "/collections/best-sellers",
+        "full_url": "https://www.hellomolly.com/collections/best-sellers",
+        "clean_url": "https://www.hellomolly.com/collections/best-sellers",
+        "link_text": "BEST SELLERS",
+        "link_classes": [
+          "group",
+          "flex",
+          "h-10",
+          "items-center",
+          "justify-center",
+          "rounded-md",
+          "bg-background",
+          "py-2",
+          "text-sm",
+          "font-medium",
+          "transition-colors",
+          "hover:bg-accent",
+          "hover:text-accent-foreground",
+          "focus:bg-accent",
+          "focus:text-accent-foreground",
+          "focus:outline-none",
+          "disabled:pointer-events-none",
+          "disabled:opacity-50",
+          "data-[state=open]:text-accent-foreground",
+          "data-[state=open]:bg-accent/50",
+          "data-[state=open]:hover:bg-accent",
+          "data-[state=open]:focus:bg-accent",
+          "group",
+          "w-fit",
+          "pl-4",
+          "pr-4",
+          "w-full",
+          "flex",
+          "py-2",
+          "items-center",
+          "text-center",
+          "text-sm",
+          "tracking-[0.015em]",
+          "whitespace-nowrap",
+          "relative",
+          "hover:underline",
+          "hover:underline-offset-[6px]"
+        ],
+        "link_data_attrs": {
+          "data-state": "closed",
+          "data-radix-collection-item": ""
+        }
+      },
+      {
+        "original_href": "/collections/tops",
+        "full_url": "https://www.hellomolly.com/collections/tops",
+        "clean_url": "https://www.hellomolly.com/collections/tops",
+        "link_text": "TOPS",
+        "link_classes": [
+          "group",
+          "flex",
+          "h-10",
+          "items-center",
+          "justify-center",
+          "rounded-md",
+          "bg-background",
+          "py-2",
+          "text-sm",
+          "font-medium",
+          "transition-colors",
+          "hover:bg-accent",
+          "hover:text-accent-foreground",
+          "focus:bg-accent",
+          "focus:text-accent-foreground",
+          "focus:outline-none",
+          "disabled:pointer-events-none",
+          "disabled:opacity-50",
+          "data-[state=open]:text-accent-foreground",
+          "data-[state=open]:bg-accent/50",
+          "data-[state=open]:hover:bg-accent",
+          "data-[state=open]:focus:bg-accent",
+          "group",
+          "w-fit",
+          "pl-3",
+          "pr-3",
+          "xl:pl-5",
+          "xl:pr-5",
+          "w-full",
+          "flex",
+          "py-2",
+          "items-center",
+          "text-center",
+          "text-sm",
+          "tracking-[0.015em]",
+          "whitespace-nowrap",
+          "relative",
+          "hover:underline",
+          "hover:underline-offset-[6px]"
+        ],
+        "link_data_attrs": {
+          "data-state": "closed",
+          "data-radix-collection-item": ""
+        }
+      },
+      {
+        "original_href": "/collections/bottoms",
+        "full_url": "https://www.hellomolly.com/collections/bottoms",
+        "clean_url": "https://www.hellomolly.com/collections/bottoms",
+        "link_text": "BOTTOMS",
+        "link_classes": [
+          "group",
+          "flex",
+          "h-10",
+          "items-center",
+          "justify-center",
+          "rounded-md",
+          "bg-background",
+          "py-2",
+          "text-sm",
+          "font-medium",
+          "transition-colors",
+          "hover:bg-accent",
+          "hover:text-accent-foreground",
+          "focus:bg-accent",
+          "focus:text-accent-foreground",
+          "focus:outline-none",
+          "disabled:pointer-events-none",
+          "disabled:opacity-50",
+          "data-[state=open]:text-accent-foreground",
+          "data-[state=open]:bg-accent/50",
+          "data-[state=open]:hover:bg-accent",
+          "data-[state=open]:focus:bg-accent",
+          "group",
+          "w-fit",
+          "pl-3",
+          "pr-3",
+          "xl:pl-5",
+          "xl:pr-5",
+          "w-full",
+          "flex",
+          "py-2",
+          "items-center",
+          "text-center",
+          "text-sm",
+          "tracking-[0.015em]",
+          "whitespace-nowrap",
+          "relative",
+          "hover:underline",
+          "hover:underline-offset-[6px]"
+        ],
+        "link_data_attrs": {
+          "data-state": "closed",
+          "data-radix-collection-item": ""
+        }
+      },
+      {
+        "original_href": "/collections/rompers-jumpsuits",
+        "full_url": "https://www.hellomolly.com/collections/rompers-jumpsuits",
+        "clean_url": "https://www.hellomolly.com/collections/rompers-jumpsuits",
+        "link_text": "ROMPERS",
+        "link_classes": [
+          "group",
+          "flex",
+          "h-10",
+          "items-center",
+          "justify-center",
+          "rounded-md",
+          "bg-background",
+          "py-2",
+          "text-sm",
+          "font-medium",
+          "transition-colors",
+          "hover:bg-accent",
+          "hover:text-accent-foreground",
+          "focus:bg-accent",
+          "focus:text-accent-foreground",
+          "focus:outline-none",
+          "disabled:pointer-events-none",
+          "disabled:opacity-50",
+          "data-[state=open]:text-accent-foreground",
+          "data-[state=open]:bg-accent/50",
+          "data-[state=open]:hover:bg-accent",
+          "data-[state=open]:focus:bg-accent",
+          "group",
+          "w-fit",
+          "pl-3",
+          "pr-3",
+          "xl:pl-5",
+          "xl:pr-5",
+          "w-full",
+          "flex",
+          "py-2",
+          "items-center",
+          "text-center",
+          "text-sm",
+          "tracking-[0.015em]",
+          "whitespace-nowrap",
+          "relative",
+          "hover:underline",
+          "hover:underline-offset-[6px]"
+        ],
+        "link_data_attrs": {
+          "data-state": "closed",
+          "data-radix-collection-item": ""
+        }
+      },
+      {
+        "original_href": "/collections/back-in-stock",
+        "full_url": "https://www.hellomolly.com/collections/back-in-stock",
+        "clean_url": "https://www.hellomolly.com/collections/back-in-stock",
+        "link_text": "BACK IN STOCK",
+        "link_classes": [
+          "group",
+          "flex",
+          "h-10",
+          "items-center",
+          "justify-center",
+          "rounded-md",
+          "bg-background",
+          "py-2",
+          "text-sm",
+          "font-medium",
+          "transition-colors",
+          "hover:bg-accent",
+          "hover:text-accent-foreground",
+          "focus:bg-accent",
+          "focus:text-accent-foreground",
+          "focus:outline-none",
+          "disabled:pointer-events-none",
+          "disabled:opacity-50",
+          "data-[state=open]:text-accent-foreground",
+          "data-[state=open]:bg-accent/50",
+          "data-[state=open]:hover:bg-accent",
+          "data-[state=open]:focus:bg-accent",
+          "group",
+          "w-fit",
+          "pl-3",
+          "pr-3",
+          "xl:pl-5",
+          "xl:pr-5",
+          "w-full",
+          "flex",
+          "py-2",
+          "items-center",
+          "text-center",
+          "text-sm",
+          "tracking-[0.015em]",
+          "whitespace-nowrap",
+          "relative",
+          "hover:underline",
+          "hover:underline-offset-[6px]"
+        ],
+        "link_data_attrs": {
+          "data-state": "closed",
+          "data-radix-collection-item": ""
+        }
+      },
+      {
+        "original_href": "/collections/shoes",
+        "full_url": "https://www.hellomolly.com/collections/shoes",
+        "clean_url": "https://www.hellomolly.com/collections/shoes",
+        "link_text": "SHOES",
+        "link_classes": [
+          "group",
+          "flex",
+          "h-10",
+          "items-center",
+          "justify-center",
+          "rounded-md",
+          "bg-background",
+          "py-2",
+          "text-sm",
+          "font-medium",
+          "transition-colors",
+          "hover:bg-accent",
+          "hover:text-accent-foreground",
+          "focus:bg-accent",
+          "focus:text-accent-foreground",
+          "focus:outline-none",
+          "disabled:pointer-events-none",
+          "disabled:opacity-50",
+          "data-[state=open]:text-accent-foreground",
+          "data-[state=open]:bg-accent/50",
+          "data-[state=open]:hover:bg-accent",
+          "data-[state=open]:focus:bg-accent",
+          "group",
+          "w-fit",
+          "pl-3",
+          "pr-3",
+          "xl:pl-5",
+          "xl:pr-5",
+          "w-full",
+          "flex",
+          "py-2",
+          "items-center",
+          "text-center",
+          "text-sm",
+          "tracking-[0.015em]",
+          "whitespace-nowrap",
+          "relative",
+          "hover:underline",
+          "hover:underline-offset-[6px]"
+        ],
+        "link_data_attrs": {
+          "data-state": "closed",
+          "data-radix-collection-item": ""
+        }
+      },
+      {
+        "original_href": "/collections/accessories",
+        "full_url": "https://www.hellomolly.com/collections/accessories",
+        "clean_url": "https://www.hellomolly.com/collections/accessories",
+        "link_text": "ACCESSORIES",
+        "link_classes": [
+          "group",
+          "flex",
+          "h-10",
+          "items-center",
+          "justify-center",
+          "rounded-md",
+          "bg-background",
+          "py-2",
+          "text-sm",
+          "font-medium",
+          "transition-colors",
+          "hover:bg-accent",
+          "hover:text-accent-foreground",
+          "focus:bg-accent",
+          "focus:text-accent-foreground",
+          "focus:outline-none",
+          "disabled:pointer-events-none",
+          "disabled:opacity-50",
+          "data-[state=open]:text-accent-foreground",
+          "data-[state=open]:bg-accent/50",
+          "data-[state=open]:hover:bg-accent",
+          "data-[state=open]:focus:bg-accent",
+          "group",
+          "w-fit",
+          "pl-3",
+          "pr-3",
+          "xl:pl-5",
+          "xl:pr-5",
+          "w-full",
+          "flex",
+          "py-2",
+          "items-center",
+          "text-center",
+          "text-sm",
+          "tracking-[0.015em]",
+          "whitespace-nowrap",
+          "relative",
+          "hover:underline",
+          "hover:underline-offset-[6px]"
+        ],
+        "link_data_attrs": {
+          "data-state": "closed",
+          "data-radix-collection-item": ""
+        }
+      },
+      {
+        "original_href": "/collections/swim",
+        "full_url": "https://www.hellomolly.com/collections/swim",
+        "clean_url": "https://www.hellomolly.com/collections/swim",
+        "link_text": "SWIM",
+        "link_classes": [
+          "group",
+          "flex",
+          "h-10",
+          "items-center",
+          "justify-center",
+          "rounded-md",
+          "bg-background",
+          "py-2",
+          "text-sm",
+          "font-medium",
+          "transition-colors",
+          "hover:bg-accent",
+          "hover:text-accent-foreground",
+          "focus:bg-accent",
+          "focus:text-accent-foreground",
+          "focus:outline-none",
+          "disabled:pointer-events-none",
+          "disabled:opacity-50",
+          "data-[state=open]:text-accent-foreground",
+          "data-[state=open]:bg-accent/50",
+          "data-[state=open]:hover:bg-accent",
+          "data-[state=open]:focus:bg-accent",
+          "group",
+          "w-fit",
+          "pl-3",
+          "pr-3",
+          "xl:pl-5",
+          "xl:pr-5",
+          "w-full",
+          "flex",
+          "py-2",
+          "items-center",
+          "text-center",
+          "text-sm",
+          "tracking-[0.015em]",
+          "whitespace-nowrap",
+          "relative",
+          "hover:underline",
+          "hover:underline-offset-[6px]"
+        ],
+        "link_data_attrs": {
+          "data-state": "closed",
+          "data-radix-collection-item": ""
+        }
+      },
+      {
+        "original_href": "/collections/exclusive",
+        "full_url": "https://www.hellomolly.com/collections/exclusive",
+        "clean_url": "https://www.hellomolly.com/collections/exclusive",
+        "link_text": "EXCLUSIVES",
+        "link_classes": [
+          "group",
+          "flex",
+          "h-10",
+          "items-center",
+          "justify-center",
+          "rounded-md",
+          "bg-background",
+          "py-2",
+          "text-sm",
+          "font-medium",
+          "transition-colors",
+          "hover:bg-accent",
+          "hover:text-accent-foreground",
+          "focus:bg-accent",
+          "focus:text-accent-foreground",
+          "focus:outline-none",
+          "disabled:pointer-events-none",
+          "disabled:opacity-50",
+          "data-[state=open]:text-accent-foreground",
+          "data-[state=open]:bg-accent/50",
+          "data-[state=open]:hover:bg-accent",
+          "data-[state=open]:focus:bg-accent",
+          "group",
+          "w-fit",
+          "pl-3",
+          "pr-3",
+          "xl:pl-5",
+          "xl:pr-5",
+          "w-full",
+          "flex",
+          "py-2",
+          "items-center",
+          "text-center",
+          "text-sm",
+          "tracking-[0.015em]",
+          "whitespace-nowrap",
+          "relative",
+          "hover:underline",
+          "hover:underline-offset-[6px]"
+        ],
+        "link_data_attrs": {
+          "data-state": "closed",
+          "data-radix-collection-item": ""
+        }
+      },
+      {
+        "original_href": "/collections/sale",
+        "full_url": "https://www.hellomolly.com/collections/sale",
+        "clean_url": "https://www.hellomolly.com/collections/sale",
+        "link_text": "SALE",
+        "link_classes": [
+          "group",
+          "flex",
+          "h-10",
+          "items-center",
+          "justify-center",
+          "rounded-md",
+          "bg-background",
+          "py-2",
+          "text-sm",
+          "font-medium",
+          "transition-colors",
+          "hover:bg-accent",
+          "hover:text-accent-foreground",
+          "focus:bg-accent",
+          "focus:text-accent-foreground",
+          "focus:outline-none",
+          "disabled:pointer-events-none",
+          "disabled:opacity-50",
+          "data-[state=open]:text-accent-foreground",
+          "data-[state=open]:bg-accent/50",
+          "data-[state=open]:hover:bg-accent",
+          "data-[state=open]:focus:bg-accent",
+          "group",
+          "w-fit",
+          "pl-3",
+          "pr-3",
+          "xl:pl-5",
+          "xl:pr-5",
+          "w-full",
+          "flex",
+          "py-2",
+          "items-center",
+          "text-center",
+          "text-sm",
+          "tracking-[0.015em]",
+          "whitespace-nowrap",
+          "relative",
+          "hover:underline",
+          "hover:underline-offset-[6px]"
+        ],
+        "link_data_attrs": {
+          "data-state": "closed",
+          "data-radix-collection-item": ""
+        }
+      },
+      {
+        "original_href": "/collections/elevated-staples",
+        "full_url": "https://www.hellomolly.com/collections/elevated-staples",
+        "clean_url": "https://www.hellomolly.com/collections/elevated-staples",
+        "link_text": "EDITS",
+        "link_classes": [
+          "group",
+          "flex",
+          "h-10",
+          "items-center",
+          "justify-center",
+          "rounded-md",
+          "bg-background",
+          "py-2",
+          "text-sm",
+          "font-medium",
+          "transition-colors",
+          "hover:bg-accent",
+          "hover:text-accent-foreground",
+          "focus:bg-accent",
+          "focus:text-accent-foreground",
+          "focus:outline-none",
+          "disabled:pointer-events-none",
+          "disabled:opacity-50",
+          "data-[state=open]:text-accent-foreground",
+          "data-[state=open]:bg-accent/50",
+          "data-[state=open]:hover:bg-accent",
+          "data-[state=open]:focus:bg-accent",
+          "group",
+          "w-fit",
+          "pl-3",
+          "xl:pl-5",
+          "pr-0",
+          "xl:pr-0",
+          "w-full",
+          "flex",
+          "py-2",
+          "items-center",
+          "text-center",
+          "text-sm",
+          "tracking-[0.015em]",
+          "whitespace-nowrap",
+          "relative",
+          "hover:underline",
+          "hover:underline-offset-[6px]"
+        ],
+        "link_data_attrs": {
+          "data-state": "closed",
+          "data-radix-collection-item": ""
+        }
+      },
+      {
+        "original_href": "/",
+        "full_url": "https://www.hellomolly.com/",
+        "clean_url": "https://www.hellomolly.com/",
+        "link_text": "",
+        "link_classes": [],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal",
+        "full_url": "https://www.hellomolly.com/collections/formal",
+        "clean_url": "https://www.hellomolly.com/collections/formal",
+        "link_text": "formal",
+        "link_classes": [
+          "transition-colors",
+          "hover:text-foreground",
+          "text-xxs",
+          "capitalize",
+          "tracking-[0.55px]"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal",
+        "full_url": "https://www.hellomolly.com/collections/formal",
+        "clean_url": "https://www.hellomolly.com/collections/formal",
+        "link_text": "All formal",
+        "link_classes": [
+          "transition-colors",
+          "hover:text-foreground",
+          "text-xxs",
+          "capitalize",
+          "tracking-[0.55px]"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal",
+        "full_url": "https://www.hellomolly.com/collections/formal",
+        "clean_url": "https://www.hellomolly.com/collections/formal",
+        "link_text": "",
+        "link_classes": [
+          "inline-flex",
+          "items-center",
+          "justify-center"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal",
+        "full_url": "https://www.hellomolly.com/collections/formal",
+        "clean_url": "https://www.hellomolly.com/collections/formal",
+        "link_text": "formal",
+        "link_classes": [
+          "transition-colors",
+          "hover:text-foreground",
+          "text-xxs",
+          "capitalize",
+          "tracking-[0.55px]"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal",
+        "full_url": "https://www.hellomolly.com/collections/formal",
+        "clean_url": "https://www.hellomolly.com/collections/formal",
+        "link_text": "All formal",
+        "link_classes": [
+          "transition-colors",
+          "hover:text-foreground",
+          "text-xxs",
+          "capitalize",
+          "tracking-[0.55px]"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "w-full",
+          "relative",
+          "hidden",
+          "md:block",
+          "group-hover:md:hidden"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "link_text": "VIP Energy Satin Scarf Halter Maxi Dress BlackUSD$109.00",
+        "link_classes": [
+          "space-y-1"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/products/vip-energy-satin-scarf-halter-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "w-full",
+          "relative",
+          "hidden",
+          "md:block",
+          "group-hover:md:hidden"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/hot-right-now-polka-dot-maxi-dress-black",
+        "link_text": "Hot Right Now Polka Dot Maxi Dress BlackUSD$109.00",
+        "link_classes": [
+          "space-y-1"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/products/hot-right-now-polka-dot-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/products/hot-right-now-polka-dot-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/products/hot-right-now-polka-dot-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/softly-spoken-love-halter-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/softly-spoken-love-halter-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/softly-spoken-love-halter-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "w-full",
+          "relative",
+          "hidden",
+          "md:block",
+          "group-hover:md:hidden"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/softly-spoken-love-halter-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/softly-spoken-love-halter-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/softly-spoken-love-halter-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/softly-spoken-love-halter-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/softly-spoken-love-halter-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/softly-spoken-love-halter-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/softly-spoken-love-halter-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/softly-spoken-love-halter-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/softly-spoken-love-halter-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/softly-spoken-love-halter-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/softly-spoken-love-halter-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/softly-spoken-love-halter-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/softly-spoken-love-halter-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/softly-spoken-love-halter-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/softly-spoken-love-halter-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/softly-spoken-love-halter-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/softly-spoken-love-halter-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/softly-spoken-love-halter-maxi-dress-black",
+        "link_text": "Softly Spoken Love Halter Maxi Dress BlackUSD$119.00",
+        "link_classes": [
+          "space-y-1"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/products/softly-spoken-love-halter-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/products/softly-spoken-love-halter-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/products/softly-spoken-love-halter-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/the-midnight-edit-satin-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/the-midnight-edit-satin-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/the-midnight-edit-satin-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "w-full",
+          "relative",
+          "hidden",
+          "md:block",
+          "group-hover:md:hidden"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/the-midnight-edit-satin-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/the-midnight-edit-satin-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/the-midnight-edit-satin-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/the-midnight-edit-satin-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/the-midnight-edit-satin-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/the-midnight-edit-satin-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/the-midnight-edit-satin-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/the-midnight-edit-satin-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/the-midnight-edit-satin-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/the-midnight-edit-satin-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/the-midnight-edit-satin-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/the-midnight-edit-satin-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/the-midnight-edit-satin-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/the-midnight-edit-satin-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/the-midnight-edit-satin-maxi-dress-black",
+        "link_text": "The Midnight Edit Satin Maxi Dress BlackUSD$89.00",
+        "link_classes": [
+          "space-y-1"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/products/the-midnight-edit-satin-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/products/the-midnight-edit-satin-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/products/the-midnight-edit-satin-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "w-full",
+          "relative",
+          "hidden",
+          "md:block",
+          "group-hover:md:hidden"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "link_text": "Exquisite Luxury Satin Long Sleeve Maxi Dress BlackUSD$95.00",
+        "link_classes": [
+          "space-y-1"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/products/exquisite-luxury-satin-long-sleeve-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/products/exquisite-luxury-satin-long-sleeve-maxi-dress-burgundy",
+        "full_url": "https://www.hellomolly.com/products/exquisite-luxury-satin-long-sleeve-maxi-dress-burgundy",
+        "clean_url": "https://www.hellomolly.com/products/exquisite-luxury-satin-long-sleeve-maxi-dress-burgundy",
+        "link_text": "",
+        "link_classes": [],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/products/exquisite-luxury-satin-long-sleeve-maxi-dress-blue",
+        "full_url": "https://www.hellomolly.com/products/exquisite-luxury-satin-long-sleeve-maxi-dress-blue",
+        "clean_url": "https://www.hellomolly.com/products/exquisite-luxury-satin-long-sleeve-maxi-dress-blue",
+        "link_text": "",
+        "link_classes": [],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/casana-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/casana-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/casana-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "w-full",
+          "relative",
+          "hidden",
+          "md:block",
+          "group-hover:md:hidden"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/casana-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/casana-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/casana-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/casana-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/casana-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/casana-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/casana-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/casana-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/casana-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/casana-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/casana-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/casana-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/casana-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/casana-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/casana-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [
+          "block",
+          "w-full",
+          "relative"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/collections/formal/products/casana-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/collections/formal/products/casana-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/collections/formal/products/casana-maxi-dress-black",
+        "link_text": "Casana Maxi Dress BlackUSD$169.00",
+        "link_classes": [
+          "space-y-1"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/products/casana-maxi-dress-black",
+        "full_url": "https://www.hellomolly.com/products/casana-maxi-dress-black",
+        "clean_url": "https://www.hellomolly.com/products/casana-maxi-dress-black",
+        "link_text": "",
+        "link_classes": [],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/about-us",
+        "full_url": "https://www.hellomolly.com/pages/about-us",
+        "clean_url": "https://www.hellomolly.com/pages/about-us",
+        "link_text": "About Us",
+        "link_classes": [
+          "text-sm",
+          "next-link",
+          "tracking-[0em]"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/careers",
+        "full_url": "https://www.hellomolly.com/pages/careers",
+        "clean_url": "https://www.hellomolly.com/pages/careers",
+        "link_text": "Careers",
+        "link_classes": [
+          "text-sm",
+          "next-link",
+          "tracking-[0em]"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/reviews",
+        "full_url": "https://www.hellomolly.com/pages/reviews",
+        "clean_url": "https://www.hellomolly.com/pages/reviews",
+        "link_text": "Reviews",
+        "link_classes": [
+          "text-sm",
+          "next-link",
+          "tracking-[0em]"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/blogs/moments",
+        "full_url": "https://www.hellomolly.com/blogs/moments",
+        "clean_url": "https://www.hellomolly.com/blogs/moments",
+        "link_text": "Blog",
+        "link_classes": [
+          "text-sm",
+          "next-link",
+          "tracking-[0em]"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/brands",
+        "full_url": "https://www.hellomolly.com/pages/brands",
+        "clean_url": "https://www.hellomolly.com/pages/brands",
+        "link_text": "Brands",
+        "link_classes": [
+          "text-sm",
+          "next-link",
+          "tracking-[0em]"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/shipping",
+        "full_url": "https://www.hellomolly.com/pages/shipping",
+        "clean_url": "https://www.hellomolly.com/pages/shipping",
+        "link_text": "Shipping",
+        "link_classes": [
+          "text-sm",
+          "next-link",
+          "tracking-[0em]"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/returns",
+        "full_url": "https://www.hellomolly.com/pages/returns",
+        "clean_url": "https://www.hellomolly.com/pages/returns",
+        "link_text": "Returns",
+        "link_classes": [
+          "text-sm",
+          "next-link",
+          "tracking-[0em]"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/size-guide",
+        "full_url": "https://www.hellomolly.com/pages/size-guide",
+        "clean_url": "https://www.hellomolly.com/pages/size-guide",
+        "link_text": "Size Guide",
+        "link_classes": [
+          "text-sm",
+          "next-link",
+          "tracking-[0em]"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/wear-now-pay-later",
+        "full_url": "https://www.hellomolly.com/pages/wear-now-pay-later",
+        "clean_url": "https://www.hellomolly.com/pages/wear-now-pay-later",
+        "link_text": "Wear Now Pay Later",
+        "link_classes": [
+          "text-sm",
+          "next-link",
+          "tracking-[0em]"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/unidays",
+        "full_url": "https://www.hellomolly.com/pages/unidays",
+        "clean_url": "https://www.hellomolly.com/pages/unidays",
+        "link_text": "UNiDAYS",
+        "link_classes": [
+          "text-sm",
+          "next-link",
+          "tracking-[0em]"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/contact-us",
+        "full_url": "https://www.hellomolly.com/pages/contact-us",
+        "clean_url": "https://www.hellomolly.com/pages/contact-us",
+        "link_text": "Contact Us",
+        "link_classes": [
+          "text-sm",
+          "next-link",
+          "tracking-[0em]"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/faq",
+        "full_url": "https://www.hellomolly.com/pages/faq",
+        "clean_url": "https://www.hellomolly.com/pages/faq",
+        "link_text": "FAQ",
+        "link_classes": [
+          "text-sm",
+          "next-link",
+          "tracking-[0em]"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/products/gift-card",
+        "full_url": "https://www.hellomolly.com/products/gift-card",
+        "clean_url": "https://www.hellomolly.com/products/gift-card",
+        "link_text": "Gift Cards",
+        "link_classes": [
+          "flex",
+          "items-center",
+          "gap-[0.625rem]",
+          "py-4",
+          "font-bold",
+          "text-sm",
+          "next-link",
+          "tracking-[0em]"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.hellomolly.com",
+        "full_url": "https://www.hellomolly.com",
+        "clean_url": "https://www.hellomolly.com",
+        "link_text": "US",
+        "link_classes": [
+          "relative",
+          "isolate",
+          "text-sm",
+          "inline-flex",
+          "items-center",
+          "justify-center",
+          "bg-transparent",
+          "h-auto",
+          "px-0",
+          "normal-case",
+          "overflow-auto",
+          "rounded-none",
+          "font-normal",
+          "gap-4",
+          "hover:opacity-100",
+          "data-[selected]:opacity-100",
+          "no-underline",
+          "opacity-100"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.hellomolly.com.au",
+        "full_url": "https://www.hellomolly.com.au",
+        "clean_url": "https://www.hellomolly.com.au",
+        "link_text": "AU",
+        "link_classes": [
+          "relative",
+          "isolate",
+          "text-sm",
+          "inline-flex",
+          "items-center",
+          "justify-center",
+          "bg-transparent",
+          "h-auto",
+          "px-0",
+          "normal-case",
+          "overflow-auto",
+          "rounded-none",
+          "font-normal",
+          "gap-4",
+          "opacity-30",
+          "hover:opacity-100",
+          "data-[selected]:opacity-100",
+          "no-underline"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.hellomolly.co.nz",
+        "full_url": "https://www.hellomolly.co.nz",
+        "clean_url": "https://www.hellomolly.co.nz",
+        "link_text": "NZ",
+        "link_classes": [
+          "relative",
+          "isolate",
+          "text-sm",
+          "inline-flex",
+          "items-center",
+          "justify-center",
+          "bg-transparent",
+          "h-auto",
+          "px-0",
+          "normal-case",
+          "overflow-auto",
+          "rounded-none",
+          "font-normal",
+          "gap-4",
+          "opacity-30",
+          "hover:opacity-100",
+          "data-[selected]:opacity-100",
+          "no-underline"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.hellomolly.co.uk",
+        "full_url": "https://www.hellomolly.co.uk",
+        "clean_url": "https://www.hellomolly.co.uk",
+        "link_text": "UK",
+        "link_classes": [
+          "relative",
+          "isolate",
+          "text-sm",
+          "inline-flex",
+          "items-center",
+          "justify-center",
+          "bg-transparent",
+          "h-auto",
+          "px-0",
+          "normal-case",
+          "overflow-auto",
+          "rounded-none",
+          "font-normal",
+          "gap-4",
+          "opacity-30",
+          "hover:opacity-100",
+          "data-[selected]:opacity-100",
+          "no-underline"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://tiktok.com/@hellomolly/",
+        "full_url": "https://tiktok.com/@hellomolly/",
+        "clean_url": "https://tiktok.com/@hellomolly/",
+        "link_text": "",
+        "link_classes": [
+          "h-[24px]",
+          "block",
+          "text-black",
+          "hover:text-pink-3",
+          "transition-colors",
+          "duration-300"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://instagram.com/hellomolly",
+        "full_url": "https://instagram.com/hellomolly",
+        "clean_url": "https://instagram.com/hellomolly",
+        "link_text": "",
+        "link_classes": [
+          "h-[24px]",
+          "block",
+          "text-black",
+          "hover:text-pink-3",
+          "transition-colors",
+          "duration-300"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.facebook.com/hellomolly",
+        "full_url": "https://www.facebook.com/hellomolly",
+        "clean_url": "https://www.facebook.com/hellomolly",
+        "link_text": "",
+        "link_classes": [
+          "h-[24px]",
+          "block",
+          "text-black",
+          "hover:text-pink-3",
+          "transition-colors",
+          "duration-300"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.pinterest.com/hellomollyfshn",
+        "full_url": "https://www.pinterest.com/hellomollyfshn",
+        "clean_url": "https://www.pinterest.com/hellomollyfshn",
+        "link_text": "",
+        "link_classes": [
+          "h-[24px]",
+          "block",
+          "text-black",
+          "hover:text-pink-3",
+          "transition-colors",
+          "duration-300"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.youtube.com/user/HelloMollyFashion",
+        "full_url": "https://www.youtube.com/user/HelloMollyFashion",
+        "clean_url": "https://www.youtube.com/user/HelloMollyFashion",
+        "link_text": "",
+        "link_classes": [
+          "h-[24px]",
+          "block",
+          "text-black",
+          "hover:text-pink-3",
+          "transition-colors",
+          "duration-300"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.linkedin.com/company/hello-molly",
+        "full_url": "https://www.linkedin.com/company/hello-molly",
+        "clean_url": "https://www.linkedin.com/company/hello-molly",
+        "link_text": "",
+        "link_classes": [
+          "h-[24px]",
+          "block",
+          "text-black",
+          "hover:text-pink-3",
+          "transition-colors",
+          "duration-300"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://twitter.com/LoveHellomolly",
+        "full_url": "https://twitter.com/LoveHellomolly",
+        "clean_url": "https://twitter.com/LoveHellomolly",
+        "link_text": "",
+        "link_classes": [
+          "h-[24px]",
+          "block",
+          "text-black",
+          "hover:text-pink-3",
+          "transition-colors",
+          "duration-300"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://threads.net/hellomolly",
+        "full_url": "https://threads.net/hellomolly",
+        "clean_url": "https://threads.net/hellomolly",
+        "link_text": "",
+        "link_classes": [
+          "h-[24px]",
+          "block",
+          "text-black",
+          "hover:text-pink-3",
+          "transition-colors",
+          "duration-300"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://play.google.com/store/apps/details?id=co.tapcart.app.id_5JpZERuADc",
+        "full_url": "https://play.google.com/store/apps/details?id=co.tapcart.app.id_5JpZERuADc",
+        "clean_url": "https://play.google.com/store/apps/details?id=co.tapcart.app.id_5JpZERuADc",
+        "link_text": "on google play",
+        "link_classes": [],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://apps.apple.com/us/app/hello-molly-us/id6476927044",
+        "full_url": "https://apps.apple.com/us/app/hello-molly-us/id6476927044",
+        "clean_url": "https://apps.apple.com/us/app/hello-molly-us/id6476927044",
+        "link_text": "on the app store",
+        "link_classes": [],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/",
+        "full_url": "https://www.hellomolly.com/",
+        "clean_url": "https://www.hellomolly.com/",
+        "link_text": "",
+        "link_classes": [
+          "mr-8"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/terms-and-conditions",
+        "full_url": "https://www.hellomolly.com/pages/terms-and-conditions",
+        "clean_url": "https://www.hellomolly.com/pages/terms-and-conditions",
+        "link_text": "Terms & Conditions",
+        "link_classes": [
+          "text-sm",
+          "next-link",
+          "tracking-[0em]",
+          "mb-[2px]"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/privacy-policy",
+        "full_url": "https://www.hellomolly.com/pages/privacy-policy",
+        "clean_url": "https://www.hellomolly.com/pages/privacy-policy",
+        "link_text": "Privacy Policy",
+        "link_classes": [
+          "text-sm",
+          "next-link",
+          "tracking-[0em]",
+          "mb-[2px]"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/about-us",
+        "full_url": "https://www.hellomolly.com/pages/about-us",
+        "clean_url": "https://www.hellomolly.com/pages/about-us",
+        "link_text": "About Us",
+        "link_classes": [
+          "next-link",
+          "text-sm"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/careers",
+        "full_url": "https://www.hellomolly.com/pages/careers",
+        "clean_url": "https://www.hellomolly.com/pages/careers",
+        "link_text": "Careers",
+        "link_classes": [
+          "next-link",
+          "text-sm"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/reviews",
+        "full_url": "https://www.hellomolly.com/pages/reviews",
+        "clean_url": "https://www.hellomolly.com/pages/reviews",
+        "link_text": "Reviews",
+        "link_classes": [
+          "next-link",
+          "text-sm"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/blogs/moments",
+        "full_url": "https://www.hellomolly.com/blogs/moments",
+        "clean_url": "https://www.hellomolly.com/blogs/moments",
+        "link_text": "Blog",
+        "link_classes": [
+          "next-link",
+          "text-sm"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/brands",
+        "full_url": "https://www.hellomolly.com/pages/brands",
+        "clean_url": "https://www.hellomolly.com/pages/brands",
+        "link_text": "Brands",
+        "link_classes": [
+          "next-link",
+          "text-sm"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/shipping",
+        "full_url": "https://www.hellomolly.com/pages/shipping",
+        "clean_url": "https://www.hellomolly.com/pages/shipping",
+        "link_text": "Shipping",
+        "link_classes": [
+          "next-link",
+          "text-sm"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/returns",
+        "full_url": "https://www.hellomolly.com/pages/returns",
+        "clean_url": "https://www.hellomolly.com/pages/returns",
+        "link_text": "Returns",
+        "link_classes": [
+          "next-link",
+          "text-sm"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/size-guide",
+        "full_url": "https://www.hellomolly.com/pages/size-guide",
+        "clean_url": "https://www.hellomolly.com/pages/size-guide",
+        "link_text": "Size Guide",
+        "link_classes": [
+          "next-link",
+          "text-sm"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/wear-now-pay-later",
+        "full_url": "https://www.hellomolly.com/pages/wear-now-pay-later",
+        "clean_url": "https://www.hellomolly.com/pages/wear-now-pay-later",
+        "link_text": "Wear Now Pay Later",
+        "link_classes": [
+          "next-link",
+          "text-sm"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/unidays",
+        "full_url": "https://www.hellomolly.com/pages/unidays",
+        "clean_url": "https://www.hellomolly.com/pages/unidays",
+        "link_text": "UNiDAYS",
+        "link_classes": [
+          "next-link",
+          "text-sm"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/contact-us",
+        "full_url": "https://www.hellomolly.com/pages/contact-us",
+        "clean_url": "https://www.hellomolly.com/pages/contact-us",
+        "link_text": "Contact Us",
+        "link_classes": [
+          "next-link",
+          "text-sm"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/faq",
+        "full_url": "https://www.hellomolly.com/pages/faq",
+        "clean_url": "https://www.hellomolly.com/pages/faq",
+        "link_text": "FAQ",
+        "link_classes": [
+          "next-link",
+          "text-sm"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/products/gift-card",
+        "full_url": "https://www.hellomolly.com/products/gift-card",
+        "clean_url": "https://www.hellomolly.com/products/gift-card",
+        "link_text": "Gift Cards",
+        "link_classes": [
+          "flex",
+          "items-center",
+          "gap-2",
+          "next-link",
+          "font-bold",
+          "text-sm"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.hellomolly.com",
+        "full_url": "https://www.hellomolly.com",
+        "clean_url": "https://www.hellomolly.com",
+        "link_text": "US",
+        "link_classes": [
+          "relative",
+          "isolate",
+          "text-sm",
+          "inline-flex",
+          "items-center",
+          "justify-center",
+          "bg-transparent",
+          "h-auto",
+          "px-0",
+          "normal-case",
+          "overflow-auto",
+          "rounded-none",
+          "font-normal",
+          "gap-4",
+          "hover:opacity-100",
+          "data-[selected]:opacity-100",
+          "no-underline",
+          "opacity-100"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.hellomolly.com.au",
+        "full_url": "https://www.hellomolly.com.au",
+        "clean_url": "https://www.hellomolly.com.au",
+        "link_text": "AU",
+        "link_classes": [
+          "relative",
+          "isolate",
+          "text-sm",
+          "inline-flex",
+          "items-center",
+          "justify-center",
+          "bg-transparent",
+          "h-auto",
+          "px-0",
+          "normal-case",
+          "overflow-auto",
+          "rounded-none",
+          "font-normal",
+          "gap-4",
+          "opacity-30",
+          "hover:opacity-100",
+          "data-[selected]:opacity-100",
+          "no-underline"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.hellomolly.co.nz",
+        "full_url": "https://www.hellomolly.co.nz",
+        "clean_url": "https://www.hellomolly.co.nz",
+        "link_text": "NZ",
+        "link_classes": [
+          "relative",
+          "isolate",
+          "text-sm",
+          "inline-flex",
+          "items-center",
+          "justify-center",
+          "bg-transparent",
+          "h-auto",
+          "px-0",
+          "normal-case",
+          "overflow-auto",
+          "rounded-none",
+          "font-normal",
+          "gap-4",
+          "opacity-30",
+          "hover:opacity-100",
+          "data-[selected]:opacity-100",
+          "no-underline"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.hellomolly.co.uk",
+        "full_url": "https://www.hellomolly.co.uk",
+        "clean_url": "https://www.hellomolly.co.uk",
+        "link_text": "UK",
+        "link_classes": [
+          "relative",
+          "isolate",
+          "text-sm",
+          "inline-flex",
+          "items-center",
+          "justify-center",
+          "bg-transparent",
+          "h-auto",
+          "px-0",
+          "normal-case",
+          "overflow-auto",
+          "rounded-none",
+          "font-normal",
+          "gap-4",
+          "opacity-30",
+          "hover:opacity-100",
+          "data-[selected]:opacity-100",
+          "no-underline"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://tiktok.com/@hellomolly/",
+        "full_url": "https://tiktok.com/@hellomolly/",
+        "clean_url": "https://tiktok.com/@hellomolly/",
+        "link_text": "",
+        "link_classes": [
+          "h-[24px]",
+          "block",
+          "text-black",
+          "hover:text-pink-3",
+          "transition-colors",
+          "duration-300"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://instagram.com/hellomolly",
+        "full_url": "https://instagram.com/hellomolly",
+        "clean_url": "https://instagram.com/hellomolly",
+        "link_text": "",
+        "link_classes": [
+          "h-[24px]",
+          "block",
+          "text-black",
+          "hover:text-pink-3",
+          "transition-colors",
+          "duration-300"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.facebook.com/hellomolly",
+        "full_url": "https://www.facebook.com/hellomolly",
+        "clean_url": "https://www.facebook.com/hellomolly",
+        "link_text": "",
+        "link_classes": [
+          "h-[24px]",
+          "block",
+          "text-black",
+          "hover:text-pink-3",
+          "transition-colors",
+          "duration-300"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.pinterest.com/hellomollyfshn",
+        "full_url": "https://www.pinterest.com/hellomollyfshn",
+        "clean_url": "https://www.pinterest.com/hellomollyfshn",
+        "link_text": "",
+        "link_classes": [
+          "h-[24px]",
+          "block",
+          "text-black",
+          "hover:text-pink-3",
+          "transition-colors",
+          "duration-300"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.youtube.com/user/HelloMollyFashion",
+        "full_url": "https://www.youtube.com/user/HelloMollyFashion",
+        "clean_url": "https://www.youtube.com/user/HelloMollyFashion",
+        "link_text": "",
+        "link_classes": [
+          "h-[24px]",
+          "block",
+          "text-black",
+          "hover:text-pink-3",
+          "transition-colors",
+          "duration-300"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://www.linkedin.com/company/hello-molly",
+        "full_url": "https://www.linkedin.com/company/hello-molly",
+        "clean_url": "https://www.linkedin.com/company/hello-molly",
+        "link_text": "",
+        "link_classes": [
+          "h-[24px]",
+          "block",
+          "text-black",
+          "hover:text-pink-3",
+          "transition-colors",
+          "duration-300"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://twitter.com/LoveHellomolly",
+        "full_url": "https://twitter.com/LoveHellomolly",
+        "clean_url": "https://twitter.com/LoveHellomolly",
+        "link_text": "",
+        "link_classes": [
+          "h-[24px]",
+          "block",
+          "text-black",
+          "hover:text-pink-3",
+          "transition-colors",
+          "duration-300"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://threads.net/hellomolly",
+        "full_url": "https://threads.net/hellomolly",
+        "clean_url": "https://threads.net/hellomolly",
+        "link_text": "",
+        "link_classes": [
+          "h-[24px]",
+          "block",
+          "text-black",
+          "hover:text-pink-3",
+          "transition-colors",
+          "duration-300"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://play.google.com/store/apps/details?id=co.tapcart.app.id_5JpZERuADc",
+        "full_url": "https://play.google.com/store/apps/details?id=co.tapcart.app.id_5JpZERuADc",
+        "clean_url": "https://play.google.com/store/apps/details?id=co.tapcart.app.id_5JpZERuADc",
+        "link_text": "on google play",
+        "link_classes": [],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "https://apps.apple.com/us/app/hello-molly-us/id6476927044",
+        "full_url": "https://apps.apple.com/us/app/hello-molly-us/id6476927044",
+        "clean_url": "https://apps.apple.com/us/app/hello-molly-us/id6476927044",
+        "link_text": "on app store",
+        "link_classes": [],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/",
+        "full_url": "https://www.hellomolly.com/",
+        "clean_url": "https://www.hellomolly.com/",
+        "link_text": "",
+        "link_classes": [],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/terms-and-conditions",
+        "full_url": "https://www.hellomolly.com/pages/terms-and-conditions",
+        "clean_url": "https://www.hellomolly.com/pages/terms-and-conditions",
+        "link_text": "Terms & Conditions",
+        "link_classes": [
+          "next-link"
+        ],
+        "link_data_attrs": {}
+      },
+      {
+        "original_href": "/pages/privacy-policy",
+        "full_url": "https://www.hellomolly.com/pages/privacy-policy",
+        "clean_url": "https://www.hellomolly.com/pages/privacy-policy",
+        "link_text": "Privacy Policy",
+        "link_classes": [
+          "next-link"
+        ],
+        "link_data_attrs": {}
+      }
+    ]
+  },
+  "product_containers": {
+    "total_containers": 0,
+    "containers": []
+  },
+  "product_links_analysis": {
+    "product_containers_found": 31,
+    "links_in_containers": 184,
+    "links_before_filter": [
+      {
+        "url": "https://www.cookiebot.com/en/what-is-behind-powered-by-cookiebot/",
+        "text": ""
+      },
+      {
+        "url": "https://www.hellomolly.com/pages/privacy-policy",
+        "text": "Privacy policy"
+      },
+      {
+        "url": "https://www.cookiebot.com/goto/privacy-policy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://business.safety.google/privacy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.scarabresearch.com/privacy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.shopify.com/legal/privacy",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.zendesk.com/company/customers-partners/privacy-policy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.zendesk.com/company/customers-partners/privacy-policy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.tiktok.com/legal/privacy-policy?lang=en",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.zendesk.com/company/customers-partners/privacy-policy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.facebook.com/policy.php/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://business.safety.google/privacy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.scarabresearch.com/privacy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.tiktok.com/legal/privacy-policy?lang=en",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.amazon.com/gp/help/customer/display.html/ref=footer_privacy?ie=UTF8&nodeId=468496",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.scarabresearch.com/privacy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.tiktok.com/legal/privacy-policy?lang=en",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.cookiebot.com",
+        "text": "Cookiebot"
+      },
+      {
+        "url": "https://www.cookiebot.com/en/what-is-behind-powered-by-cookiebot/",
+        "text": ""
+      },
+      {
+        "url": "https://www.hellomolly.com/pages/privacy-policy",
+        "text": "Privacy policy"
+      },
+      {
+        "url": "https://www.cookiebot.com/goto/privacy-policy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://business.safety.google/privacy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.scarabresearch.com/privacy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.shopify.com/legal/privacy",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.zendesk.com/company/customers-partners/privacy-policy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.zendesk.com/company/customers-partners/privacy-policy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.tiktok.com/legal/privacy-policy?lang=en",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.zendesk.com/company/customers-partners/privacy-policy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.facebook.com/policy.php/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://business.safety.google/privacy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.scarabresearch.com/privacy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.tiktok.com/legal/privacy-policy?lang=en",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.amazon.com/gp/help/customer/display.html/ref=footer_privacy?ie=UTF8&nodeId=468496",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.scarabresearch.com/privacy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.tiktok.com/legal/privacy-policy?lang=en",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.cookiebot.com",
+        "text": "Cookiebot"
+      },
+      {
+        "url": "https://www.hellomolly.com/pages/privacy-policy",
+        "text": "Privacy policy"
+      },
+      {
+        "url": "https://www.cookiebot.com/goto/privacy-policy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://business.safety.google/privacy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.scarabresearch.com/privacy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.shopify.com/legal/privacy",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.zendesk.com/company/customers-partners/privacy-policy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.zendesk.com/company/customers-partners/privacy-policy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.tiktok.com/legal/privacy-policy?lang=en",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.zendesk.com/company/customers-partners/privacy-policy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.facebook.com/policy.php/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://business.safety.google/privacy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.scarabresearch.com/privacy/",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.tiktok.com/legal/privacy-policy?lang=en",
+        "text": "Learn more about this provider"
+      },
+      {
+        "url": "https://www.amazon.com/gp/help/customer/display.html/ref=footer_privacy?ie=UTF8&nodeId=468496",
+        "text": "Learn more about this provider"
+      }
+    ],
+    "product_links_filtered": 0,
+    "product_links": []
+  },
+  "collection_page_json_ld": [],
+  "product_pages_json_ld": []
+}

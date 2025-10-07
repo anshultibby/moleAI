@@ -130,11 +130,20 @@ def search_web_tool(
 
 @tool(
     name="extract_products",
-    description="""Extract product information from e-commerce website URLs using the simple 3-step approach:
+    description="""Extract product information from e-commerce websites.
     
-    1. Get HTML from the listing page URL
-    2. Find product links in containers with 'product' text
-    3. Extract JSON-LD structured data from each product page
+    Multi-strategy extraction supporting:
+    - Static sites with JSON-LD structured data
+    - JavaScript-rendered SPAs (React, Vue, Next.js)
+    - Modern platforms (Shopify, WooCommerce)
+    
+    Extraction process:
+    1. Render JavaScript if needed (auto-detected)
+    2. Find product links via URL pattern matching
+    3. Extract using multiple strategies until one succeeds:
+       - JSON-LD structured data (Schema.org)
+       - Next.js __NEXT_DATA__ object
+       - Open Graph meta tags
     
     This extracts:
     - Product names, prices, and currencies
@@ -143,11 +152,11 @@ def search_web_tool(
     - Product images and URLs
     - Descriptions
     
-    Works best with Shopify sites and others that use JSON-LD structured data.
-    
     Parameters:
-    - urls: List of URLs to scrape (collection/listing pages)
-    - max_products: Maximum number of products to extract per URL (default: 30)
+    - urls: List of collection/listing page URLs to scrape
+    - max_products: Maximum products per URL (default: 30)
+    
+    Works with: Hello Molly, Shopify stores, and standard e-commerce sites
     """
 )
 async def extract_products(
@@ -189,6 +198,10 @@ async def extract_products(
                 for product_dict in result.get('products', []):
                     try:
                         # Convert simple extractor format to Product
+                        # Handle SKU - convert to string if it's an integer
+                        sku_value = product_dict.get('sku')
+                        sku_str = str(sku_value) if sku_value is not None else None
+                        
                         core_product = Product(
                             product_name=product_dict.get('title', ''),
                             price=f"{product_dict.get('price', 0)} {product_dict.get('currency', 'USD')}",
@@ -197,7 +210,7 @@ async def extract_products(
                             store=product_dict.get('brand', ''),
                             product_url=product_dict.get('product_url', ''),
                             image_url=product_dict.get('image_url', ''),
-                            sku=product_dict.get('sku', ''),
+                            sku=sku_str,
                             description=product_dict.get('description', '')
                         )
                         url_products.append(core_product)
