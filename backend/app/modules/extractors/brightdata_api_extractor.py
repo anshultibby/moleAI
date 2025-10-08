@@ -38,7 +38,8 @@ BRIGHTDATA_ZONE = os.getenv('BRIGHTDATA_ZONE', 'web_unlocker1')
 async def get_html_with_brightdata_api(
     url: str,
     render_js: bool = True,
-    session: Optional[aiohttp.ClientSession] = None
+    session: Optional[aiohttp.ClientSession] = None,
+    timeout: int = 120
 ) -> Optional[str]:
     """
     Fetch HTML using BrightData Web Unlocker API.
@@ -53,6 +54,7 @@ async def get_html_with_brightdata_api(
         url: URL to fetch
         render_js: Enable JavaScript rendering (default: True)
         session: Optional aiohttp session for connection pooling
+        timeout: Request timeout in seconds (default: 120)
         
     Returns:
         HTML content or None if failed
@@ -105,7 +107,7 @@ async def get_html_with_brightdata_api(
                 api_url,
                 json=payload,
                 headers=headers,
-                timeout=aiohttp.ClientTimeout(total=60)
+                timeout=aiohttp.ClientTimeout(total=timeout)
             ) as response:
                 if response.status != 200:
                     error_text = await response.text()
@@ -136,7 +138,8 @@ async def get_html_with_brightdata_api(
 async def extract_products_brightdata_api(
     url: str,
     max_products: int = 50,
-    context_vars=None
+    context_vars=None,
+    timeout: int = 120
 ) -> Dict[str, Any]:
     """
     Extract products using BrightData Web Unlocker API.
@@ -151,6 +154,7 @@ async def extract_products_brightdata_api(
         url: E-commerce listing/collection page URL
         max_products: Maximum number of products to extract
         context_vars: Optional context variables
+        timeout: Timeout per request in seconds (default: 120)
         
     Returns:
         Dict with:
@@ -170,8 +174,8 @@ async def extract_products_brightdata_api(
     try:
         logger.info(f"Starting BrightData API extraction for: {url}")
         
-        # Step 1: Get HTML using BrightData API
-        html = await get_html_with_brightdata_api(url, render_js=True)
+        # Step 1: Get HTML using BrightData API with extended timeout
+        html = await get_html_with_brightdata_api(url, render_js=True, timeout=timeout)
         
         if not html:
             return {
@@ -199,7 +203,7 @@ async def extract_products_brightdata_api(
             logger.info(f"Limited to first {max_products} product links")
         
         # Step 3: Fetch each product page via BrightData API and extract data
-        products = await extract_products_via_brightdata_api(product_links)
+        products = await extract_products_via_brightdata_api(product_links, timeout=timeout)
         
         logger.info(f"Successfully extracted {len(products)} products via BrightData API")
         
@@ -226,7 +230,8 @@ async def extract_products_brightdata_api(
 
 async def extract_products_via_brightdata_api(
     product_links: List[str],
-    max_concurrent: int = 5
+    max_concurrent: int = 5,
+    timeout: int = 120
 ) -> List[Dict[str, Any]]:
     """
     Extract products from URLs using BrightData API.
@@ -234,6 +239,7 @@ async def extract_products_via_brightdata_api(
     Args:
         product_links: List of product URLs
         max_concurrent: Max concurrent requests (default: 5)
+        timeout: Timeout per request in seconds (default: 120)
         
     Returns:
         List of extracted products
@@ -243,8 +249,19 @@ async def extract_products_via_brightdata_api(
     async def extract_single_product(session: aiohttp.ClientSession, url: str) -> Optional[Dict[str, Any]]:
         async with semaphore:
             try:
-                # Fetch HTML via BrightData API
-                html = await get_html_with_brightdata_api(url, render_js=True, session=session)
+                # Fetch HTML via BrightData API with retry
+                html = None
+                for attempt in range(2):  # Try twice
+                    try:
+                        html = await get_html_with_brightdata_api(url, render_js=True, session=session, timeout=timeout)
+                        if html:
+                            break
+                    except asyncio.TimeoutError:
+                        if attempt == 0:
+                            logger.warning(f"Timeout on {url}, retrying...")
+                            await asyncio.sleep(2)
+                        else:
+                            raise
                 
                 if not html:
                     logger.warning(f"Failed to fetch {url} via BrightData API")
@@ -290,7 +307,8 @@ async def extract_products_via_brightdata_api(
 # Convenience function
 async def extract_products_from_url_brightdata_api(
     url: str,
-    max_products: int = 50
+    max_products: int = 50,
+    timeout: int = 120
 ) -> Dict[str, Any]:
     """
     Simple interface for BrightData API-based product extraction.
@@ -298,5 +316,6 @@ async def extract_products_from_url_brightdata_api(
     Args:
         url: Collection/listing page URL
         max_products: Max products to extract
+        timeout: Timeout per request in seconds (default: 120)
     """
-    return await extract_products_brightdata_api(url, max_products)
+    return await extract_products_brightdata_api(url, max_products, timeout=timeout)

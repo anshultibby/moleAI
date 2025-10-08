@@ -44,30 +44,46 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
   // Parse result if it's JSON
   let parsedResult: any = null
   let resultType: 'json' | 'text' | 'search_results' | 'scraped_sites' = 'text'
-  if (typeof result === 'string' && (result.trim().startsWith('{') || result.trim().startsWith('['))) {
-    try {
-      parsedResult = JSON.parse(result)
-      resultType = 'json'
-      
-      // Detect special result types
-      if (parsedResult && typeof parsedResult === 'object') {
-        // Search results format: {query: "...", results: [{title, url, description}]}
-        if (parsedResult.query && Array.isArray(parsedResult.results)) {
-          resultType = 'search_results'
-          // Limit to first 5 results for readability
-          parsedResult.results = parsedResult.results.slice(0, 5)
+  
+  // Try to parse the result field as JSON
+  if (typeof result === 'string' && result.length > 0) {
+    const trimmed = result.trim()
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        parsedResult = JSON.parse(result)
+        
+        // Detect special result types
+        if (parsedResult && typeof parsedResult === 'object') {
+          // Search results format: {query: "...", results: [{title, url}]}
+          if (parsedResult.query && Array.isArray(parsedResult.results) && parsedResult.results.length > 0) {
+            resultType = 'search_results'
+            // Limit to first 5 results for readability
+            parsedResult.results = parsedResult.results.slice(0, 5)
+            console.log('✅ Detected search_results with', parsedResult.results.length, 'results for query:', parsedResult.query)
+          }
+          // Scraped sites format: {scraped_sites: [{name, url, success}]}
+          else if (Array.isArray(parsedResult.scraped_sites)) {
+            resultType = 'scraped_sites'
+          }
+          else {
+            // Generic JSON
+            resultType = 'json'
+          }
         }
-        // Scraped sites format: {scraped_sites: [{name, url, success}]}
-        else if (Array.isArray(parsedResult.scraped_sites)) {
-          resultType = 'scraped_sites'
-        }
+      } catch (e) {
+        // Not valid JSON, treat as text
+        console.warn('Failed to parse tool result as JSON:', e)
+        parsedResult = result
+        resultType = 'text'
       }
-    } catch (e) {
-      // Not valid JSON, treat as text
+    } else {
+      // Plain text result
       parsedResult = result
+      resultType = 'text'
     }
   } else {
     parsedResult = result
+    resultType = 'text'
   }
   
   // Determine status color and icon
@@ -107,22 +123,30 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
             
             {/* Quick preview of arguments or results */}
             {!isExpanded && (
-              <div className="text-sm text-slate-600 dark:text-slate-400 truncate">
+              <div className="text-sm text-slate-600 dark:text-slate-400">
                 {/* Show search query for search results */}
                 {resultType === 'search_results' && parsedResult?.query ? (
-                  <span>
-                    <span className="font-medium">query:</span> {parsedResult.query}
+                  <div className="flex items-center space-x-2">
+                    <span className="text-indigo-600 dark:text-indigo-400 font-medium truncate">
+                      {parsedResult.query}
+                    </span>
                     {parsedResult.results && (
-                      <span className="ml-2 text-slate-500">• {parsedResult.results.length} results</span>
+                      <span className="flex-shrink-0 text-xs bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-full">
+                        {parsedResult.results.length} results
+                      </span>
                     )}
-                  </span>
+                  </div>
                 ) : hasArgs ? (
                   // Show first argument only
-                  Object.entries(args).slice(0, 1).map(([key, value]) => (
-                    <span key={key} className="mr-2">
-                      <span className="font-medium">{key}:</span> {String(value).substring(0, 40)}
-                    </span>
-                  ))
+                  <div className="truncate">
+                    {Object.entries(args).slice(0, 1).map(([key, value]) => (
+                      <span key={key} className="mr-2">
+                        <span className="font-medium">{key}:</span> {String(value).substring(0, 40)}
+                      </span>
+                    ))}
+                  </div>
+                ) : execution.status === 'completed' && hasResult ? (
+                  <span className="text-xs text-green-600 dark:text-green-400">✓ Click to view result</span>
                 ) : null}
               </div>
             )}
