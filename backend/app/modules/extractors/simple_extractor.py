@@ -332,12 +332,16 @@ def find_product_links(html: str, base_url: str) -> List[str]:
             continue
         
         # Filter: only keep product pages
-        # Common patterns: /products/, /product/, /p/
+        # Common patterns: /products/, /product/, /p/, /pro/, /pd/, /dp/
         lower_url = full_url.lower()
         is_product_url = any(pattern in lower_url for pattern in [
             '/products/',
             '/product/',
             '/p/',
+            '/pro/',      # Express.com uses /pro/
+            '/pd/',       # Some sites use /pd/
+            '/dp/',       # Amazon-style /dp/
+            '/item/',     # Some sites use /item/
         ])
         
         # Exclude collection/category pages

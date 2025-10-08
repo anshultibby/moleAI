@@ -14,6 +14,8 @@ const TOOL_METADATA: Record<string, { icon: string; displayName: string; categor
   scrape_website: { icon: '🌐', displayName: 'Scrape Website', category: 'Extraction' },
   extract_products: { icon: '🛍️', displayName: 'Extract Products', category: 'Extraction' },
   get_resource: { icon: '📦', displayName: 'Get Resource', category: 'Data' },
+  list_resources: { icon: '📋', displayName: 'List Resources', category: 'Data' },
+  display_items: { icon: '✨', displayName: 'Display Products', category: 'Display' },
   create_checklist: { icon: '✅', displayName: 'Create Checklist', category: 'Planning' },
   update_checklist_item: { icon: '📝', displayName: 'Update Checklist', category: 'Planning' },
   // Add more tools as needed
@@ -52,6 +54,8 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
         // Search results format: {query: "...", results: [{title, url, description}]}
         if (parsedResult.query && Array.isArray(parsedResult.results)) {
           resultType = 'search_results'
+          // Limit to first 5 results for readability
+          parsedResult.results = parsedResult.results.slice(0, 5)
         }
         // Scraped sites format: {scraped_sites: [{name, url, success}]}
         else if (Array.isArray(parsedResult.scraped_sites)) {
@@ -90,17 +94,17 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
           {/* Tool info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center space-x-2 mb-1">
-              <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">
+              <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200 truncate">
                 {metadata.displayName}
               </h3>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${status.color} font-medium`}>
+              <span className={`text-sm px-2 py-0.5 rounded-full ${status.color} font-medium`}>
                 {status.icon} {status.label}
               </span>
             </div>
             
             {/* Quick preview of arguments or results */}
             {!isExpanded && (
-              <div className="text-xs text-slate-600 dark:text-slate-400 truncate">
+              <div className="text-sm text-slate-600 dark:text-slate-400 truncate">
                 {/* Show search query for search results */}
                 {resultType === 'search_results' && parsedResult?.query ? (
                   <span>
@@ -110,10 +114,10 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
                     )}
                   </span>
                 ) : hasArgs ? (
-                  // Show first 2 arguments
-                  Object.entries(args).slice(0, 2).map(([key, value]) => (
+                  // Show first argument only
+                  Object.entries(args).slice(0, 1).map(([key, value]) => (
                     <span key={key} className="mr-2">
-                      <span className="font-medium">{key}:</span> {String(value).substring(0, 30)}
+                      <span className="font-medium">{key}:</span> {String(value).substring(0, 40)}
                     </span>
                   ))
                 ) : null}
@@ -122,7 +126,7 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
             
             {/* Show error message if present */}
             {execution.error && !isExpanded && (
-              <div className="text-xs text-red-600 dark:text-red-400 truncate mt-1">
+              <div className="text-sm text-red-600 dark:text-red-400 truncate mt-1">
                 {execution.error}
               </div>
             )}
@@ -149,19 +153,36 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
           {hasArgs && (
             <div className="p-3 border-b border-slate-200 dark:border-slate-700">
               <div className="flex items-center space-x-2 mb-2">
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                  Input Arguments
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                  Input
                 </span>
               </div>
-              <div className="bg-white dark:bg-slate-800 rounded p-2 space-y-1">
-                {Object.entries(args).map(([key, value]) => (
-                  <div key={key} className="text-xs">
-                    <span className="font-medium text-slate-700 dark:text-slate-300">{key}:</span>{' '}
-                    <span className="text-slate-600 dark:text-slate-400">
-                      {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
-                    </span>
-                  </div>
-                ))}
+              <div className="bg-white dark:bg-slate-800 rounded p-3 space-y-2">
+                {Object.entries(args).map(([key, value]) => {
+                  // Format value for display
+                  let displayValue = String(value)
+                  if (typeof value === 'object') {
+                    // If it's an array, show count
+                    if (Array.isArray(value)) {
+                      displayValue = `[${value.length} items]`
+                    } else {
+                      displayValue = JSON.stringify(value, null, 2)
+                    }
+                  }
+                  // Truncate long strings
+                  if (displayValue.length > 100) {
+                    displayValue = displayValue.substring(0, 100) + '...'
+                  }
+                  
+                  return (
+                    <div key={key} className="text-sm">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">{key}:</span>{' '}
+                      <span className="text-slate-600 dark:text-slate-400">
+                        {displayValue}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
@@ -170,18 +191,18 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
           {hasResult && execution.status === 'completed' && (
             <div className="p-3">
               <div className="flex items-center space-x-2 mb-2">
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                  Result
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                  {resultType === 'search_results' ? 'Found Results' : 'Result'}
                 </span>
                 {resultType === 'search_results' && parsedResult?.results && (
-                  <span className="text-xs text-slate-500 dark:text-slate-400">
-                    {parsedResult.results.length} results
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
+                    ({parsedResult.results.length})
                   </span>
                 )}
               </div>
-              <div className="bg-white dark:bg-slate-800 rounded max-h-96 overflow-y-auto">
+              <div className="bg-white dark:bg-slate-800 rounded max-h-96 overflow-y-auto shadow-sm">
                 {resultType === 'search_results' && parsedResult?.results ? (
-                  // Special formatting for search results
+                  // Special formatting for search results - Clean and readable
                   <div className="divide-y divide-slate-200 dark:divide-slate-700">
                     {parsedResult.results.map((item: any, idx: number) => (
                       <a
@@ -189,16 +210,15 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
                         href={item.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group"
+                        className="block p-4 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors group"
                       >
-                        <div className="text-sm font-medium text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700 dark:group-hover:text-indigo-300 mb-1 line-clamp-2">
+                        {/* Clickable Title */}
+                        <div className="text-base font-medium text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700 dark:group-hover:text-indigo-300 mb-2 line-clamp-2 leading-snug">
                           {item.title}
                         </div>
-                        <div className="text-xs text-slate-600 dark:text-slate-400 mb-1 line-clamp-2">
-                          {item.description}
-                        </div>
+                        {/* Domain/URL - smaller and subdued */}
                         <div className="text-xs text-slate-500 dark:text-slate-500 truncate">
-                          {item.url}
+                          {new URL(item.url).hostname}
                         </div>
                       </a>
                     ))}
@@ -212,16 +232,16 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
                         href={site.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group"
+                        className="block p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group"
                       >
-                        <div className="flex items-center space-x-2">
-                          <span className="text-lg">{site.success !== false ? '✅' : '❌'}</span>
+                        <div className="flex items-center space-x-3">
+                          <span className="text-xl">{site.success !== false ? '✅' : '❌'}</span>
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">
+                            <div className="text-base font-medium text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">
                               {site.name}
                             </div>
-                            <div className="text-xs text-slate-500 dark:text-slate-500 truncate">
-                              {site.url}
+                            <div className="text-xs text-slate-500 dark:text-slate-500 truncate mt-1">
+                              {new URL(site.url).hostname}
                             </div>
                           </div>
                         </div>
@@ -229,14 +249,16 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
                     ))}
                   </div>
                 ) : resultType === 'json' ? (
-                  // Default JSON formatting
-                  <pre className="text-xs text-slate-600 dark:text-slate-400 whitespace-pre-wrap font-mono p-2">
-                    {JSON.stringify(parsedResult, null, 2)}
+                  // Default JSON formatting - truncated for readability
+                  <pre className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap font-mono p-3 max-h-64 overflow-y-auto">
+                    {JSON.stringify(parsedResult, null, 2).substring(0, 500)}
+                    {JSON.stringify(parsedResult, null, 2).length > 500 && '\n... (truncated)'}
                   </pre>
                 ) : (
-                  // Plain text
-                  <div className="text-xs text-slate-600 dark:text-slate-400 whitespace-pre-wrap p-2">
-                    {String(parsedResult)}
+                  // Plain text - truncated for readability
+                  <div className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap p-3 max-h-64 overflow-y-auto">
+                    {String(parsedResult).substring(0, 500)}
+                    {String(parsedResult).length > 500 && '\n... (truncated)'}
                   </div>
                 )}
               </div>
@@ -247,11 +269,11 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
           {execution.error && (
             <div className="p-3 bg-red-50 dark:bg-red-900/20">
               <div className="flex items-center space-x-2 mb-2">
-                <span className="text-xs font-semibold text-red-700 dark:text-red-400 uppercase tracking-wide">
+                <span className="text-sm font-semibold text-red-700 dark:text-red-400 uppercase tracking-wide">
                   Error
                 </span>
               </div>
-              <div className="text-xs text-red-600 dark:text-red-400">
+              <div className="text-sm text-red-600 dark:text-red-400 leading-relaxed">
                 {execution.error}
               </div>
             </div>
@@ -260,7 +282,7 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
           {/* Timestamp */}
           {execution.timestamp && (
             <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-700">
-              <div className="text-xs text-slate-500 dark:text-slate-500">
+              <div className="text-sm text-slate-500 dark:text-slate-500">
                 {new Date(execution.timestamp).toLocaleTimeString()}
               </div>
             </div>
@@ -333,14 +355,14 @@ export default function ToolExecutionSidePanel({
       <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-sm">🔧</span>
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <span className="text-white text-lg">🔧</span>
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+              <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
                 Tool Execution Trace
               </h3>
-              <p className="text-xs text-slate-600 dark:text-slate-400">
+              <p className="text-sm text-slate-600 dark:text-slate-400">
                 {allTools.length} tool call{allTools.length !== 1 ? 's' : ''}
                 {statusCounts.completed > 0 && ` · ${statusCounts.completed} completed`}
                 {statusCounts.started > 0 && ` · ${statusCounts.started} running`}
@@ -353,7 +375,7 @@ export default function ToolExecutionSidePanel({
           {isActive && (
             <div className="flex items-center space-x-2">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-xs text-slate-600 dark:text-slate-400">Active</span>
+              <span className="text-sm text-slate-600 dark:text-slate-400">Active</span>
             </div>
           )}
         </div>
