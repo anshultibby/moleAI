@@ -130,23 +130,28 @@ def search_web_tool(
 
 @tool(
     name="extract_products",
-    description="""Extract product information from e-commerce websites.
+    description="""Extract product information from e-commerce websites using BrightData Web Unlocker API.
     
-    Multi-strategy extraction supporting:
-    - Static sites with JSON-LD structured data
-    - JavaScript-rendered SPAs (React, Vue, Next.js)
-    - Modern platforms (Shopify, WooCommerce)
+    Automatic bot detection bypass with:
+    - PerimeterX, Cloudflare, Datadome protection bypass
+    - JavaScript rendering for SPAs (React, Vue, Next.js)
+    - Residential proxy rotation
+    - CAPTCHA solving
+    - Cost: $1.50 per 1,000 requests
     
-    Extraction process:
-    1. Render JavaScript if needed (auto-detected)
-    2. Find product links via URL pattern matching
-    3. Extract using multiple strategies until one succeeds:
-       - JSON-LD structured data (Schema.org)
-       - Next.js __NEXT_DATA__ object
-       - Open Graph meta tags
+    Supports all modern e-commerce platforms:
+    - Shopify stores
+    - WooCommerce sites
+    - Custom JavaScript SPAs
+    - Bot-protected sites
     
-    This extracts:
-    - Product names, prices, and currencies
+    Extraction strategies:
+    - JSON-LD structured data (Schema.org)
+    - Next.js __NEXT_DATA__ objects
+    - Open Graph meta tags
+    
+    Extracts:
+    - Product names, prices, currencies
     - Brand/vendor information
     - SKUs and product IDs
     - Product images and URLs
@@ -156,7 +161,7 @@ def search_web_tool(
     - urls: List of collection/listing page URLs to scrape
     - max_products: Maximum products per URL (default: 30)
     
-    Works with: Hello Molly, Shopify stores, and standard e-commerce sites
+    Works with: Hello Molly, Express.com, Fashion Nova, and 95%+ of e-commerce sites
     """
 )
 async def extract_products(
@@ -184,8 +189,10 @@ async def extract_products(
             try:
                 streamer.progress(f"Processing URL {i}/{len(urls)}: {url}", current=i, total=len(urls))
                 
-                # Use simple extractor (returns dict with products list)
-                result = await extract_products_simple(url, max_products=max_products, context_vars=context_vars)
+                # Use BrightData Web Unlocker API ($1.50/1K requests)
+                from app.modules.extractors import extract_products_brightdata_api
+                streamer.progress(f"🌐 Using BrightData Web Unlocker API...")
+                result = await extract_products_brightdata_api(url, max_products=max_products, context_vars=context_vars)
                 
                 if not result.get('success'):
                     logger.warning(f"Failed to extract from {url}: {result.get('error')}")

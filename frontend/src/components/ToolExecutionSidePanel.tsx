@@ -81,24 +81,27 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
   const status = statusConfig[execution.status] || statusConfig.started
   
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden hover:shadow-lg hover:border-indigo-300 dark:hover:border-indigo-700 transition-all duration-200">
       {/* Header - Always visible */}
       <div 
-        className="p-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+        className="p-4 cursor-pointer hover:bg-gradient-to-r hover:from-slate-50 hover:to-transparent dark:hover:from-slate-700/30 dark:hover:to-transparent transition-all duration-200"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-start space-x-3">
-          {/* Tool icon */}
-          <span className="text-2xl flex-shrink-0">{metadata.icon}</span>
+          {/* Tool icon with background */}
+          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/40 dark:to-purple-900/40 flex items-center justify-center">
+            <span className="text-xl">{metadata.icon}</span>
+          </div>
           
           {/* Tool info */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-2 mb-1">
+            <div className="flex items-center space-x-2 mb-1.5">
               <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200 truncate">
                 {metadata.displayName}
               </h3>
-              <span className={`text-sm px-2 py-0.5 rounded-full ${status.color} font-medium`}>
-                {status.icon} {status.label}
+              <span className={`text-sm px-2.5 py-0.5 rounded-full ${status.color} font-medium flex items-center space-x-1`}>
+                <span>{status.icon}</span>
+                <span>{status.label}</span>
               </span>
             </div>
             
@@ -133,16 +136,18 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
           </div>
           
           {/* Expand/collapse icon */}
-          <svg
-            className={`w-5 h-5 text-slate-400 dark:text-slate-500 transition-transform duration-200 flex-shrink-0 ${
-              isExpanded ? 'rotate-180' : ''
-            }`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
+          <div className={`flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors`}>
+            <svg
+              className={`w-4 h-4 text-slate-600 dark:text-slate-400 transition-transform duration-300 ${
+                isExpanded ? 'rotate-180' : ''
+              }`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
         </div>
       </div>
       
@@ -200,6 +205,20 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
                   </span>
                 )}
               </div>
+              
+              {/* Show query for search results */}
+              {resultType === 'search_results' && parsedResult?.query && (
+                <div className="mb-3 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800/30">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <span className="text-lg">🔍</span>
+                    <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-400 uppercase tracking-wide">Search Query</span>
+                  </div>
+                  <div className="text-base text-slate-800 dark:text-slate-200 font-medium">
+                    "{parsedResult.query}"
+                  </div>
+                </div>
+              )}
+              
               <div className="bg-white dark:bg-slate-800 rounded max-h-96 overflow-y-auto shadow-sm">
                 {resultType === 'search_results' && parsedResult?.results ? (
                   // Special formatting for search results - Clean and readable
@@ -210,15 +229,30 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
                         href={item.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block p-4 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors group"
+                        className="flex items-start space-x-3 p-4 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-transparent dark:hover:from-indigo-900/20 dark:hover:to-transparent transition-all duration-200 group border-l-2 border-transparent hover:border-indigo-500"
                       >
-                        {/* Clickable Title */}
-                        <div className="text-base font-medium text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700 dark:group-hover:text-indigo-300 mb-2 line-clamp-2 leading-snug">
-                          {item.title}
+                        {/* Result number badge */}
+                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/40 transition-colors">
+                          <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                            {idx + 1}
+                          </span>
                         </div>
-                        {/* Domain/URL - smaller and subdued */}
-                        <div className="text-xs text-slate-500 dark:text-slate-500 truncate">
-                          {new URL(item.url).hostname}
+                        
+                        <div className="flex-1 min-w-0">
+                          {/* Clickable Title */}
+                          <div className="text-base font-semibold text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700 dark:group-hover:text-indigo-300 mb-2 line-clamp-2 leading-snug flex items-start">
+                            {item.title}
+                            <svg className="w-4 h-4 ml-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </div>
+                          {/* Domain/URL - with icon */}
+                          <div className="flex items-center space-x-1 text-xs text-slate-500 dark:text-slate-500">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                            </svg>
+                            <span className="truncate">{new URL(item.url).hostname}</span>
+                          </div>
                         </div>
                       </a>
                     ))}
@@ -226,27 +260,46 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
                 ) : resultType === 'scraped_sites' && parsedResult?.scraped_sites ? (
                   // Special formatting for scraped sites
                   <div className="divide-y divide-slate-200 dark:divide-slate-700">
-                    {parsedResult.scraped_sites.map((site: any, idx: number) => (
-                      <a
-                        key={idx}
-                        href={site.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <span className="text-xl">{site.success !== false ? '✅' : '❌'}</span>
+                    {parsedResult.scraped_sites.map((site: any, idx: number) => {
+                      const isSuccess = site.success !== false
+                      return (
+                        <a
+                          key={idx}
+                          href={site.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`flex items-center space-x-3 p-4 transition-all duration-200 group border-l-2 ${
+                            isSuccess 
+                              ? 'hover:bg-gradient-to-r hover:from-green-50 hover:to-transparent dark:hover:from-green-900/20 border-transparent hover:border-green-500'
+                              : 'hover:bg-gradient-to-r hover:from-red-50 hover:to-transparent dark:hover:from-red-900/20 border-transparent hover:border-red-500'
+                          }`}
+                        >
+                          {/* Status icon */}
+                          <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                            isSuccess 
+                              ? 'bg-green-100 dark:bg-green-900/40 group-hover:bg-green-200 dark:group-hover:bg-green-900/60'
+                              : 'bg-red-100 dark:bg-red-900/40 group-hover:bg-red-200 dark:group-hover:bg-red-900/60'
+                          } transition-colors`}>
+                            <span className="text-lg">{isSuccess ? '✅' : '❌'}</span>
+                          </div>
+                          
                           <div className="flex-1 min-w-0">
-                            <div className="text-base font-medium text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">
+                            <div className="text-base font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate flex items-center">
                               {site.name}
+                              <svg className="w-4 h-4 ml-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                              </svg>
                             </div>
-                            <div className="text-xs text-slate-500 dark:text-slate-500 truncate mt-1">
-                              {new URL(site.url).hostname}
+                            <div className="flex items-center space-x-1 text-xs text-slate-500 dark:text-slate-500 mt-1">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                              </svg>
+                              <span className="truncate">{new URL(site.url).hostname}</span>
                             </div>
                           </div>
-                        </div>
-                      </a>
-                    ))}
+                        </a>
+                      )
+                    })}
                   </div>
                 ) : resultType === 'json' ? (
                   // Default JSON formatting - truncated for readability

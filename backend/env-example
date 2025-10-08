@@ -3,8 +3,12 @@ GEMINI_API_KEY=your_gemini_api_key_here
 OPENAI_API_KEY=your_openai_api_key_here
 XLM_API_KEY=your_xlm_z_ai_api_key_here
 JINA_AI_API_KEY=your_jina_ai_api_key_here
-ZYTE_API_KEY=your_zyte_api_key_here
-# SCRAPING_BEE_API_KEY=your_scraping_bee_api_key_here  # No longer needed - using direct scraping
+
+# BrightData Web Unlocker API
+# Cost: $1.50 per 1,000 requests
+# Get your API key from: https://brightdata.com/cp/zones
+BRIGHTDATA_API_KEY=your_api_key_here
+BRIGHTDATA_ZONE=web_unlocker1
 
 # Environment
 ENVIRONMENT=development

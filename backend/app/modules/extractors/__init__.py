@@ -1,17 +1,12 @@
-"""Product extractors package"""
+"""Product extractors package - BrightData API"""
 
-from .simple_extractor import extract_products_simple, extract_products_from_url_simple
-from .zyte_extractor import extract_products_zyte, extract_products_from_url_zyte
+from .brightdata_api_extractor import extract_products_brightdata_api, extract_products_from_url_brightdata_api
 
-# Import extractors to register tools
-from . import simple_extractor
-from . import zyte_extractor
+# Import extractor to register tools
+from . import brightdata_api_extractor
 
 __all__ = [
-    'extract_products_simple',
-    'extract_products_from_url_simple',
-    'extract_products_zyte',
-    'extract_products_from_url_zyte',
-    'simple_extractor',
-    'zyte_extractor'
+    'extract_products_brightdata_api',
+    'extract_products_from_url_brightdata_api',
+    'brightdata_api_extractor'
 ]
