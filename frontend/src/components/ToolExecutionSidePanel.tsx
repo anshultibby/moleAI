@@ -8,309 +8,263 @@ interface ToolExecutionSidePanelProps {
   isActive: boolean
 }
 
-
-function getSimpleMessage(execution: ToolExecutionEvent): string | null {
-  if (execution.tool_name === 'search_web_tool') {
-    console.log('=== DEBUGGING SEARCH EXECUTION ===')
-    console.log('Full execution object:', execution)
-    console.log('Progress:', execution.progress)
-    console.log('Result type:', typeof execution.result)
-    console.log('Result content:', execution.result)
-    console.log('Message:', execution.message)
-    
-    // Try to extract query from multiple places
-    let query: string | null = null
-    
-    // First try progress
-    console.log('Step 1: Checking progress...')
-    if (execution.progress?.query) {
-      console.log('Found query in progress:', execution.progress.query)
-      query = execution.progress.query
-    }
-    // Then try to extract from result if it has query field
-    else if (execution.result && typeof execution.result === 'string') {
-      console.log('Step 2: Parsing JSON result...')
-      try {
-        const parsed = JSON.parse(execution.result)
-        console.log('Parsed JSON result:', parsed)
-        if (parsed && parsed.query) {
-          console.log('Found query in result:', parsed.query)
-          query = parsed.query
-        } else {
-          console.log('No query found in parsed result')
-        }
-      } catch (e) {
-        console.log('JSON parse error:', e)
-      }
-    }
-    // Finally try message
-    else if (execution.message && execution.message.includes('for:')) {
-      console.log('Step 3: Checking message...')
-      const match = execution.message.match(/for:\s*(.+)/)
-      if (match) {
-        console.log('Found query in message:', match[1])
-        query = match[1]
-      }
-    }
-    
-    console.log('FINAL EXTRACTED QUERY:', query)
-    console.log('=== END DEBUG ===')
-    
-    // If no query found, don't show this card
-    if (!query) {
-      return null
-    }
-    
-    if (execution.status === 'completed') {
-      return `Searched "${query}"`
-    }
-    return `Searching "${query}"...`
-  }
-  
-  if (execution.tool_name === 'scrape_website') {
-    // Try to extract website name from the execution
-    let websiteName = 'website'
-    
-    // Try to get website name from result
-    if (execution.result && typeof execution.result === 'string') {
-      try {
-        if (execution.result.startsWith('{') || execution.result.startsWith('[')) {
-          const parsed = JSON.parse(execution.result)
-          if (parsed.scraped_sites && Array.isArray(parsed.scraped_sites) && parsed.scraped_sites.length > 0) {
-            const firstSite = parsed.scraped_sites[0]
-            if (typeof firstSite === 'object' && firstSite.name) {
-              websiteName = firstSite.name
-            } else if (typeof firstSite === 'string') {
-              websiteName = firstSite
-            }
-          }
-        } else if (execution.result.includes('_content')) {
-          const match = execution.result.match(/(\w+)_content/)
-          if (match) {
-            websiteName = match[1].charAt(0).toUpperCase() + match[1].slice(1)
-          }
-        }
-      } catch (e) {
-        console.log('Error parsing website name:', e)
-      }
-    }
-    
-    // Try to get from progress or message if result parsing failed
-    if (websiteName === 'website' && execution.progress?.url) {
-      try {
-        const url = new URL(execution.progress.url)
-        websiteName = url.hostname.replace('www.', '').split('.')[0]
-        websiteName = websiteName.charAt(0).toUpperCase() + websiteName.slice(1)
-      } catch (e) {
-        console.log('Error parsing URL from progress:', e)
-      }
-    }
-    
-    if (execution.status === 'completed') {
-      return `Check ${websiteName}`
-    }
-    return `Checking ${websiteName}...`
-  }
-  
-  return 'Working...'
+// Tool metadata for better display
+const TOOL_METADATA: Record<string, { icon: string; displayName: string; category: string }> = {
+  search_web_tool: { icon: '🔍', displayName: 'Web Search', category: 'Search' },
+  scrape_website: { icon: '🌐', displayName: 'Scrape Website', category: 'Extraction' },
+  extract_products: { icon: '🛍️', displayName: 'Extract Products', category: 'Extraction' },
+  get_resource: { icon: '📦', displayName: 'Get Resource', category: 'Data' },
+  create_checklist: { icon: '✅', displayName: 'Create Checklist', category: 'Planning' },
+  update_checklist_item: { icon: '📝', displayName: 'Update Checklist', category: 'Planning' },
+  // Add more tools as needed
 }
 
-function getSimpleLinks(execution: ToolExecutionEvent): Array<{title: string, url: string}> {
-  if (execution.tool_name !== 'search_web_tool' || !execution.result) return []
-  
-  try {
-    // New simple format: result is directly an array of {title, url}
-    if (Array.isArray(execution.result)) {
-      return execution.result.filter((result: any) => result.url)
-    }
-    
-    // Handle string format - parse JSON
-    if (typeof execution.result === 'string') {
-      // Check if string is empty or just whitespace
-      const resultStr = execution.result.trim()
-      if (!resultStr) {
-        console.log('Empty result string, skipping JSON parse')
-        return []
-      }
-      
-      // Check if string starts with valid JSON characters
-      if (!resultStr.startsWith('{') && !resultStr.startsWith('[')) {
-        console.log('Result string does not appear to be JSON:', resultStr.substring(0, 100))
-        return []
-      }
-      
-      try {
-        const parsed = JSON.parse(resultStr)
-        
-        // Handle format: {query: "...", results: [...]}
-        if (parsed && typeof parsed === 'object' && parsed.results && Array.isArray(parsed.results)) {
-          return parsed.results.map((result: any) => ({
-            title: result.title || 'Store',
-            url: result.url
-          })).filter((result: any) => result.url)
-        }
-        
-        // Handle direct array in string
-        if (Array.isArray(parsed)) {
-          return parsed.filter((result: any) => result.url)
-        }
-        
-        console.log('Parsed JSON but no valid results array found:', parsed)
-      } catch (e) {
-        console.log('JSON parse error in links:', e)
-        console.log('Failed to parse result string:', resultStr.substring(0, 200))
-      }
-    }
-  } catch (e) {
-    console.log('Unexpected error in getSimpleLinks:', e)
+function getToolMetadata(toolName: string) {
+  return TOOL_METADATA[toolName] || { 
+    icon: '🔧', 
+    displayName: toolName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+    category: 'Tool'
   }
-  
-  return []
 }
 
-function getScrapedSites(executions: ToolExecutionEvent[]): Array<{name: string, url: string, success?: boolean}> {
-  const scrapedSites: Array<{name: string, url: string, success?: boolean}> = []
-  
-  executions
-    .filter(exec => exec.tool_name === 'scrape_website' && exec.status === 'completed')
-    .forEach(exec => {
-      if (!exec.result) return
-      
-      try {
-        // Try to parse the new JSON format first
-        if (typeof exec.result === 'string' && (exec.result.startsWith('{') || exec.result.startsWith('['))) {
-          const parsed = JSON.parse(exec.result)
-          
-          if (parsed.scraped_sites && Array.isArray(parsed.scraped_sites)) {
-            // New detailed format: {"scraped_sites": [{"name": "Zara", "url": "https://...", "success": true}], ...}
-            parsed.scraped_sites.forEach((site: any) => {
-              if (typeof site === 'object' && site.name && site.url) {
-                scrapedSites.push({
-                  name: site.name,
-                  url: site.url,
-                  success: site.success
-                })
-              } else if (typeof site === 'string') {
-                // Fallback for old format: just site names
-                scrapedSites.push({
-                  name: site,
-                  url: `https://${site.toLowerCase().replace(/\s+/g, '')}.com`,
-                  success: true
-                })
-              }
-            })
-            return
-          }
-        }
-        
-        // Fallback to old format parsing
-        if (typeof exec.result === 'string' && exec.result.includes('_content')) {
-          const match = exec.result.match(/(\w+)_content/)
-          if (match) {
-            const siteName = match[1].charAt(0).toUpperCase() + match[1].slice(1)
-            scrapedSites.push({
-              name: siteName,
-              url: `https://${match[1].toLowerCase()}.com`,
-              success: true
-            })
-          }
-        }
-      } catch (e) {
-        console.log('Error parsing scraped sites result:', e)
-        // Fallback to generic website
-        scrapedSites.push({
-          name: 'Website',
-          url: '#',
-          success: false
-        })
-      }
-    })
-  
-  // Only return successfully scraped sites for display
-  return scrapedSites.filter(site => site.success !== false)
-}
-
-function SimpleCard({ execution, allExecutions }: { execution: ToolExecutionEvent, allExecutions: ToolExecutionEvent[] }) {
+function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
   const [isExpanded, setIsExpanded] = useState(false)
-  const message = getSimpleMessage(execution)
-  const links = getSimpleLinks(execution)
-  // For scraping tasks, get sites from this specific execution only
-  const scrapedSites = execution.tool_name === 'scrape_website' ? getScrapedSites([execution]) : []
-  const icon = execution.tool_name === 'search_web_tool' ? '🔍' : '🌐'
+  const metadata = getToolMetadata(execution.tool_name)
   
-  // Don't render card if no message (e.g., search without proper query)
-  if (!message) {
-    return null
+  // Extract arguments
+  const args = execution.progress?.arguments || {}
+  const hasArgs = Object.keys(args).length > 0
+  
+  // Extract result
+  const result = execution.result
+  const hasResult = result && result.length > 0
+  
+  // Parse result if it's JSON
+  let parsedResult: any = null
+  let resultType: 'json' | 'text' | 'search_results' | 'scraped_sites' = 'text'
+  if (typeof result === 'string' && (result.trim().startsWith('{') || result.trim().startsWith('['))) {
+    try {
+      parsedResult = JSON.parse(result)
+      resultType = 'json'
+      
+      // Detect special result types
+      if (parsedResult && typeof parsedResult === 'object') {
+        // Search results format: {query: "...", results: [{title, url, description}]}
+        if (parsedResult.query && Array.isArray(parsedResult.results)) {
+          resultType = 'search_results'
+        }
+        // Scraped sites format: {scraped_sites: [{name, url, success}]}
+        else if (Array.isArray(parsedResult.scraped_sites)) {
+          resultType = 'scraped_sites'
+        }
+      }
+    } catch (e) {
+      // Not valid JSON, treat as text
+      parsedResult = result
+    }
+  } else {
+    parsedResult = result
   }
   
-  const hasExpandableContent = links.length > 0 || scrapedSites.length > 0
+  // Determine status color and icon
+  const statusConfig = {
+    started: { color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', icon: '⏳', label: 'Running' },
+    progress: { color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400', icon: '⚙️', label: 'In Progress' },
+    completed: { color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', icon: '✅', label: 'Completed' },
+    error: { color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', icon: '❌', label: 'Error' }
+  }
+  
+  const status = statusConfig[execution.status] || statusConfig.started
   
   return (
-    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-      {/* Header - clickable if has expandable content */}
+    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+      {/* Header - Always visible */}
       <div 
-        className={`p-4 ${hasExpandableContent ? 'cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700' : ''}`}
-        onClick={() => hasExpandableContent && setIsExpanded(!isExpanded)}
+        className="p-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+        onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex items-center space-x-3">
-          <span className="text-lg">{icon}</span>
-          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex-1">
-            {message}
-          </h3>
-          {/* Expand arrow if has expandable content */}
-          {hasExpandableContent && (
-            <svg
-              className={`w-4 h-4 text-slate-500 dark:text-slate-400 transition-transform duration-200 ${
-                isExpanded ? 'rotate-180' : ''
-              }`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          )}
+        <div className="flex items-start space-x-3">
+          {/* Tool icon */}
+          <span className="text-2xl flex-shrink-0">{metadata.icon}</span>
+          
+          {/* Tool info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center space-x-2 mb-1">
+              <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">
+                {metadata.displayName}
+              </h3>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${status.color} font-medium`}>
+                {status.icon} {status.label}
+              </span>
+            </div>
+            
+            {/* Quick preview of arguments or results */}
+            {!isExpanded && (
+              <div className="text-xs text-slate-600 dark:text-slate-400 truncate">
+                {/* Show search query for search results */}
+                {resultType === 'search_results' && parsedResult?.query ? (
+                  <span>
+                    <span className="font-medium">query:</span> {parsedResult.query}
+                    {parsedResult.results && (
+                      <span className="ml-2 text-slate-500">• {parsedResult.results.length} results</span>
+                    )}
+                  </span>
+                ) : hasArgs ? (
+                  // Show first 2 arguments
+                  Object.entries(args).slice(0, 2).map(([key, value]) => (
+                    <span key={key} className="mr-2">
+                      <span className="font-medium">{key}:</span> {String(value).substring(0, 30)}
+                    </span>
+                  ))
+                ) : null}
+              </div>
+            )}
+            
+            {/* Show error message if present */}
+            {execution.error && !isExpanded && (
+              <div className="text-xs text-red-600 dark:text-red-400 truncate mt-1">
+                {execution.error}
+              </div>
+            )}
+          </div>
+          
+          {/* Expand/collapse icon */}
+          <svg
+            className={`w-5 h-5 text-slate-400 dark:text-slate-500 transition-transform duration-200 flex-shrink-0 ${
+              isExpanded ? 'rotate-180' : ''
+            }`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
         </div>
       </div>
       
-      {/* Collapsible content */}
-      {isExpanded && hasExpandableContent && (
-        <div className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 space-y-2">
-          {/* Search results */}
-          {links.map((link, index) => (
-            <a
-              key={index}
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group"
-            >
-              <div className="text-sm font-medium text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 leading-tight">
-                {link.title}
+      {/* Collapsible details */}
+      {isExpanded && (
+        <div className="border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+          {/* Arguments section */}
+          {hasArgs && (
+            <div className="p-3 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center space-x-2 mb-2">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                  Input Arguments
+                </span>
               </div>
-              <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                {new URL(link.url).hostname}
+              <div className="bg-white dark:bg-slate-800 rounded p-2 space-y-1">
+                {Object.entries(args).map(([key, value]) => (
+                  <div key={key} className="text-xs">
+                    <span className="font-medium text-slate-700 dark:text-slate-300">{key}:</span>{' '}
+                    <span className="text-slate-600 dark:text-slate-400">
+                      {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+                    </span>
+                  </div>
+                ))}
               </div>
-            </a>
-          ))}
+            </div>
+          )}
           
-          {/* Scraped sites */}
-          {scrapedSites.map((site, index) => (
-            <a
-              key={index}
-              href={site.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group"
-            >
-              <div className="text-sm font-medium text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 leading-tight">
-                {site.name}
+          {/* Result section */}
+          {hasResult && execution.status === 'completed' && (
+            <div className="p-3">
+              <div className="flex items-center space-x-2 mb-2">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                  Result
+                </span>
+                {resultType === 'search_results' && parsedResult?.results && (
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    {parsedResult.results.length} results
+                  </span>
+                )}
               </div>
-              <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                {site.url}
+              <div className="bg-white dark:bg-slate-800 rounded max-h-96 overflow-y-auto">
+                {resultType === 'search_results' && parsedResult?.results ? (
+                  // Special formatting for search results
+                  <div className="divide-y divide-slate-200 dark:divide-slate-700">
+                    {parsedResult.results.map((item: any, idx: number) => (
+                      <a
+                        key={idx}
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group"
+                      >
+                        <div className="text-sm font-medium text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700 dark:group-hover:text-indigo-300 mb-1 line-clamp-2">
+                          {item.title}
+                        </div>
+                        <div className="text-xs text-slate-600 dark:text-slate-400 mb-1 line-clamp-2">
+                          {item.description}
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-500 truncate">
+                          {item.url}
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                ) : resultType === 'scraped_sites' && parsedResult?.scraped_sites ? (
+                  // Special formatting for scraped sites
+                  <div className="divide-y divide-slate-200 dark:divide-slate-700">
+                    {parsedResult.scraped_sites.map((site: any, idx: number) => (
+                      <a
+                        key={idx}
+                        href={site.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <span className="text-lg">{site.success !== false ? '✅' : '❌'}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">
+                              {site.name}
+                            </div>
+                            <div className="text-xs text-slate-500 dark:text-slate-500 truncate">
+                              {site.url}
+                            </div>
+                          </div>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                ) : resultType === 'json' ? (
+                  // Default JSON formatting
+                  <pre className="text-xs text-slate-600 dark:text-slate-400 whitespace-pre-wrap font-mono p-2">
+                    {JSON.stringify(parsedResult, null, 2)}
+                  </pre>
+                ) : (
+                  // Plain text
+                  <div className="text-xs text-slate-600 dark:text-slate-400 whitespace-pre-wrap p-2">
+                    {String(parsedResult)}
+                  </div>
+                )}
               </div>
-            </a>
-          ))}
+            </div>
+          )}
+          
+          {/* Error section */}
+          {execution.error && (
+            <div className="p-3 bg-red-50 dark:bg-red-900/20">
+              <div className="flex items-center space-x-2 mb-2">
+                <span className="text-xs font-semibold text-red-700 dark:text-red-400 uppercase tracking-wide">
+                  Error
+                </span>
+              </div>
+              <div className="text-xs text-red-600 dark:text-red-400">
+                {execution.error}
+              </div>
+            </div>
+          )}
+          
+          {/* Timestamp */}
+          {execution.timestamp && (
+            <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-700">
+              <div className="text-xs text-slate-500 dark:text-slate-500">
+                {new Date(execution.timestamp).toLocaleTimeString()}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -321,7 +275,7 @@ export default function ToolExecutionSidePanel({
   toolExecutions, 
   isActive 
 }: ToolExecutionSidePanelProps) {
-  const [panelWidth, setPanelWidth] = useState(384) // Default 384px (w-96)
+  const [panelWidth, setPanelWidth] = useState(420) // Default 420px
   const [isResizing, setIsResizing] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -334,7 +288,7 @@ export default function ToolExecutionSidePanel({
     
     const handleMouseMove = (e: MouseEvent) => {
       const deltaX = startX - e.clientX // Negative because we're resizing from the left
-      const newWidth = Math.max(280, Math.min(800, startWidth + deltaX)) // Min 280px, max 800px
+      const newWidth = Math.max(320, Math.min(800, startWidth + deltaX)) // Min 320px, max 800px
       setPanelWidth(newWidth)
     }
     
@@ -347,67 +301,72 @@ export default function ToolExecutionSidePanel({
     document.addEventListener('mousemove', handleMouseMove)
     document.addEventListener('mouseup', handleMouseUp)
   }, [panelWidth])
-  // Filter to only show search and scraping activities
-  const allTasks = Object.values(toolExecutions).filter(execution => 
-    execution.tool_name === 'search_web_tool' || execution.tool_name === 'scrape_website'
-  )
+
+  const allTools = Object.values(toolExecutions)
   
-  if (allTasks.length === 0) {
+  if (allTools.length === 0) {
     return null
   }
 
-  // Show each task as a separate card
-  const searchTasks = allTasks.filter(task => task.tool_name === 'search_web_tool')
-  const scrapingTasks = allTasks.filter(task => task.tool_name === 'scrape_website')
-  
-  const displayTasks = []
-  // Add each search task as a separate card (only if they have valid queries)
-  displayTasks.push(...searchTasks.filter(task => getSimpleMessage(task) !== null))
-  // Add each scraping task as a separate card
-  displayTasks.push(...scrapingTasks)
+  // Count by status
+  const statusCounts = allTools.reduce((acc, tool) => {
+    acc[tool.status] = (acc[tool.status] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
 
   return (
     <div 
       ref={panelRef}
-      className="bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 flex flex-col relative"
+      className="bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 border-l border-slate-200 dark:border-slate-700 flex flex-col relative"
       style={{ width: `${panelWidth}px` }}
     >
       {/* Resize handle */}
       <div
-        className={`absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-indigo-500 transition-colors ${
+        className={`absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-indigo-500 transition-colors z-10 ${
           isResizing ? 'bg-indigo-500' : 'bg-transparent hover:bg-indigo-300'
         }`}
         onMouseDown={handleMouseDown}
         title="Drag to resize panel"
       />
+      
       {/* Header */}
-      <div className="px-4 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
-        <div className="flex items-center space-x-3">
-          <span className="text-lg">🤖</span>
-          <div>
-            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-              Tasks
-            </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400">
-              {displayTasks.length} task{displayTasks.length !== 1 ? 's' : ''}
-            </p>
+      <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <span className="text-white text-sm">🔧</span>
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                Tool Execution Trace
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400">
+                {allTools.length} tool call{allTools.length !== 1 ? 's' : ''}
+                {statusCounts.completed > 0 && ` · ${statusCounts.completed} completed`}
+                {statusCounts.started > 0 && ` · ${statusCounts.started} running`}
+                {statusCounts.error > 0 && ` · ${statusCounts.error} failed`}
+              </p>
+            </div>
           </div>
+          
+          {/* Active indicator */}
+          {isActive && (
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-xs text-slate-600 dark:text-slate-400">Active</span>
+            </div>
+          )}
         </div>
       </div>
       
-      {/* Tasks */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {displayTasks.map((execution, index) => {
-          const card = (
-            <SimpleCard
-              key={`${execution.tool_name}-${index}`}
-              execution={execution}
-              allExecutions={allTasks}
-            />
-          )
-          // Only render non-null cards
-          return card
-        }).filter(Boolean)}
+      {/* Tool cards */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+        {allTools.map((execution, index) => (
+          <ToolCard
+            key={execution.tool_call_id || `${execution.tool_name}-${index}`}
+            execution={execution}
+          />
+        ))}
       </div>
     </div>
   )

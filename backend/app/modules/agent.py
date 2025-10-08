@@ -157,11 +157,14 @@ class Agent:
     
     def _prune_message_history(self) -> List[Message]:
         """
-        Prune message history to keep only essential messages:
+        Prune message history to keep only essential messages while maintaining
+        OpenAI's required message structure (tool messages must follow assistant tool_calls).
+        
+        Keeps:
         1. System message (initial system prompt)
         2. Initial user message (first user message)
         3. Checklist-related system messages
-        4. Recent context (last few exchanges for immediate context)
+        4. Recent context (last N exchanges with proper structure)
         """
         if not self.message_history:
             return []
@@ -172,7 +175,6 @@ class Agent:
         system_message = None
         initial_user_message = None
         checklist_messages = []
-        recent_messages = []
         
         # Find essential messages
         for i, message in enumerate(self.message_history):
@@ -188,14 +190,55 @@ class Agent:
                     # First user message
                     initial_user_message = message
         
-        # Get recent messages (last 6 messages for immediate context)
-        # Skip if they're already captured above
+        # Get recent messages while maintaining tool call integrity
         recent_count = 30
-        for message in self.message_history[-recent_count:]:
+        recent_start_idx = max(0, len(self.message_history) - recent_count)
+        
+        # Ensure we don't start with orphaned tool messages
+        # Scan backwards from recent_start_idx to find a safe starting point
+        for i in range(recent_start_idx, len(self.message_history)):
+            msg = self.message_history[i]
+            if hasattr(msg, 'role'):
+                # Safe starting points: system, user, or assistant without tool_calls
+                if msg.role in ["system", "user"]:
+                    recent_start_idx = i
+                    break
+                elif msg.role == "assistant":
+                    # Check if this assistant message has tool_calls
+                    has_tool_calls = (hasattr(msg, 'tool_calls') and 
+                                     msg.tool_calls is not None and 
+                                     len(msg.tool_calls) > 0)
+                    if not has_tool_calls:
+                        # Safe to start here - no tool calls to worry about
+                        recent_start_idx = i
+                        break
+        
+        # Collect recent messages starting from safe point
+        recent_messages = []
+        for message in self.message_history[recent_start_idx:]:
             if (message != system_message and 
                 message != initial_user_message and 
                 message not in checklist_messages):
                 recent_messages.append(message)
+        
+        # Validate the recent messages don't end with assistant+tool_calls without responses
+        # If the last message is an assistant with tool_calls, remove it to avoid incomplete chains
+        if recent_messages:
+            last_msg = recent_messages[-1]
+            if (hasattr(last_msg, 'role') and last_msg.role == "assistant" and
+                hasattr(last_msg, 'tool_calls') and last_msg.tool_calls):
+                # This assistant message has tool_calls but we may not have the responses yet
+                # Check if there are tool responses after it
+                has_responses = False
+                last_msg_idx = self.message_history.index(last_msg)
+                for msg in self.message_history[last_msg_idx + 1:]:
+                    if hasattr(msg, 'role') and msg.role == "tool":
+                        has_responses = True
+                        break
+                
+                # If no responses found, this is an incomplete chain - remove it
+                if not has_responses:
+                    recent_messages = recent_messages[:-1]
         
         # Build pruned history in order
         if system_message:
@@ -209,6 +252,7 @@ class Agent:
         
         # Add recent context
         pruned_messages.extend(recent_messages)
+        
         return pruned_messages
 
     def _prepare_messages_with_checklist(self) -> List[Message]:
@@ -394,8 +438,14 @@ class Agent:
             return error_msg
         
         try:
-            self._emit_tool_event(tool_name, "started", message=f"Starting {tool_name}")
             args = tool_call.parse_arguments()
+            # Emit start event with arguments
+            self._emit_tool_event(
+                tool_name, 
+                "started", 
+                message=f"Starting {tool_name}",
+                progress={"arguments": args}
+            )
             result = await tool_registry.execute_tool_async(tool_name, context_vars=self.context_vars, **args)
             return result
         except Exception as e:
@@ -488,12 +538,21 @@ class Agent:
                     # Execute the tool (tool_call should already be in the right format)
                     tool_result = await self.execute_tool_call(tool_call)
                     
-                    # Yield tool execution completion event
+                    # Yield tool execution completion event with result
+                    # Serialize result properly (JSON for dicts/lists, string for others)
+                    if isinstance(tool_result, (dict, list)):
+                        result_str = json.dumps(tool_result, ensure_ascii=False)
+                    else:
+                        result_str = str(tool_result)
+                    
+                    # Truncate result if too long for streaming (keep first 2000 chars)
+                    truncated_result = result_str if len(result_str) <= 2000 else result_str[:2000] + "... (truncated)"
+                    
                     yield ToolExecutionEvent(
                         tool_name=tool_call.function.name,
                         status=ToolExecutionStatus.COMPLETED,
                         tool_call_id=tool_call.id,
-                        result=str(tool_result),
+                        result=truncated_result,
                         timestamp=datetime.now().isoformat()
                     )
                     

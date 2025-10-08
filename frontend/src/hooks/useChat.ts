@@ -256,18 +256,13 @@ export function useChat() {
                       message: data.message,
                       progress: data.progress,
                       result: data.result,
-                      error: data.error
+                      error: data.error,
+                      tool_call_id: data.tool_call_id,
+                      timestamp: data.timestamp
                     }
                     
-                    // Create unique key for each tool execution
-                    // For search tools, include query to make each search unique
-                    let toolKey = data.tool_name
-                    if (data.tool_name === 'search_web_tool' && data.progress?.query) {
-                      toolKey = `${data.tool_name}_${data.progress.query.replace(/\s+/g, '_').toLowerCase()}`
-                    } else if (data.tool_name === 'search_web_tool') {
-                      // Fallback: use timestamp if no query available
-                      toolKey = `${data.tool_name}_${Date.now()}`
-                    }
+                    // Use tool_call_id as the unique key (better than tool name + query)
+                    const toolKey = data.tool_call_id || `${data.tool_name}_${Date.now()}`
                     
                     // Update current tool executions (for side panel)
                     setCurrentToolExecutions(prev => ({

@@ -100,10 +100,13 @@ export interface ToolExecutionEvent {
     num_results?: number
     results_found?: number
     status?: string
+    arguments?: Record<string, any>  // Tool call arguments
     [key: string]: any
   }
   result?: string | any[]
   error?: string
+  tool_call_id?: string  // Unique ID for this tool call
+  timestamp?: string
 }
 
 export interface ContentDisplayEvent {

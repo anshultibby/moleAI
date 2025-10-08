@@ -162,6 +162,55 @@ class OpenAIProvider(BaseLLMProvider):
             raise
     
     
+    def _validate_message_structure(self, messages: List[Dict[str, Any]]) -> None:
+        """
+        Validate that messages follow OpenAI's structural requirements.
+        
+        Specifically, ensures that tool messages immediately follow the assistant
+        message with tool_calls that requested them.
+        
+        Args:
+            messages: Formatted messages to validate
+            
+        Raises:
+            ValueError: If message structure is invalid
+        """
+        for i, msg in enumerate(messages):
+            if msg.get("role") == "tool":
+                # Tool message must be preceded by assistant message with tool_calls
+                if i == 0:
+                    raise ValueError(
+                        f"Invalid message structure: tool message at position {i} has no preceding message"
+                    )
+                
+                # Look backwards to find the assistant message with tool_calls
+                found_tool_call = False
+                for j in range(i - 1, -1, -1):
+                    prev_msg = messages[j]
+                    if prev_msg.get("role") == "assistant":
+                        if prev_msg.get("tool_calls"):
+                            found_tool_call = True
+                            break
+                        else:
+                            # Found assistant without tool_calls - this is invalid
+                            break
+                    elif prev_msg.get("role") == "tool":
+                        # Another tool message - keep looking backwards
+                        continue
+                    else:
+                        # Found a non-assistant, non-tool message - invalid structure
+                        break
+                
+                if not found_tool_call:
+                    logger.error(
+                        f"Invalid message structure at position {i}. "
+                        f"Messages around error: {messages[max(0, i-2):min(len(messages), i+2)]}"
+                    )
+                    raise ValueError(
+                        f"Invalid message structure: tool message at position {i} "
+                        f"must follow an assistant message with tool_calls"
+                    )
+    
     def format_messages_for_api(self, messages: List[InputMessage]) -> List[Dict[str, Any]]:
         """
         Convert InputMessage objects to OpenAI API format with multimodal support.
@@ -203,6 +252,10 @@ class OpenAIProvider(BaseLLMProvider):
                     msg_dict["content"] = formatted_content
                 
                 formatted_messages.append(msg_dict)
+        
+        # Validate message structure before returning
+        self._validate_message_structure(formatted_messages)
+        
         return formatted_messages
     
     def format_tools_for_api(self, tools: Optional[List[Dict[str, Any]]]) -> Optional[List[Dict[str, Any]]]:
