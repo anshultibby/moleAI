@@ -96,7 +96,7 @@ class StreamHelper:
 )
 def search_web_tool(
     query: str,
-    num_results: int = 10,
+    num_results: int = 5,
     context_vars=None
 ) -> Dict[str, Any]:
     if not query or not query.strip():
@@ -132,6 +132,11 @@ def search_web_tool(
     name="extract_products",
     description="""Extract product information from e-commerce websites using BrightData Web Unlocker API.
     
+    WORKFLOW: 
+    1. First use search_web_tool to find e-commerce URLs
+    2. Extract the 'url' field from search results
+    3. Pass those URLs to this tool as a list
+    
     Automatic bot detection bypass with:
     - PerimeterX, Cloudflare, Datadome protection bypass
     - JavaScript rendering for SPAs (React, Vue, Next.js)
@@ -145,10 +150,9 @@ def search_web_tool(
     - Custom JavaScript SPAs
     - Bot-protected sites
     
-    Extraction strategies:
-    - JSON-LD structured data (Schema.org)
-    - Next.js __NEXT_DATA__ objects
-    - Open Graph meta tags
+    Extraction strategies (tries in order):
+    1. Fast path: Extract all products from listing page ItemList JSON-LD (20x faster!)
+    2. Fallback: Fetch individual product pages and extract from JSON-LD/Next.js/__NEXT_DATA__/meta tags
     
     Extracts:
     - Product names, prices, currencies
@@ -158,19 +162,19 @@ def search_web_tool(
     - Descriptions
     
     Parameters:
-    - urls: List of collection/listing page URLs to scrape
-    - max_products: Maximum products per URL (default: 30)
+    - urls: List of collection/listing page URLs to scrape (REQUIRED - cannot be empty)
+    - max_products: Maximum products per URL (default: 20)
     
     Works with: Hello Molly, Express.com, Fashion Nova, and 95%+ of e-commerce sites
     """
 )
 async def extract_products(
     urls: List[str],
-    max_products: int = 30,
+    max_products: int = 20,
     context_vars=None
 ) -> str:
     if not urls or not isinstance(urls, list) or len(urls) == 0:
-        return "URLs list cannot be empty"
+        return "Error: URLs list cannot be empty. You must provide a list of collection/listing page URLs to extract products from. Use search_web_tool first to find relevant e-commerce URLs, then pass those URLs to this tool."
     
     # Get context
     resources = context_vars.get('resources')
@@ -431,6 +435,14 @@ async def display_items(
 ) -> str:
     """Stream products to the user"""
     logger.info(f"🎯 display_items called with {len(products) if products else 0} products")
+    
+    # Debug logging to catch type issues
+    if products:
+        first_product_type = type(products[0])
+        logger.info(f"🔍 First product type: {first_product_type}")
+        if first_product_type is str:
+            logger.error(f"❌ BUG: Received string instead of object! First product: {products[0][:100]}")
+            return "Error: Products were passed as strings instead of objects. This is a bug in the tool schema."
 
     try:
         await context_vars.get('agent').stream_products(products=products, title=title)

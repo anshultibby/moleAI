@@ -12,20 +12,16 @@ from app.models.chat import Tool, FunctionObject, FunctionParameters, OpenAITool
 def _python_type_to_json_schema(py_type: Any, description: str = "") -> Dict[str, Any]:
     """Convert Python type hints to JSON schema format"""
     
+    import typing
+    from typing import Union as TypingUnion
+    
     # Handle Optional types (Union[T, None])
     origin = get_origin(py_type)
     if origin is not None:
         args = get_args(py_type)
         
-        # Handle Optional[T] which is Union[T, None]
-        if origin is type(None) or (hasattr(py_type, '__module__') and py_type.__module__ == 'typing'):
-            if len(args) == 2 and type(None) in args:
-                # This is Optional[T]
-                non_none_type = args[0] if args[1] is type(None) else args[1]
-                return _python_type_to_json_schema(non_none_type, description)
-        
-        # Handle List[T]
-        if origin is list:
+        # Handle List[T] FIRST before Union handling
+        if origin is list or origin is List:
             if args:
                 item_schema = _python_type_to_json_schema(args[0])
                 return {
@@ -35,6 +31,24 @@ def _python_type_to_json_schema(py_type: Any, description: str = "") -> Dict[str
                 }
             else:
                 return {"type": "array", "description": description}
+        
+        # Handle Union types (including Optional)
+        if origin is TypingUnion:
+            if len(args) == 2 and type(None) in args:
+                # This is Optional[T]
+                non_none_type = args[0] if args[1] is type(None) else args[1]
+                return _python_type_to_json_schema(non_none_type, description)
+            elif len(args) > 0:
+                # This is a Union[T1, T2, ...] - pick the first non-None type
+                # For Union[Product, Dict], we want to use Dict/object schema
+                for arg in args:
+                    if arg is not type(None):
+                        if arg is dict or (hasattr(arg, '__mro__') and any(base.__name__ == 'BaseModel' for base in arg.__mro__)):
+                            # Use object schema for dict or Pydantic models
+                            return {"type": "object", "description": description}
+                # Fallback to first non-None type
+                non_none_type = next((a for a in args if a is not type(None)), args[0])
+                return _python_type_to_json_schema(non_none_type, description)
     
     # Handle basic types
     if py_type is str:
@@ -49,9 +63,12 @@ def _python_type_to_json_schema(py_type: Any, description: str = "") -> Dict[str
         return {"type": "array", "description": description}
     elif py_type is dict:
         return {"type": "object", "description": description}
+    # Handle Pydantic models
+    elif hasattr(py_type, '__mro__') and any(base.__name__ == 'BaseModel' for base in py_type.__mro__):
+        return {"type": "object", "description": description}
     else:
-        # Default to string for unknown types
-        return {"type": "string", "description": description}
+        # Default to object for unknown complex types (safer than string)
+        return {"type": "object", "description": description}
 
 
 

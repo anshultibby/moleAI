@@ -97,26 +97,26 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
   const status = statusConfig[execution.status] || statusConfig.started
   
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden hover:shadow-lg hover:border-indigo-300 dark:hover:border-indigo-700 transition-all duration-200">
+    <div className="bg-white dark:bg-slate-800/95 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-md overflow-hidden hover:shadow-xl hover:border-indigo-400/60 dark:hover:border-indigo-500/60 transition-all duration-300 ease-out backdrop-blur-sm">
       {/* Header - Always visible */}
       <div 
-        className="p-4 cursor-pointer hover:bg-gradient-to-r hover:from-slate-50 hover:to-transparent dark:hover:from-slate-700/30 dark:hover:to-transparent transition-all duration-200"
+        className="p-4 cursor-pointer hover:bg-gradient-to-r hover:from-indigo-50/50 hover:to-transparent dark:hover:from-indigo-900/20 dark:hover:to-transparent transition-all duration-200"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-start space-x-3">
           {/* Tool icon with background */}
-          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/40 dark:to-purple-900/40 flex items-center justify-center">
+          <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 dark:from-indigo-900/50 dark:via-purple-900/50 dark:to-pink-900/50 flex items-center justify-center shadow-sm ring-1 ring-slate-200/50 dark:ring-slate-700/50">
             <span className="text-xl">{metadata.icon}</span>
           </div>
           
           {/* Tool info */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-2 mb-1.5">
-              <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200 truncate">
+            <div className="flex items-center space-x-2 mb-2">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 truncate">
                 {metadata.displayName}
               </h3>
-              <span className={`text-sm px-2.5 py-0.5 rounded-full ${status.color} font-medium flex items-center space-x-1`}>
-                <span>{status.icon}</span>
+              <span className={`text-xs px-2.5 py-1 rounded-lg ${status.color} font-semibold flex items-center space-x-1.5 shadow-sm`}>
+                <span className="text-sm">{status.icon}</span>
                 <span>{status.label}</span>
               </span>
             </div>
@@ -160,7 +160,7 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
           </div>
           
           {/* Expand/collapse icon */}
-          <div className={`flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors`}>
+          <div className={`flex-shrink-0 w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all duration-200 shadow-sm ring-1 ring-slate-200/50 dark:ring-slate-700/50`}>
             <svg
               className={`w-4 h-4 text-slate-600 dark:text-slate-400 transition-transform duration-300 ${
                 isExpanded ? 'rotate-180' : ''
@@ -177,16 +177,16 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
       
       {/* Collapsible details */}
       {isExpanded && (
-        <div className="border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+        <div className="border-t border-slate-200/80 dark:border-slate-700/80 bg-gradient-to-b from-slate-50 to-slate-100/50 dark:from-slate-900/50 dark:to-slate-900/30">
           {/* Arguments section */}
           {hasArgs && (
-            <div className="p-3 border-b border-slate-200 dark:border-slate-700">
-              <div className="flex items-center space-x-2 mb-2">
-                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+            <div className="p-4 border-b border-slate-200/80 dark:border-slate-700/80">
+              <div className="flex items-center space-x-2 mb-3">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded-md">
                   Input
                 </span>
               </div>
-              <div className="bg-white dark:bg-slate-800 rounded p-3 space-y-2">
+              <div className="bg-white dark:bg-slate-800 rounded-lg p-3.5 space-y-2.5 shadow-sm ring-1 ring-slate-200/50 dark:ring-slate-700/50">
                 {Object.entries(args).map(([key, value]) => {
                   // Format value for display
                   let displayValue = String(value)
@@ -218,64 +218,64 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
           
           {/* Result section */}
           {hasResult && execution.status === 'completed' && (
-            <div className="p-3">
-              <div className="flex items-center space-x-2 mb-2">
-                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+            <div className="p-4">
+              <div className="flex items-center space-x-2 mb-3">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded-md">
                   {resultType === 'search_results' ? 'Found Results' : 'Result'}
                 </span>
                 {resultType === 'search_results' && parsedResult?.results && (
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    ({parsedResult.results.length})
+                  <span className="text-xs bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 px-2 py-1 rounded-md font-semibold">
+                    {parsedResult.results.length} results
                   </span>
                 )}
               </div>
               
               {/* Show query for search results */}
               {resultType === 'search_results' && parsedResult?.query && (
-                <div className="mb-3 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800/30">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <span className="text-lg">🔍</span>
-                    <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-400 uppercase tracking-wide">Search Query</span>
+                <div className="mb-4 p-4 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-indigo-900/30 dark:via-purple-900/30 dark:to-pink-900/30 rounded-xl border border-indigo-200/60 dark:border-indigo-800/40 shadow-sm ring-1 ring-indigo-100/50 dark:ring-indigo-800/20">
+                  <div className="flex items-center space-x-2 mb-2.5">
+                    <span className="text-xl">🔍</span>
+                    <span className="text-xs font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider bg-white/60 dark:bg-slate-800/60 px-2 py-1 rounded-md">Search Query</span>
                   </div>
-                  <div className="text-base text-slate-800 dark:text-slate-200 font-medium">
+                  <div className="text-base text-slate-900 dark:text-slate-100 font-semibold leading-relaxed">
                     "{parsedResult.query}"
                   </div>
                 </div>
               )}
               
-              <div className="bg-white dark:bg-slate-800 rounded max-h-96 overflow-y-auto shadow-sm">
+              <div className="bg-white dark:bg-slate-800 rounded-xl max-h-96 overflow-y-auto shadow-sm ring-1 ring-slate-200/50 dark:ring-slate-700/50">
                 {resultType === 'search_results' && parsedResult?.results ? (
                   // Special formatting for search results - Clean and readable
-                  <div className="divide-y divide-slate-200 dark:divide-slate-700">
+                  <div className="divide-y divide-slate-200/60 dark:divide-slate-700/60">
                     {parsedResult.results.map((item: any, idx: number) => (
                       <a
                         key={idx}
                         href={item.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-start space-x-3 p-4 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-transparent dark:hover:from-indigo-900/20 dark:hover:to-transparent transition-all duration-200 group border-l-2 border-transparent hover:border-indigo-500"
+                        className="flex items-start space-x-3 p-4 hover:bg-gradient-to-r hover:from-indigo-50/80 hover:to-transparent dark:hover:from-indigo-900/30 dark:hover:to-transparent transition-all duration-200 group border-l-3 border-transparent hover:border-indigo-500 dark:hover:border-indigo-400"
                       >
                         {/* Result number badge */}
-                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/40 transition-colors">
-                          <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                        <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center group-hover:from-indigo-100 group-hover:to-indigo-200 dark:group-hover:from-indigo-900/50 dark:group-hover:to-indigo-800/50 transition-all duration-200 shadow-sm">
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300 group-hover:text-indigo-700 dark:group-hover:text-indigo-300">
                             {idx + 1}
                           </span>
                         </div>
                         
                         <div className="flex-1 min-w-0">
                           {/* Clickable Title */}
-                          <div className="text-base font-semibold text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700 dark:group-hover:text-indigo-300 mb-2 line-clamp-2 leading-snug flex items-start">
+                          <div className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700 dark:group-hover:text-indigo-300 mb-2 line-clamp-2 leading-snug flex items-start">
                             {item.title}
-                            <svg className="w-4 h-4 ml-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            <svg className="w-3.5 h-3.5 ml-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                             </svg>
                           </div>
                           {/* Domain/URL - with icon */}
-                          <div className="flex items-center space-x-1 text-xs text-slate-500 dark:text-slate-500">
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <div className="flex items-center space-x-1.5 text-xs text-slate-500 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
                             </svg>
-                            <span className="truncate">{new URL(item.url).hostname}</span>
+                            <span className="truncate font-medium">{new URL(item.url).hostname}</span>
                           </div>
                         </div>
                       </a>
@@ -326,16 +326,95 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
                     })}
                   </div>
                 ) : resultType === 'json' ? (
-                  // Default JSON formatting - truncated for readability
-                  <pre className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap font-mono p-3 max-h-64 overflow-y-auto">
-                    {JSON.stringify(parsedResult, null, 2).substring(0, 500)}
-                    {JSON.stringify(parsedResult, null, 2).length > 500 && '\n... (truncated)'}
-                  </pre>
+                  // JSON formatting - More readable structured display
+                  <div className="p-4 space-y-2">
+                    {(() => {
+                      // Render JSON in a more human-readable way
+                      const renderValue = (value: any, depth: number = 0): JSX.Element => {
+                        const indent = depth * 16;
+                        
+                        if (value === null || value === undefined) {
+                          return <span className="text-slate-400 italic">null</span>
+                        }
+                        
+                        if (typeof value === 'boolean') {
+                          return <span className="text-purple-600 dark:text-purple-400 font-medium">{value ? 'true' : 'false'}</span>
+                        }
+                        
+                        if (typeof value === 'number') {
+                          return <span className="text-blue-600 dark:text-blue-400 font-medium">{value}</span>
+                        }
+                        
+                        if (typeof value === 'string') {
+                          // Check if it's a URL
+                          if (value.startsWith('http://') || value.startsWith('https://')) {
+                            return (
+                              <a href={value} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+                                {value}
+                              </a>
+                            )
+                          }
+                          return <span className="text-green-700 dark:text-green-400">{value}</span>
+                        }
+                        
+                        if (Array.isArray(value)) {
+                          if (value.length === 0) {
+                            return <span className="text-slate-400 italic">empty array</span>
+                          }
+                          return (
+                            <div className="space-y-1.5">
+                              {value.slice(0, 10).map((item, idx) => (
+                                <div key={idx} style={{ paddingLeft: `${indent + 16}px` }} className="flex items-start space-x-2">
+                                  <span className="text-slate-500 dark:text-slate-400 font-medium text-xs mt-0.5">{idx + 1}.</span>
+                                  {renderValue(item, depth + 1)}
+                                </div>
+                              ))}
+                              {value.length > 10 && (
+                                <div style={{ paddingLeft: `${indent + 16}px` }} className="text-slate-400 text-xs italic">
+                                  ... and {value.length - 10} more items
+                                </div>
+                              )}
+                            </div>
+                          )
+                        }
+                        
+                        if (typeof value === 'object') {
+                          const entries = Object.entries(value).slice(0, 20);
+                          if (entries.length === 0) {
+                            return <span className="text-slate-400 italic">empty object</span>
+                          }
+                          return (
+                            <div className="space-y-2">
+                              {entries.map(([key, val]) => (
+                                <div key={key} style={{ paddingLeft: `${indent + 16}px` }} className="flex items-start space-x-2">
+                                  <span className="text-slate-700 dark:text-slate-300 font-semibold text-sm min-w-fit">{key}:</span>
+                                  <div className="flex-1">{renderValue(val, depth + 1)}</div>
+                                </div>
+                              ))}
+                              {Object.entries(value).length > 20 && (
+                                <div style={{ paddingLeft: `${indent + 16}px` }} className="text-slate-400 text-xs italic">
+                                  ... and {Object.entries(value).length - 20} more fields
+                                </div>
+                              )}
+                            </div>
+                          )
+                        }
+                        
+                        return <span className="text-slate-600 dark:text-slate-400">{String(value)}</span>
+                      }
+                      
+                      return renderValue(parsedResult)
+                    })()}
+                  </div>
                 ) : (
-                  // Plain text - truncated for readability
-                  <div className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap p-3 max-h-64 overflow-y-auto">
-                    {String(parsedResult).substring(0, 500)}
-                    {String(parsedResult).length > 500 && '\n... (truncated)'}
+                  // Plain text - better formatting
+                  <div className="p-4">
+                    <div className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
+                      {String(parsedResult).substring(0, 1000)}
+                      {String(parsedResult).length > 1000 && (
+                        <span className="block mt-2 text-xs text-slate-400 italic">... (showing first 1000 characters)</span>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -344,13 +423,13 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
           
           {/* Error section */}
           {execution.error && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20">
-              <div className="flex items-center space-x-2 mb-2">
-                <span className="text-sm font-semibold text-red-700 dark:text-red-400 uppercase tracking-wide">
+            <div className="p-4 bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/30 dark:to-red-900/20 border-t border-red-200/60 dark:border-red-800/40">
+              <div className="flex items-center space-x-2 mb-2.5">
+                <span className="text-xs font-bold text-red-700 dark:text-red-400 uppercase tracking-wider bg-white/60 dark:bg-slate-800/60 px-2 py-1 rounded-md">
                   Error
                 </span>
               </div>
-              <div className="text-sm text-red-600 dark:text-red-400 leading-relaxed">
+              <div className="text-sm text-red-700 dark:text-red-300 leading-relaxed font-medium">
                 {execution.error}
               </div>
             </div>
@@ -358,9 +437,12 @@ function ToolCard({ execution }: { execution: ToolExecutionEvent }) {
           
           {/* Timestamp */}
           {execution.timestamp && (
-            <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-700">
-              <div className="text-sm text-slate-500 dark:text-slate-500">
-                {new Date(execution.timestamp).toLocaleTimeString()}
+            <div className="px-4 py-2.5 border-t border-slate-200/80 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-900/30">
+              <div className="flex items-center space-x-1.5 text-xs text-slate-500 dark:text-slate-400">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="font-medium">{new Date(execution.timestamp).toLocaleTimeString()}</span>
               </div>
             </div>
           )}

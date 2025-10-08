@@ -3,23 +3,53 @@
 ## Overview
 Implemented comprehensive async/await parallelization to dramatically speed up product extraction without increasing costs.
 
+## Architecture Principle: Separation of Concerns
+
+✅ **Tool Layer** (`tools/definitions.py`): Simple, clean interface  
+✅ **Extractor Layer** (`extractors/brightdata_api_extractor.py`): Complex parallelization logic
+
+**Why?**
+- Tools should be readable and maintainable
+- Extractors handle technical complexity (async, retries, concurrency)
+- Easy to swap extractors without changing tools
+
 ## Changes Made
 
-### 1. **URL-Level Parallelization** (`extract_products` tool)
-**Before:** Sequential processing of URLs
+### 1. **Simple Tool Interface**
+
+**Tool Layer** (tools/definitions.py) - Clean and simple:
 ```python
-for i, url in enumerate(urls, 1):
-    result = await extract_products_brightdata_api(url, ...)
-    # Wait for URL to complete before starting next one
+# Extract from all URLs (parallelized internally)
+all_results = await extract_products_from_multiple_urls(
+    urls=urls,
+    max_products=max_products,
+    progress_callback=lambda msg: streamer.progress(msg)
+)
+
+# Convert results to Product objects
+for url, result in all_results.items():
+    # Simple result processing...
 ```
 
-**After:** Parallel processing of all URLs
+**Extractor Layer** (brightdata_api_extractor.py) - Handles complexity:
 ```python
-tasks = [process_single_url(url, i) for i, url in enumerate(urls)]
-results = await asyncio.gather(*tasks)
+async def extract_products_from_multiple_urls(urls, max_products, ...):
+    """Extract from multiple URLs in parallel"""
+    
+    async def extract_single_url(url, index):
+        # Progress updates, error handling...
+        result = await extract_products_brightdata_api(url, ...)
+        return (url, result)
+    
+    # Process all URLs concurrently
+    tasks = [extract_single_url(url, i) for i, url in enumerate(urls)]
+    results = await asyncio.gather(*tasks)
+    return {url: result for url, result in results}
 ```
 
 **Impact:** 
+- Tool is ~40 lines instead of ~100 lines
+- All async complexity hidden in extractor
 - 3 URLs that took 5+ minutes now run **concurrently**
 - Expected time: ~2 minutes (time of slowest URL)
 - **~60% time reduction**

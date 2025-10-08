@@ -179,27 +179,27 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
 
   return (
     <div 
-      className="group bg-white dark:bg-slate-800 rounded-xl shadow-lg hover:shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-300 cursor-pointer w-full flex flex-col h-[280px] relative hover:scale-110 hover:-translate-y-3 active:scale-105 hover:border-indigo-300 dark:hover:border-indigo-600"
+      className="group bg-white dark:bg-slate-800/95 rounded-2xl shadow-md hover:shadow-2xl border border-slate-200/60 dark:border-slate-700/60 overflow-hidden transition-all duration-300 ease-out cursor-pointer w-full flex flex-col h-[320px] relative hover:scale-[1.03] hover:-translate-y-2 active:scale-[0.98] hover:border-indigo-400/50 dark:hover:border-indigo-500/50 backdrop-blur-sm"
       onClick={handleCardClick}
       style={{
         transformOrigin: 'center center'
       }}
     >
       {/* Image section - Optimized height */}
-      <div className="relative bg-gray-50 dark:bg-slate-700 flex-shrink-0 h-[160px]">
+      <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800 flex-shrink-0 h-[200px] overflow-hidden">
         {imageUrl ? (
           <>
             <Image
               src={imageUrl}
               alt={displayName}
               fill
-              className={`product-image transition-all duration-300 ${
-                imageLoading ? 'opacity-0' : 'opacity-100'
+              className={`product-image transition-all duration-500 ease-out ${
+                imageLoading ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
               } ${
                 imageFitMode === 'contain' 
-                  ? 'object-contain' 
+                  ? 'object-contain p-2' 
                   : 'object-cover'
-              }`}
+              } group-hover:scale-105`}
               onError={handleImageError}
               onLoad={handleImageLoad}
               onDoubleClick={handleImageDoubleClick}
@@ -208,45 +208,45 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             />
             {imageLoading && !imageError && (
-              <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-600">
+              <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-700 dark:to-slate-600">
                 <div className="text-center">
-                  <div className="w-8 h-8 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin mb-2"></div>
-                  <span className="text-gray-400 text-xs">Loading...</span>
+                  <div className="w-10 h-10 border-3 border-slate-200 border-t-indigo-500 dark:border-slate-600 dark:border-t-indigo-400 rounded-full animate-spin mb-2"></div>
+                  <span className="text-slate-400 dark:text-slate-500 text-xs font-medium">Loading...</span>
                 </div>
               </div>
             )}
             {imageError && (
-              <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-600">
-                <div className="text-center">
-                  <span className="text-gray-400 text-xl sm:text-2xl block">👗</span>
-                  <span className="text-gray-400 text-xs mt-1">Image unavailable</span>
+              <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-700 dark:to-slate-600">
+                <div className="text-center p-4">
+                  <span className="text-4xl block mb-2 opacity-40">👗</span>
+                  <span className="text-slate-400 dark:text-slate-500 text-xs font-medium">Image unavailable</span>
                 </div>
               </div>
             )}
 
           </>
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-600">
-            <div className="text-center">
-              <span className="text-gray-400 text-xl sm:text-2xl block">👗</span>
-              <span className="text-gray-400 text-xs mt-1">No image</span>
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-700 dark:to-slate-600">
+            <div className="text-center p-4">
+              <span className="text-4xl block mb-2 opacity-40">👗</span>
+              <span className="text-slate-400 dark:text-slate-500 text-xs font-medium">No image</span>
             </div>
           </div>
         )}
       </div>
 
-      {/* Content section - Compact layout */}
-      <div className="p-3 flex flex-col h-[120px] bg-white dark:bg-slate-800">
-        {/* Product name - Compact */}
-        <div className="mb-2 h-[36px] flex items-start">
-          <h3 className="font-semibold text-slate-900 dark:text-white text-sm leading-tight line-clamp-2">
+      {/* Content section - Enhanced layout */}
+      <div className="p-4 flex flex-col h-[120px] bg-gradient-to-b from-white to-slate-50/50 dark:from-slate-800/95 dark:to-slate-800">
+        {/* Product name - Enhanced */}
+        <div className="mb-2.5 h-[40px] flex items-start">
+          <h3 className="font-semibold text-slate-900 dark:text-white text-base leading-snug line-clamp-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-200">
             {displayName}
           </h3>
         </div>
         
-        {/* Price and Store in same row to save space */}
-        <div className="flex items-center justify-between mb-1">
-          <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">
+        {/* Price section - More prominent */}
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
             {(() => {
               // If price already includes currency symbol, use it as is
               if (product.price && (product.price.includes('$') || product.price.includes('€') || product.price.includes('£') || product.price.includes('¥') || product.price.includes('₹'))) {
@@ -271,11 +271,16 @@ export default function ProductCard({ product, onRemove }: ProductCardProps) {
           </p>
         </div>
         
-        {/* Store name - Bottom */}
-        <div className="mt-auto">
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wide truncate">
-            {storeName}
-          </p>
+        {/* Store name - Enhanced bottom section */}
+        <div className="mt-auto pt-2 border-t border-slate-200/50 dark:border-slate-700/50">
+          <div className="flex items-center space-x-1.5">
+            <svg className="w-3 h-3 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+            </svg>
+            <p className="text-xs text-slate-600 dark:text-slate-400 font-medium tracking-wide truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-200">
+              {storeName}
+            </p>
+          </div>
         </div>
       </div>
     </div>

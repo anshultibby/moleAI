@@ -24,6 +24,7 @@ from loguru import logger
 # Import extraction strategies from simple_extractor
 from .simple_extractor import (
     find_product_links,
+    extract_products_from_listing_json_ld,
     extract_product_json_ld_strategy,
     extract_product_nextjs_strategy,
     extract_product_meta_tags_strategy,
@@ -137,7 +138,7 @@ async def get_html_with_brightdata_api(
 
 async def extract_products_brightdata_api(
     url: str,
-    max_products: int = 50,
+    max_products: int = 20,
     context_vars=None,
     timeout: int = 120
 ) -> Dict[str, Any]:
@@ -184,7 +185,30 @@ async def extract_products_brightdata_api(
                 "products": []
             }
         
-        # Step 2: Find product links
+        # Step 1.5: Try to extract products directly from listing page JSON-LD (FAST!)
+        # Many sites include all products in ItemList/CollectionPage on the listing page
+        products_from_listing = extract_products_from_listing_json_ld(html, url)
+        
+        if products_from_listing:
+            logger.info(f"✨ Fast path: Extracted {len(products_from_listing)} products from listing page directly!")
+            
+            # Limit if needed
+            if len(products_from_listing) > max_products:
+                products_from_listing = products_from_listing[:max_products]
+            
+            return {
+                "success": True,
+                "products": products_from_listing,
+                "meta": {
+                    "strategy": "brightdata_listing_json_ld",
+                    "products_extracted": len(products_from_listing),
+                    "html_length": len(html),
+                    "fast_path": True
+                }
+            }
+        
+        # Step 2: Fallback - Find product links (slower but more reliable)
+        logger.info("No products in listing JSON-LD, falling back to individual product fetching")
         product_links = find_product_links(html, url)
         
         if not product_links:
@@ -312,7 +336,7 @@ async def extract_products_via_brightdata_api(
 
 async def extract_products_from_multiple_urls(
     urls: List[str],
-    max_products: int = 30,
+    max_products: int = 20,
     timeout: int = 120,
     progress_callback: Optional[Callable[[str], None]] = None
 ) -> Dict[str, Dict[str, Any]]:
@@ -369,7 +393,7 @@ async def extract_products_from_multiple_urls(
 # Convenience function
 async def extract_products_from_url_brightdata_api(
     url: str,
-    max_products: int = 50,
+    max_products: int = 20,
     timeout: int = 120
 ) -> Dict[str, Any]:
     """

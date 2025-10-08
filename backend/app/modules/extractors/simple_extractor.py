@@ -374,6 +374,80 @@ def find_product_links(html: str, base_url: str) -> List[str]:
 # EXTRACTION STRATEGIES
 # ============================================================================
 
+def extract_products_from_listing_json_ld(html: str, url: str) -> List[Dict[str, Any]]:
+    """
+    NEW STRATEGY: Extract multiple products directly from listing page JSON-LD.
+    
+    Many e-commerce sites include all products in the listing page as ItemList or CollectionPage
+    with embedded Product objects. This is MUCH faster than fetching each product individually.
+    
+    Returns list of products if found, empty list otherwise.
+    """
+    try:
+        from app.models.product import Product
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        json_ld_data = []
+        
+        # Find all JSON-LD script tags
+        scripts = soup.find_all('script', type='application/ld+json')
+        
+        for script in scripts:
+            try:
+                if script.string:
+                    data = json.loads(script.string)
+                    
+                    # Handle both single objects and arrays
+                    if isinstance(data, list):
+                        json_ld_data.extend(data)
+                    else:
+                        json_ld_data.append(data)
+            except json.JSONDecodeError:
+                continue
+        
+        products = []
+        
+        # Look for ItemList or CollectionPage with embedded products
+        for item in json_ld_data:
+            item_type = item.get('@type', '')
+            
+            # Handle ItemList
+            if item_type == 'ItemList' or item_type == 'CollectionPage':
+                items = item.get('itemListElement', []) or item.get('mainEntity', {}).get('itemListElement', [])
+                
+                for list_item in items:
+                    # Sometimes products are nested in 'item' key
+                    product_data = list_item.get('item') if 'item' in list_item else list_item
+                    
+                    if product_data and product_data.get('@type') == 'Product':
+                        try:
+                            product = Product.from_json_ld(product_data, url)
+                            products.append(product.to_dict())
+                        except Exception as e:
+                            logger.debug(f"Failed to parse embedded product: {e}")
+                            continue
+            
+            # Also check @graph for products
+            if '@graph' in item:
+                for graph_item in item['@graph']:
+                    if graph_item.get('@type') == 'Product':
+                        try:
+                            product = Product.from_json_ld(graph_item, url)
+                            products.append(product.to_dict())
+                        except Exception as e:
+                            logger.debug(f"Failed to parse graph product: {e}")
+                            continue
+        
+        if products:
+            logger.info(f"✓ Extracted {len(products)} products directly from listing page JSON-LD!")
+        
+        return products
+        
+    except Exception as e:
+        logger.debug(f"Listing page JSON-LD extraction failed: {e}")
+        return []
+
+
 def extract_product_json_ld_strategy(html: str, url: str) -> Optional[Dict[str, Any]]:
     """
     Strategy 1: Extract product using JSON-LD structured data.
@@ -598,7 +672,7 @@ async def extract_products_from_links(product_links: List[str], max_concurrent: 
 
 async def extract_products_simple(
     url: str,
-    max_products: int = 50,
+    max_products: int = 20,
     context_vars=None
 ) -> Dict[str, Any]:
     """
@@ -699,6 +773,6 @@ async def extract_products_simple(
 
 
 # Convenience function
-async def extract_products_from_url_simple(url: str, max_products: int = 50) -> Dict[str, Any]:
+async def extract_products_from_url_simple(url: str, max_products: int = 20) -> Dict[str, Any]:
     """Simple interface for product extraction"""
     return await extract_products_simple(url, max_products)
