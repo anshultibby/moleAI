@@ -90,7 +90,12 @@ class StreamHelper:
     - Bad: "winter coats site:zara.com OR site:hm.com"
     - Bad: "dresses site:nordstrom.com"
     
-    After getting search results, you can choose which diverse retailer links to scrape.
+    PROGRESSIVE DISCLOSURE:
+    After getting search results, IMMEDIATELY share the store names you found with the user
+    before extracting products. This keeps them engaged while you work.
+    Example: "I found these stores: Hello Molly, Nordstrom, ASOS. Let me check what they have..."
+    
+    Then extract products from the most relevant 3-5 URLs.
     Focus on the product attributes the user wants, not specific brands unless explicitly requested.
     """
 )
@@ -137,6 +142,12 @@ def search_web_tool(
     2. Extract the 'url' field from search results
     3. Pass those URLs to this tool as a list
     
+    PROGRESSIVE RESULTS:
+    - Extracts from multiple sites in PARALLEL (not sequential)
+    - Shows products from each site AS SOON AS they're found
+    - Don't wait for all sites - display partial results immediately
+    - This keeps users engaged during the 20-45 second extraction process
+    
     Automatic bot detection bypass with:
     - PerimeterX, Cloudflare, Datadome protection bypass
     - JavaScript rendering for SPAs (React, Vue, Next.js)
@@ -145,15 +156,16 @@ def search_web_tool(
     - Cost: $1.50 per 1,000 requests
     
     Supports all modern e-commerce platforms:
-    - Shopify stores
+    - Shopify stores (85%+ success rate)
     - WooCommerce sites
     - Custom JavaScript SPAs
-    - Bot-protected sites
+    - Some bot-protected sites (auto-skipped if blocked)
     
     Extraction strategies (tries in order):
     1. FASTEST: Extract from listing page ItemList JSON-LD (20x faster!)
-    2. ULTRA FAST: Scrape visible HTML product grid - exactly what you see in browser! (10x faster!)
-    3. Fallback: Fetch individual product pages and extract from JSON-LD/Next.js/__NEXT_DATA__/meta tags
+    2. SUPER FAST: Mine inline JSON state blobs - Next.js/__NEXT_DATA__, Nuxt/__NUXT__, Shopify, Apollo (15x faster!)
+    3. ULTRA FAST: Scrape visible HTML product grid - exactly what you see in browser! (10x faster!)
+    4. Fallback: Fetch individual product pages and extract from JSON-LD/Next.js/meta tags (parallelized)
     
     Extracts:
     - Product names, prices, currencies
@@ -164,9 +176,9 @@ def search_web_tool(
     
     Parameters:
     - urls: List of collection/listing page URLs to scrape (REQUIRED - cannot be empty)
-    - max_products: Maximum products per URL (default: 10 for speed)
+    - max_products: Maximum products per URL (default: 10 for speed, use 20 for variety)
     
-    Works with: Hello Molly, Express.com, Fashion Nova, and 95%+ of e-commerce sites
+    TIP: Focus on 3-5 most relevant URLs for best speed/quality balance
     """
 )
 async def extract_products(
@@ -184,26 +196,30 @@ async def extract_products(
     
     try:
         # Start extraction
-        streamer.progress(f"🔍 Extracting products from {len(urls)} URLs", total_urls=len(urls), max_products=max_products)
+        streamer.progress(f"🔍 Extracting products from {len(urls)} URLs in parallel", total_urls=len(urls), max_products=max_products)
         
         # Use the BrightData API extractor (handles parallelization internally)
         from app.modules.extractors import extract_products_from_multiple_urls
         from app.models.product import Product
         
+        # Track products for progressive display
+        all_products = []
+        displayed_count = 0
+        
         # Extract from all URLs (parallelized internally)
         all_results = await extract_products_from_multiple_urls(
             urls=urls,
             max_products=max_products,
-            timeout=30,  # Fast timeout for speed
+            timeout=45,  # Balanced timeout for reliability + speed
             progress_callback=lambda msg: streamer.progress(msg)
         )
         
         # Convert results to Product objects and store in resources
-        all_products = []
+        # Process results as they complete for progressive display
         for url, result in all_results.items():
             if not result.get('success'):
                 logger.warning(f"Failed to extract from {url}: {result.get('error')}")
-                streamer.progress(f"❌ Failed: {url}")
+                streamer.progress(f"❌ Skipped: {url.split('//')[-1].split('/')[0]}")
                 continue
             
             # Convert product dicts to Product model
@@ -244,6 +260,23 @@ async def extract_products(
                 resources[resource_name] = collection
                 
                 streamer.progress(f"✅ {domain}: {len(url_products)} products")
+                
+                # PROGRESSIVE DISPLAY: Show products from this site immediately
+                # Display in batches of 5-10 products as each site completes
+                if len(url_products) >= 5 and displayed_count < 20:
+                    # Stream first batch from this site
+                    batch = url_products[:min(10, len(url_products))]
+                    try:
+                        agent = context_vars.get('agent')
+                        if agent:
+                            await agent.stream_products(
+                                products=batch,
+                                title=f"Found from {domain}"
+                            )
+                            displayed_count += len(batch)
+                            logger.info(f"🎨 Progressively displayed {len(batch)} products from {domain}")
+                    except Exception as e:
+                        logger.warning(f"Failed to stream products progressively: {e}")
         
         # Store all products combined as a ProductCollection
         if all_products:

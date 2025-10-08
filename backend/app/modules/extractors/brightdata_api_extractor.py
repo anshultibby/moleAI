@@ -25,6 +25,7 @@ from loguru import logger
 from .simple_extractor import (
     find_product_links,
     extract_products_from_listing_json_ld,
+    extract_products_from_inline_state,
     extract_products_from_html_grid,
     extract_product_json_ld_strategy,
     extract_product_nextjs_strategy,
@@ -141,7 +142,7 @@ async def extract_products_brightdata_api(
     url: str,
     max_products: int = 20,
     context_vars=None,
-    timeout: int = 30  # Fast timeout for blazing speed
+    timeout: int = 60  # Increased timeout for heavy sites
 ) -> Dict[str, Any]:
     """
     Extract products using BrightData Web Unlocker API.
@@ -208,13 +209,32 @@ async def extract_products_brightdata_api(
                 }
             }
         
-        # Step 1.6: Try to extract products from HTML product grid (ULTRA FAST!)
+        # Step 1.6: Try to extract from inline JSON state (SUPER FAST!)
+        # SPAs like Next.js, Nuxt, Shopify embed product data as JSON for hydration
+        logger.info("No JSON-LD, trying inline state extraction...")
+        products_from_state = extract_products_from_inline_state(html, url, max_products=max_products)
+        
+        if products_from_state:
+            logger.info(f"⚡ Fast path 2: Extracted {len(products_from_state)} products from inline JSON state!")
+            
+            return {
+                "success": True,
+                "products": products_from_state,
+                "meta": {
+                    "strategy": "brightdata_inline_state",
+                    "products_extracted": len(products_from_state),
+                    "html_length": len(html),
+                    "fast_path": True
+                }
+            }
+        
+        # Step 1.7: Try to extract products from HTML product grid (ULTRA FAST!)
         # This scrapes the visible product cards - exactly what you see in the browser!
-        logger.info("No JSON-LD, trying HTML grid extraction...")
+        logger.info("No inline state, trying HTML grid extraction...")
         products_from_grid = extract_products_from_html_grid(html, url, max_products=max_products)
         
         if products_from_grid:
-            logger.info(f"🎯 Fast path 2: Extracted {len(products_from_grid)} products from HTML grid!")
+            logger.info(f"🎯 Fast path 3: Extracted {len(products_from_grid)} products from HTML grid!")
             
             return {
                 "success": True,
@@ -357,7 +377,7 @@ async def extract_products_via_brightdata_api(
 async def extract_products_from_multiple_urls(
     urls: List[str],
     max_products: int = 20,
-    timeout: int = 30,  # Fast timeout for blazing speed
+    timeout: int = 45,  # Balanced timeout for reliability + speed
     progress_callback: Optional[Callable[[str], None]] = None
 ) -> Dict[str, Dict[str, Any]]:
     """

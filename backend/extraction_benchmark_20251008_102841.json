@@ -1,0 +1,1053 @@
+{
+  "timestamp": "20251008_102841",
+  "summary": {
+    "total_tested": 52,
+    "successful": 29,
+    "failed": 23,
+    "success_rate": "55.8%",
+    "strategy_wins": {
+      "html_grid": 18,
+      "json_ld": 9,
+      "inline_state": 2
+    },
+    "shopify_stats": {
+      "total": 32,
+      "successful": 23
+    }
+  },
+  "queries_used": [
+    "black dresses under $100",
+    "elegant evening gowns",
+    "summer maxi dresses",
+    "cocktail dresses for wedding",
+    "casual midi dresses",
+    "formal prom dresses",
+    "boho style dresses",
+    "little black dress",
+    "floral print dresses",
+    "long sleeve dresses",
+    "party dresses under $50",
+    "vintage style dresses",
+    "wrap dresses",
+    "off shoulder dresses",
+    "sequin party dresses"
+  ],
+  "results": [
+    {
+      "url": "https://www.nordstrom.com/browse/women/clothing/dresses/under-100?filterByColor=black&srsltid=AfmBOooKSDf4doQBgiUleSyBEU5j216Ax6RfwzdxEeXOkdCtLstScGGV",
+      "domain": "www.nordstrom.com",
+      "html_fetched": true,
+      "html_size": 1329891,
+      "is_shopify": false,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 0
+      },
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found",
+        "HTML Grid: No product cards found with common selectors",
+        "All fast paths failed - requires individual product page fetching"
+      ],
+      "query": "black dresses under $100",
+      "title": "Women's Black Dresses Under $100 | Nordstrom"
+    },
+    {
+      "url": "https://www.abcfashion.net/collections/long-prom-dresses-under-100/black?srsltid=AfmBOop0JLoM3qzR9rb4jfKyKAuxL8Rn0cfuxAQ_s2kLu1A2V_7PRY58",
+      "domain": "www.abcfashion.net",
+      "html_fetched": true,
+      "html_size": 1048631,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 20
+      },
+      "products_found": 20,
+      "winning_strategy": "html_grid",
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "black dresses under $100",
+      "title": "Long Prom Dresses & Gowns Under $100 - ABC Fashion"
+    },
+    {
+      "url": "https://www.express.com/womens-clothing/dresses/sale/cat10036/filter/v_color_uFilter:Black",
+      "domain": "www.express.com",
+      "html_fetched": false,
+      "html_size": 0,
+      "is_shopify": false,
+      "strategies_tested": {},
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "Failed to fetch HTML (timeout or empty)"
+      ],
+      "query": "black dresses under $100",
+      "title": "Women's Black Dresses Under $100 - Express"
+    },
+    {
+      "url": "https://petalandpup.com/collections/black-dresses",
+      "domain": "petalandpup.com",
+      "html_fetched": true,
+      "html_size": 2447883,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 0
+      },
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found",
+        "HTML Grid: No product cards found with common selectors",
+        "All fast paths failed - requires individual product page fetching"
+      ],
+      "query": "black dresses under $100",
+      "title": "Black Dresses - Petal & Pup"
+    },
+    {
+      "url": "https://www.lulus.com/categories/2226_3252/black-formal-dresses.html",
+      "domain": "www.lulus.com",
+      "html_fetched": true,
+      "html_size": 427803,
+      "is_shopify": false,
+      "strategies_tested": {
+        "json_ld": 12,
+        "inline_state": 0,
+        "html_grid": 0
+      },
+      "products_found": 12,
+      "winning_strategy": "json_ld",
+      "failure_reasons": [
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found",
+        "HTML Grid: No product cards found with common selectors"
+      ],
+      "query": "black dresses under $100",
+      "title": "Black Formal Dresses, Long Black Dresses, Black Gowns - Lulus"
+    },
+    {
+      "url": "https://thedresswarehouse.com/collections/evening-dresses-under-100?srsltid=AfmBOorSCZYqm0s07K91L6Onge_VP32TUujYsZRofgkFkosoO794A4rq",
+      "domain": "thedresswarehouse.com",
+      "html_fetched": true,
+      "html_size": 1071986,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 6
+      },
+      "products_found": 6,
+      "winning_strategy": "html_grid",
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "black dresses under $100",
+      "title": "Evening Dresses Under $100 | Designer Gowns Up to 90% Off"
+    },
+    {
+      "url": "https://www.macys.com/shop/womens/clothing/dresses/Color_normal/Black?id=5449",
+      "domain": "www.macys.com",
+      "html_fetched": true,
+      "html_size": 2117938,
+      "is_shopify": false,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 7
+      },
+      "products_found": 7,
+      "winning_strategy": "html_grid",
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "black dresses under $100",
+      "title": "Black Dresses for Women - Macy's"
+    },
+    {
+      "url": "https://elegantcouture.com/collections/evening",
+      "domain": "elegantcouture.com",
+      "html_fetched": true,
+      "html_size": 180171,
+      "is_shopify": false,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 12
+      },
+      "products_found": 12,
+      "winning_strategy": "html_grid",
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "elegant evening gowns",
+      "title": "Evening Dresses - Elegant Couture"
+    },
+    {
+      "url": "https://www.tadashishoji.com/shop/dresses/evening-gowns?srsltid=AfmBOopxorahtFJ1Xep0iiK6JwVZIwni1fqHfFSa8-Cs0uauji53l1qW",
+      "domain": "www.tadashishoji.com",
+      "html_fetched": false,
+      "html_size": 0,
+      "is_shopify": false,
+      "strategies_tested": {},
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "Failed to fetch HTML (timeout or empty)"
+      ],
+      "query": "elegant evening gowns",
+      "title": "Elegant Evening Gowns for Women - Tadashi Shoji"
+    },
+    {
+      "url": "https://camillelavie.com/collections/all-evening-dresses?srsltid=AfmBOoq_qX5Wa8ctlSt5xHioo0y7_yVAEA3lTNV5225raBe3p3DEloei",
+      "domain": "camillelavie.com",
+      "html_fetched": true,
+      "html_size": 560757,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 0
+      },
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found",
+        "HTML Grid: No product cards found with common selectors",
+        "All fast paths failed - requires individual product page fetching"
+      ],
+      "query": "elegant evening gowns",
+      "title": "All 2025 Evening Dresses - Camille La Vie"
+    },
+    {
+      "url": "https://www.sherrihill.com/collections/evening-dresses",
+      "domain": "www.sherrihill.com",
+      "html_fetched": true,
+      "html_size": 1026847,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 20
+      },
+      "products_found": 20,
+      "winning_strategy": "html_grid",
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "elegant evening gowns",
+      "title": "Evening Dresses and Gowns 2025 - Sherri Hill"
+    },
+    {
+      "url": "https://macduggal.com/collections/evening-gowns-and-formal-dresses",
+      "domain": "macduggal.com",
+      "html_fetched": false,
+      "html_size": 0,
+      "is_shopify": false,
+      "strategies_tested": {},
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "Failed to fetch HTML (timeout or empty)"
+      ],
+      "query": "elegant evening gowns",
+      "title": "Evening Gowns and Formal Dresses - Mac Duggal"
+    },
+    {
+      "url": "https://www.couturecandy.com/collections/evening-dresses?srsltid=AfmBOopsDzajVqDtfbO1Tkpv70QwvhSgpa7n33-YJAjW4f1YifDhsWm3",
+      "domain": "www.couturecandy.com",
+      "html_fetched": true,
+      "html_size": 1317078,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 48,
+        "inline_state": 0,
+        "html_grid": 0
+      },
+      "products_found": 48,
+      "winning_strategy": "json_ld",
+      "failure_reasons": [
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found",
+        "HTML Grid: No product cards found with common selectors"
+      ],
+      "query": "elegant evening gowns",
+      "title": "Women's Evening Dresses & Gowns 2025 - Couture Candy"
+    },
+    {
+      "url": "https://www.donnakaran.com/collections/evening-formal?srsltid=AfmBOoo5q_aG2QDK2_ehIXQIdtHTXQihWMnDW8werEkiWgJRS09yqQDc",
+      "domain": "www.donnakaran.com",
+      "html_fetched": false,
+      "html_size": 0,
+      "is_shopify": false,
+      "strategies_tested": {},
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "Failed to fetch HTML (timeout or empty)"
+      ],
+      "query": "elegant evening gowns",
+      "title": "Evening & Formal - Donna Karan"
+    },
+    {
+      "url": "https://moniquelhuillier.com/collections/gowns?srsltid=AfmBOoohesu7jbHVe3k9_Kc7UD80EwKGmYww6F96CmtSUAypHhdTuxIY",
+      "domain": "moniquelhuillier.com",
+      "html_fetched": true,
+      "html_size": 1841290,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 20,
+        "html_grid": 20
+      },
+      "products_found": 20,
+      "winning_strategy": "inline_state",
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page"
+      ],
+      "query": "elegant evening gowns",
+      "title": "Designer Evening & Formal Gowns - Monique Lhuillier"
+    },
+    {
+      "url": "https://www.abercrombie.com/shop/us/womens-maxi-dresses-dresses-and-rompers",
+      "domain": "www.abercrombie.com",
+      "html_fetched": false,
+      "html_size": 0,
+      "is_shopify": false,
+      "strategies_tested": {},
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "Failed to fetch HTML (timeout or empty)"
+      ],
+      "query": "summer maxi dresses",
+      "title": "Maxi Dresses for Women | Full Length | Abercrombie & Fitch"
+    },
+    {
+      "url": "https://us.saboskirt.com/collections/dresses/maxi-dresses",
+      "domain": "us.saboskirt.com",
+      "html_fetched": true,
+      "html_size": 1003658,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 20
+      },
+      "products_found": 20,
+      "winning_strategy": "html_grid",
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "summer maxi dresses",
+      "title": "Shop Summer Maxi Dresses Online Australia - SABO"
+    },
+    {
+      "url": "https://tjmaxx.tjx.com/store/shop/womens-maxi-dresses/_/N-1488589176",
+      "domain": "tjmaxx.tjx.com",
+      "html_fetched": false,
+      "html_size": 0,
+      "is_shopify": false,
+      "strategies_tested": {},
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "Failed to fetch HTML (timeout or empty)"
+      ],
+      "query": "summer maxi dresses",
+      "title": "Women's Maxi Dresses | Flowy, Casual & More - T.J.Maxx"
+    },
+    {
+      "url": "https://francescas.com/category/dresses/maxi-dresses?srsltid=AfmBOorNtZ3RkeqtQywFMaq1Qd3Y1vxv8ZwkTpi9mo4hElCejcMrTBGC",
+      "domain": "francescas.com",
+      "html_fetched": false,
+      "html_size": 0,
+      "is_shopify": false,
+      "strategies_tested": {},
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "Failed to fetch HTML (timeout or empty)"
+      ],
+      "query": "summer maxi dresses",
+      "title": "Maxi Dresses for Women | francesca's"
+    },
+    {
+      "url": "https://www.asos.com/us/women/dresses/maxi-dresses/cat/?cid=9979",
+      "domain": "www.asos.com",
+      "html_fetched": true,
+      "html_size": 562309,
+      "is_shopify": false,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 0
+      },
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found",
+        "HTML Grid: No product cards found with common selectors",
+        "All fast paths failed - requires individual product page fetching"
+      ],
+      "query": "summer maxi dresses",
+      "title": "Shop Maxi Dresses & Long Dresses for Women Online | ASOS"
+    },
+    {
+      "url": "https://www2.hm.com/en_us/women/products/dresses/maxi-dresses.html",
+      "domain": "www2.hm.com",
+      "html_fetched": true,
+      "html_size": 2766346,
+      "is_shopify": false,
+      "strategies_tested": {
+        "json_ld": 36,
+        "inline_state": 0,
+        "html_grid": 0
+      },
+      "products_found": 36,
+      "winning_strategy": "json_ld",
+      "failure_reasons": [
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found",
+        "HTML Grid: No product cards found with common selectors"
+      ],
+      "query": "summer maxi dresses",
+      "title": "Maxi Dresses | Long-Sleeve Floral Bodycon & Satin | H&M US"
+    },
+    {
+      "url": "https://www.adriannapapell.com/collections/cocktail-wedding-guest-dresses?srsltid=AfmBOooFAe9iTXeL1xZMNLs1aLFFhyax1aOhbNoxwsh8VBx9nr2Oc5CG",
+      "domain": "www.adriannapapell.com",
+      "html_fetched": true,
+      "html_size": 1302782,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 36,
+        "inline_state": 0,
+        "html_grid": 1
+      },
+      "products_found": 36,
+      "winning_strategy": "json_ld",
+      "failure_reasons": [
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "cocktail dresses for wedding",
+      "title": "Cocktail Wedding Guest Dresses & Gowns for Women"
+    },
+    {
+      "url": "https://www.ladyblacktie.com/collections/cocktail-wedding-guest-dresses?srsltid=AfmBOoqvbc7CxxBUw7-i_gzW--FWyHxADlcZfapPt4AGNpO1NXGeuKD7",
+      "domain": "www.ladyblacktie.com",
+      "html_fetched": true,
+      "html_size": 1786437,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 20
+      },
+      "products_found": 20,
+      "winning_strategy": "html_grid",
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "cocktail dresses for wedding",
+      "title": "Cocktail Wedding Guest Dresses | Lady Black Tie"
+    },
+    {
+      "url": "https://www.aritzia.com/us/en/clothing/dresses/midi-dresses",
+      "domain": "www.aritzia.com",
+      "html_fetched": true,
+      "html_size": 1621335,
+      "is_shopify": false,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 0
+      },
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found",
+        "HTML Grid: No product cards found with common selectors",
+        "All fast paths failed - requires individual product page fetching"
+      ],
+      "query": "casual midi dresses",
+      "title": "Midi Dresses for Women | Aritzia US"
+    },
+    {
+      "url": "https://www.promgirl.com/collections/prom-dresses?srsltid=AfmBOoqmeKqV-TMM50-1gVr-9sfW74bd66-sK7GPylAVJSOnC2ialaSx",
+      "domain": "www.promgirl.com",
+      "html_fetched": true,
+      "html_size": 4610528,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 20
+      },
+      "products_found": 20,
+      "winning_strategy": "html_grid",
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "formal prom dresses",
+      "title": "Prom Dresses, 2026 Short & Long Prom Gowns - PromGirl.com"
+    },
+    {
+      "url": "https://www.glamourformals.com/collections/prom?srsltid=AfmBOoqC48szMk3CuiyNa9oQkmGeAeMb8KxC6AqTHplyNtzBQjfYS9KI",
+      "domain": "www.glamourformals.com",
+      "html_fetched": true,
+      "html_size": 177815,
+      "is_shopify": false,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 12
+      },
+      "products_found": 12,
+      "winning_strategy": "html_grid",
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "formal prom dresses",
+      "title": "Prom Dresses - Glamour Formals"
+    },
+    {
+      "url": "https://www.naturallife.com/collections/dresses-jumpsuits?srsltid=AfmBOopbyYGxsGJorpcaMcvTI7Y7bkjqDt8K1eZ8scr6cz2IECX52XFP",
+      "domain": "www.naturallife.com",
+      "html_fetched": true,
+      "html_size": 712155,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 0
+      },
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found",
+        "HTML Grid: No product cards found with common selectors",
+        "All fast paths failed - requires individual product page fetching"
+      ],
+      "query": "boho style dresses",
+      "title": "Boho Dresses & Jumpsuits - Cute Comfy Styles at Natural Life"
+    },
+    {
+      "url": "https://www.joyfolie.com/collections/mademoiselle-clothing?srsltid=AfmBOoocXajmo5_sSks5HD49WxAXGy_KzZGC35yAVLITfDduwTJIgmAh",
+      "domain": "www.joyfolie.com",
+      "html_fetched": true,
+      "html_size": 1109516,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 0
+      },
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found",
+        "HTML Grid: No product cards found with common selectors",
+        "All fast paths failed - requires individual product page fetching"
+      ],
+      "query": "boho style dresses",
+      "title": "Boutique Clothing For Women | Boho, Maxi Dresses & More | Joyfolie"
+    },
+    {
+      "url": "https://bohobeachhut.com/collections/boho-dresses?srsltid=AfmBOoqphAm0smnSpANmRyO9U-7_kvKo6JxiHJeS5iLuZFFu1ndJS8O8",
+      "domain": "bohobeachhut.com",
+      "html_fetched": true,
+      "html_size": 1053085,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 20
+      },
+      "products_found": 20,
+      "winning_strategy": "html_grid",
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "boho style dresses",
+      "title": "Boho Dresses - Affordable Mini, Midi, Maxi Dresses - Boho Beach Hut"
+    },
+    {
+      "url": "https://www.threebirdnest.com/collections/dresses?srsltid=AfmBOopNo0hJ2MdGg2ZQrPdQ7tAm_vuxUgAhc19mnsvGqxPBqbnniJ_g",
+      "domain": "www.threebirdnest.com",
+      "html_fetched": true,
+      "html_size": 1315001,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 36,
+        "inline_state": 17,
+        "html_grid": 0
+      },
+      "products_found": 36,
+      "winning_strategy": "json_ld",
+      "failure_reasons": [
+        "HTML Grid: No product cards found with common selectors"
+      ],
+      "query": "boho style dresses",
+      "title": "Jumpsuits & Dresses in the Latest Boho Styles - Three Bird Nest"
+    },
+    {
+      "url": "https://www.whitehouseblackmarket.com/store/category/little-black-dresses/cat6179297?srsltid=AfmBOoroOGpI1WtLhKi7aP_B4jFpuafYUXlflvtGEtBfjIy4G1os9NgB",
+      "domain": "www.whitehouseblackmarket.com",
+      "html_fetched": true,
+      "html_size": 2791027,
+      "is_shopify": false,
+      "strategies_tested": {
+        "json_ld": 64,
+        "inline_state": 0,
+        "html_grid": 20
+      },
+      "products_found": 64,
+      "winning_strategy": "json_ld",
+      "failure_reasons": [
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "little black dress",
+      "title": "Shop Little Black Dresses | White House Black Market"
+    },
+    {
+      "url": "https://us.ohpolly.com/collections/dresses-little-black-dresses?srsltid=AfmBOoqqXvWWdfH-3fMG38-sj0l7P5MhzxV3L-TgJr-KMgs1SKHtWeIQ",
+      "domain": "us.ohpolly.com",
+      "html_fetched": true,
+      "html_size": 840660,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 16
+      },
+      "products_found": 16,
+      "winning_strategy": "html_grid",
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "little black dress",
+      "title": "Little Black Dresses \u2013 Short Black Mini Dresses | Oh Polly US"
+    },
+    {
+      "url": "https://clubllondon.us/collections/lbd?srsltid=AfmBOopPPYZETB6Jzd0u2dSQt6cJbErxWm80n9SF1Q5G6EG1vUC07Xbj",
+      "domain": "clubllondon.us",
+      "html_fetched": true,
+      "html_size": 1026812,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 20
+      },
+      "products_found": 20,
+      "winning_strategy": "html_grid",
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "little black dress",
+      "title": "LBD Little Black Dress - Club L London"
+    },
+    {
+      "url": "https://www.windsorstore.com/collections/dresses-little-black?srsltid=AfmBOornlNoAr-uCpnKU1izc5srdBxa3S_Qk64AqLvTI2eR8M25ZMFHo",
+      "domain": "www.windsorstore.com",
+      "html_fetched": true,
+      "html_size": 1468530,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 7
+      },
+      "products_found": 7,
+      "winning_strategy": "html_grid",
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "little black dress",
+      "title": "Little Black Dresses | Sexy to Formal LBDs - Windsor"
+    },
+    {
+      "url": "https://shoprevelry.com/collections/floral-prints?srsltid=AfmBOorxTBoz7Kh9RLjLL2FBsxbTLHTQyaFCKdam0_rKEoAj3V6PvaiO",
+      "domain": "shoprevelry.com",
+      "html_fetched": true,
+      "html_size": 1862739,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 16
+      },
+      "products_found": 16,
+      "winning_strategy": "html_grid",
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "floral print dresses",
+      "title": "Floral Prints - Revelry"
+    },
+    {
+      "url": "https://www.astrthelabel.com/collections/floral-dresses?srsltid=AfmBOorX3aI7UJiXLapuaKjHPRJJG7SoqnIprZgZS2mZaJUl2LuFdLmb",
+      "domain": "www.astrthelabel.com",
+      "html_fetched": false,
+      "html_size": 0,
+      "is_shopify": false,
+      "strategies_tested": {},
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "Failed to fetch HTML (timeout or empty)"
+      ],
+      "query": "floral print dresses",
+      "title": "Floral Dresses - ASTR the Label"
+    },
+    {
+      "url": "https://forloveandlemons.com/collections/floral-dresses",
+      "domain": "forloveandlemons.com",
+      "html_fetched": true,
+      "html_size": 566854,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 1,
+        "html_grid": 20
+      },
+      "products_found": 1,
+      "winning_strategy": "inline_state",
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page"
+      ],
+      "query": "floral print dresses",
+      "title": "Romantic Floral Dresses - For Love & Lemons"
+    },
+    {
+      "url": "https://www.simplydresses.com/collections/dresses-under-50?srsltid=AfmBOorl_XCOBP8awu2P0PNRX16MZWpxnfOX_i16KhOe3_Us9hTb_Nk2",
+      "domain": "www.simplydresses.com",
+      "html_fetched": true,
+      "html_size": 2374797,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 20
+      },
+      "products_found": 20,
+      "winning_strategy": "html_grid",
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "party dresses under $50",
+      "title": "Cheap Formal Dresses, Cheap Party Dresses Under $50"
+    },
+    {
+      "url": "https://www.ever-pretty.com/collections/cocktail-dresses?srsltid=AfmBOoqmVG0wz4x5p2GDJQ9dnwsH9qlq9f3owOh-fS4LaRNnvEfMvqzk",
+      "domain": "www.ever-pretty.com",
+      "html_fetched": true,
+      "html_size": 8178860,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 40,
+        "inline_state": 0,
+        "html_grid": 0
+      },
+      "products_found": 40,
+      "winning_strategy": "json_ld",
+      "failure_reasons": [
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found",
+        "HTML Grid: No product cards found with common selectors"
+      ],
+      "query": "party dresses under $50",
+      "title": "Cocktail Dresses for Women Under $50 - Ever-Pretty US"
+    },
+    {
+      "url": "https://www.thedressoutlet.com/collections/dresses-under-49-99?srsltid=AfmBOorsMCVAjEgyG039PZHLAntRP45hbe8DIOR-A5_lwCbKjStcGk1m",
+      "domain": "www.thedressoutlet.com",
+      "html_fetched": true,
+      "html_size": 1357006,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 16,
+        "inline_state": 0,
+        "html_grid": 20
+      },
+      "products_found": 16,
+      "winning_strategy": "json_ld",
+      "failure_reasons": [
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "party dresses under $50",
+      "title": "Shop Prom Formal & Wedding Dresses Under $99 - The Dress Outlet"
+    },
+    {
+      "url": "https://modcloth.com/collections/vintage-dresses?srsltid=AfmBOooEYXXTXw1Xo8ayxLJRMk2ftZDDHfogMolkXfGKRZYZ1wKXXSmT",
+      "domain": "modcloth.com",
+      "html_fetched": true,
+      "html_size": 1019675,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 0
+      },
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found",
+        "HTML Grid: No product cards found with common selectors",
+        "All fast paths failed - requires individual product page fetching"
+      ],
+      "query": "vintage style dresses",
+      "title": "All Dresses | Vintage Retro Styles XS\u20134X - ModCloth"
+    },
+    {
+      "url": "https://www.unique-vintage.com/collections/dresses?srsltid=AfmBOorIXkVQ9zKSd1AF7aVOXHJXk1Yl6hngZQ9S0FFEwRNe7xPgn71Z",
+      "domain": "www.unique-vintage.com",
+      "html_fetched": true,
+      "html_size": 733410,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 0
+      },
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found",
+        "HTML Grid: No product cards found with common selectors",
+        "All fast paths failed - requires individual product page fetching"
+      ],
+      "query": "vintage style dresses",
+      "title": "Women's Vintage Dresses & Retro Dresses"
+    },
+    {
+      "url": "https://www.wardrobeshop.com/collections/dresses",
+      "domain": "www.wardrobeshop.com",
+      "html_fetched": true,
+      "html_size": 692209,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 10
+      },
+      "products_found": 10,
+      "winning_strategy": "html_grid",
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "vintage style dresses",
+      "title": "Vintage Style Dresses - WardrobeShop"
+    },
+    {
+      "url": "https://www.michelinepitt.com/collections/vixen-dresses?srsltid=AfmBOopa4N40BTDCjL4Mm0U6dxyLoIkYH6nYMnNBIZjr_wvyN0zidmKx",
+      "domain": "www.michelinepitt.com",
+      "html_fetched": false,
+      "html_size": 0,
+      "is_shopify": false,
+      "strategies_tested": {},
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "Failed to fetch HTML (timeout or empty)"
+      ],
+      "query": "vintage style dresses",
+      "title": "Retro Style Dresses - Vixen by Micheline Pitt"
+    },
+    {
+      "url": "https://sondeflor.com/collections/vintage-dresses?srsltid=AfmBOoprHjwaGNew2InBxeDo7RUCoe4sZIP4__nMM8A3h73BJIPhTOCH",
+      "domain": "sondeflor.com",
+      "html_fetched": true,
+      "html_size": 1495007,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 69,
+        "inline_state": 0,
+        "html_grid": 6
+      },
+      "products_found": 69,
+      "winning_strategy": "json_ld",
+      "failure_reasons": [
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "vintage style dresses",
+      "title": "Vintage Style Linen Dresses For Women | Son de Flor"
+    },
+    {
+      "url": "https://www.dvf.com/collections/wrap-dresses-1?srsltid=AfmBOoo95IeTz5BeGYlb0BMcgjSIBoZ56LRH8PxZGSRSR7DfS3BrwGmJ",
+      "domain": "www.dvf.com",
+      "html_fetched": true,
+      "html_size": 1586786,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 0
+      },
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found",
+        "HTML Grid: No product cards found with common selectors",
+        "All fast paths failed - requires individual product page fetching"
+      ],
+      "query": "wrap dresses",
+      "title": "Wrap Dresses - Diane von Furstenberg"
+    },
+    {
+      "url": "https://bananarepublicfactory.gapfactory.com/shop/wrap-dress",
+      "domain": "bananarepublicfactory.gapfactory.com",
+      "html_fetched": false,
+      "html_size": 0,
+      "is_shopify": false,
+      "strategies_tested": {},
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "Failed to fetch HTML (timeout or empty)"
+      ],
+      "query": "wrap dresses",
+      "title": "Wrap Dresses | Banana Republic Factory"
+    },
+    {
+      "url": "https://www.meshki.us/collections/off-shoulder-dresses?srsltid=AfmBOoqk0i2OKXVIYR-yBhczM8XJksEsKMCLE5Q9bKR2jGBCkySfttv_",
+      "domain": "www.meshki.us",
+      "html_fetched": true,
+      "html_size": 1570140,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 20
+      },
+      "products_found": 20,
+      "winning_strategy": "html_grid",
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "off shoulder dresses",
+      "title": "Off The Shoulder Dresses - Shop Online | MESHKI US"
+    },
+    {
+      "url": "https://www.bloomingdales.com/shop/womens-apparel/designer-dresses/Dress_style_m/Off%20the%20Shoulder?id=21683",
+      "domain": "www.bloomingdales.com",
+      "html_fetched": true,
+      "html_size": 1310337,
+      "is_shopify": false,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 0
+      },
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found",
+        "HTML Grid: No product cards found with common selectors",
+        "All fast paths failed - requires individual product page fetching"
+      ],
+      "query": "off shoulder dresses",
+      "title": "Off-the-Shoulder Dresses - Bloomingdale's"
+    },
+    {
+      "url": "https://www.ohpolly.com/collections/off-shoulder-dresses",
+      "domain": "www.ohpolly.com",
+      "html_fetched": true,
+      "html_size": 1694298,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 16
+      },
+      "products_found": 16,
+      "winning_strategy": "html_grid",
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found"
+      ],
+      "query": "off shoulder dresses",
+      "title": "Off The Shoulder Dresses - Oh Polly"
+    },
+    {
+      "url": "https://www.vicicollection.com/collections/off-the-shoulder-dresses?srsltid=AfmBOorofUxquweZe7Qrl25VG2alLP4PXXSpTmvtJSA9PwaPiSWLCd9c",
+      "domain": "www.vicicollection.com",
+      "html_fetched": true,
+      "html_size": 485778,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 0
+      },
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found",
+        "HTML Grid: No product cards found with common selectors",
+        "All fast paths failed - requires individual product page fetching"
+      ],
+      "query": "off shoulder dresses",
+      "title": "Off-the-Shoulder Dresses - VICI Collection"
+    },
+    {
+      "url": "https://showmeyourmumu.com/collections/sparkle-shop",
+      "domain": "showmeyourmumu.com",
+      "html_fetched": true,
+      "html_size": 717208,
+      "is_shopify": true,
+      "strategies_tested": {
+        "json_ld": 0,
+        "inline_state": 0,
+        "html_grid": 0
+      },
+      "products_found": 0,
+      "winning_strategy": null,
+      "failure_reasons": [
+        "JSON-LD: No ItemList found in page",
+        "Inline State: No __NEXT_DATA__/__NUXT__/etc found",
+        "HTML Grid: No product cards found with common selectors",
+        "All fast paths failed - requires individual product page fetching"
+      ],
+      "query": "sequin party dresses",
+      "title": "Sparkly Outfits: Sequin Dresses & More - Show Me Your Mumu"
+    }
+  ],
+  "failure_analysis": {
+    "JSON-LD: No ItemList found in page": 13,
+    "Inline State: No __NEXT_DATA__/__NUXT__/etc found": 13,
+    "HTML Grid: No product cards found with common selectors": 13,
+    "All fast paths failed - requires individual product page fetching": 13,
+    "Failed to fetch HTML (timeout or empty)": 10
+  }
+}

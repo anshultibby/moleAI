@@ -13,6 +13,7 @@ import json
 import re
 import asyncio
 import aiohttp
+import html as ihtml
 from typing import List, Dict, Any, Optional
 from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
@@ -20,6 +21,32 @@ from loguru import logger
 
 # Common user agent to avoid basic bot detection
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+
+def _coerce_price_currency(text):
+    """Helper to extract price and currency from text"""
+    if not text: 
+        return None, None
+    m = re.search(r'(?P<cur>[$£€])?\s*(?P<amt>\d+(?:[.,]\d{2})?)', str(text))
+    if not m: 
+        return None, None
+    amt = float(m.group('amt').replace(',', ''))
+    cur = {'$':'USD','£':'GBP','€':'EUR'}.get(m.group('cur'), None)
+    return amt, cur
+
+
+def is_shopify(html: str) -> bool:
+    """Detect if a site is powered by Shopify"""
+    if not html:
+        return False
+    html_lower = html.lower()
+    return any([
+        'cdn.shopify.com' in html_lower,
+        'window.shopify' in html_lower,
+        'shopify.theme' in html_lower,
+        'shopify-features' in html_lower,
+        '/cdn/shop/' in html_lower
+    ])
 
 
 async def get_html_with_js(url: str, timeout: int = 45, use_stealth: bool = True) -> Optional[str]:
@@ -374,6 +401,227 @@ def find_product_links(html: str, base_url: str) -> List[str]:
 # EXTRACTION STRATEGIES
 # ============================================================================
 
+def extract_products_from_inline_state(html: str, base_url: str, max_products: int = 40) -> List[Dict[str, Any]]:
+    """
+    SUPER FAST STRATEGY: Mine pre-hydration JSON blobs from SPAs.
+    
+    Many modern e-commerce sites embed complete product data in JSON blobs for
+    client-side hydration. This is MUCH faster than parsing HTML!
+    
+    Supports:
+    - Next.js (__NEXT_DATA__)
+    - Nuxt (__NUXT__)
+    - Apollo GraphQL (__APOLLO_STATE__)
+    - Redux/generic (__INITIAL_STATE__)
+    - Generic <script type="application/json"> tags (Shopify, Remix, etc.)
+    
+    Returns list of products if found, empty list otherwise.
+    """
+    try:
+        soup = BeautifulSoup(html, 'html.parser')
+        candidates = []
+
+        # 1) Next.js __NEXT_DATA__
+        tag = soup.find('script', id='__NEXT_DATA__')
+        if tag and tag.string:
+            try: 
+                candidates.append(json.loads(tag.string))
+                logger.debug("Found __NEXT_DATA__ blob")
+            except: 
+                pass
+
+        # 2) Nuxt __NUXT__
+        nuxt_text = None
+        for s in soup.find_all('script'):
+            txt = s.string or ''
+            if '__NUXT__' in txt:
+                nuxt_text = txt
+                break
+        if nuxt_text:
+            m = re.search(r'__NUXT__\s*=\s*({.*});?', nuxt_text, flags=re.S)
+            if m:
+                try: 
+                    candidates.append(json.loads(m.group(1)))
+                    logger.debug("Found __NUXT__ blob")
+                except: 
+                    pass
+
+        # 3) Apollo GraphQL __APOLLO_STATE__
+        apollo = None
+        for s in soup.find_all('script'):
+            txt = s.string or ''
+            if '__APOLLO_STATE__' in txt:
+                apollo = txt
+                break
+        if apollo:
+            m = re.search(r'__APOLLO_STATE__\s*=\s*({.*});?', apollo, flags=re.S)
+            if m:
+                try: 
+                    candidates.append(json.loads(m.group(1)))
+                    logger.debug("Found __APOLLO_STATE__ blob")
+                except: 
+                    pass
+
+        # 4) Additional window state patterns
+        for s in soup.find_all('script'):
+            txt = s.string or ''
+            # Shopify Hydrogen __STOREFRONT_DATA__
+            if '__STOREFRONT_DATA__' in txt:
+                m = re.search(r'__STOREFRONT_DATA__\s*=\s*({.*?});?', txt, flags=re.S)
+                if m:
+                    try:
+                        candidates.append(json.loads(m.group(1)))
+                        logger.debug("Found __STOREFRONT_DATA__ blob")
+                    except:
+                        pass
+            # Redux __INITIAL_STATE__
+            if '__INITIAL_STATE__' in txt:
+                m = re.search(r'__INITIAL_STATE__\s*=\s*({.*?});?', txt, flags=re.S)
+                if m:
+                    try:
+                        candidates.append(json.loads(m.group(1)))
+                        logger.debug("Found __INITIAL_STATE__ blob")
+                    except:
+                        pass
+
+        # 5) Generic JSON blobs (Shopify, Remix, etc.)
+        for s in soup.find_all('script', attrs={'type':'application/json'}):
+            if not s.string:
+                continue
+            try:
+                candidates.append(json.loads(s.string))
+            except: 
+                # Sometimes HTML-escaped; unescape & retry
+                try: 
+                    candidates.append(json.loads(ihtml.unescape(s.string)))
+                except: 
+                    pass
+
+        if candidates:
+            logger.debug(f"Found {len(candidates)} JSON candidates to mine")
+
+        # Walk candidates and extract product-like objects
+        products = []
+        
+        def push(prod):
+            """Extract and normalize a product-like dict"""
+            name = prod.get('title') or prod.get('name') or prod.get('productTitle') or ''
+            if not name: 
+                return
+            
+            url = prod.get('url') or prod.get('product_url') or prod.get('href') or prod.get('link') or ''
+            if url: 
+                url = urljoin(base_url, url)
+            
+            # Extract image
+            img = None
+            img_field = prod.get('image') or prod.get('images') or prod.get('img')
+            if isinstance(img_field, dict):
+                img = img_field.get('url') or img_field.get('src')
+            elif isinstance(img_field, list) and img_field:
+                first = img_field[0]
+                img = first.get('url') or first.get('src') if isinstance(first, dict) else first
+            elif isinstance(img_field, str):
+                img = img_field
+            
+            # Extract price
+            price = None
+            currency = None
+            for key in ['price','priceValue','currentPrice','minPrice','price_amount','amount','amountMin','variants']:
+                if key in prod:
+                    val = prod[key]
+                    # Handle variants array (common in Shopify)
+                    if key == 'variants' and isinstance(val, list) and val:
+                        val = val[0].get('price') if isinstance(val[0], dict) else None
+                    if isinstance(val, (int, float, str)):
+                        price, currency = _coerce_price_currency(str(val))
+                        if price is not None: 
+                            break
+            
+            # Try offers (Schema.org format)
+            if not price and 'offers' in prod:
+                off = prod['offers']
+                if isinstance(off, list) and off:
+                    off = off[0]
+                if isinstance(off, dict):
+                    price, _ = _coerce_price_currency(str(off.get('price', '')))
+                    currency = off.get('priceCurrency') or currency
+            
+            # Extract brand
+            brand = ''
+            brand_field = prod.get('brand') or prod.get('vendor')
+            if isinstance(brand_field, dict):
+                brand = brand_field.get('name', '')
+            elif isinstance(brand_field, str):
+                brand = brand_field
+            
+            products.append({
+                "product_name": name,
+                "url": url or base_url,
+                "price": price,
+                "currency": currency or prod.get('currency') or 'USD',
+                "image_url": img,
+                "description": prod.get('description', ''),
+                "brand": brand,
+                "sku": prod.get('sku', ''),
+                "availability": prod.get('availability') or 'InStock'
+            })
+
+        def walk(x, depth=0):
+            """Recursively walk nested dicts/lists looking for product-like shapes"""
+            if depth > 10:  # Prevent infinite recursion
+                return
+            
+            if isinstance(x, dict):
+                keys = set(k.lower() for k in x.keys())
+                # Looks like a product if it has name/title AND (price OR image OR offers)
+                looks_like_product = (
+                    ('title' in keys or 'name' in keys or 'producttitle' in keys) and 
+                    ('price' in keys or 'offers' in keys or 'image' in keys or 'images' in keys or 'variants' in keys)
+                )
+                if looks_like_product:
+                    push(x)
+                
+                # Continue walking
+                for v in x.values():
+                    walk(v, depth + 1)
+                    if len(products) >= max_products:
+                        return
+            
+            elif isinstance(x, list):
+                for v in x:
+                    walk(v, depth + 1)
+                    if len(products) >= max_products:
+                        return
+
+        # Walk all candidates
+        for cand in candidates:
+            walk(cand)
+            if len(products) >= max_products:
+                break
+
+        # De-dupe by (name, url)
+        seen = set()
+        uniq = []
+        for p in products:
+            k = (p['product_name'], p['url'])
+            if k in seen:
+                continue
+            seen.add(k)
+            uniq.append(p)
+            if len(uniq) >= max_products:
+                break
+
+        if uniq:
+            logger.info(f"⚡ SUPER FAST: Extracted {len(uniq)} products from inline JSON state!")
+        
+        return uniq
+        
+    except Exception as e:
+        logger.debug(f"Inline state extraction failed: {e}")
+        return []
+
+
 def extract_products_from_listing_json_ld(html: str, url: str) -> List[Dict[str, Any]]:
     """
     NEW STRATEGY: Extract multiple products directly from listing page JSON-LD.
@@ -484,27 +732,27 @@ def extract_products_from_html_grid(html: str, base_url: str, max_products: int 
         soup = BeautifulSoup(html, 'html.parser')
         products = []
         
-        # Common product card selectors (ordered by specificity)
+        # Common product card selectors (ordered by specificity - most specific first!)
         product_card_selectors = [
-            '.product-item',
-            '.product-card',
-            '.grid-item',
+            '[data-product-id]',  # Most specific - has actual product data
+            '[data-product]',
             '.product-grid-item',
-            '[class*="product-item"]',
+            '.product-item',
             '[class*="ProductItem"]',
+            'li.product',
+            'article.product',
+            'div.product',
+            '.grid-item',
+            '[class*="product-item"]',
+            '.product-card',  # Less specific - often just wrappers
             '[class*="product-card"]',
             '[class*="ProductCard"]',
-            'article.product',
-            'li.product',
-            'div.product',
-            '[data-product-id]',
-            '[data-product]'
         ]
         
         product_cards = []
         for selector in product_card_selectors:
             product_cards = soup.select(selector)
-            if len(product_cards) >= 3:  # Need at least 3 to consider it a valid grid
+            if len(product_cards) >= 1:  # Accept any product cards found
                 logger.info(f"Found {len(product_cards)} products using selector: {selector}")
                 break
         
@@ -512,57 +760,139 @@ def extract_products_from_html_grid(html: str, base_url: str, max_products: int 
             logger.debug("No product grid found in HTML")
             return []
         
+        skipped_no_link = 0
+        skipped_bad_url = 0
+        skipped_no_title = 0
+        
         for card in product_cards[:max_products]:
             try:
-                # Extract product link
-                link_elem = card.find('a', href=True)
-                if not link_elem:
-                    continue
+                # Extract product URL - try data attributes first (common in Shopify)
+                product_url = None
+                link_elem = None
                 
-                product_url = urljoin(base_url, link_elem['href'])
+                # Strategy 1: Check for data-product-url or similar attributes
+                for attr in ['data-product-url', 'data-url', 'data-href', 'data-product-href']:
+                    if card.get(attr):
+                        product_url = urljoin(base_url, card[attr])
+                        # Create a fake link elem for title extraction later
+                        link_elem = card
+                        break
+                
+                # Strategy 2: Extract product link (try multiple patterns)
+                if not product_url:
+                    link_elem = card.find('a', href=True)
+                    
+                    # If no direct link, look for nested links
+                    if not link_elem:
+                        # Try finding ANY link within the card
+                        link_elem = card.find_all('a', href=True)
+                        if link_elem:
+                            # Prefer links with product-related classes or that go to /products/
+                            for link in link_elem:
+                                href = link.get('href', '')
+                                if '/product' in href.lower() or 'product' in (link.get('class') or []):
+                                    link_elem = link
+                                    break
+                            # If no product link found, use first link
+                            if isinstance(link_elem, list):
+                                link_elem = link_elem[0] if link_elem else None
+                    
+                    if not link_elem or not link_elem.get('href'):
+                        skipped_no_link += 1
+                        continue
+                    
+                    product_url = urljoin(base_url, link_elem['href'])
                 
                 # Skip non-product links (cart, search, etc)
                 if any(x in product_url.lower() for x in ['cart', 'search', 'account', 'login', 'wishlist']):
+                    skipped_bad_url += 1
                     continue
                 
                 # Extract title (try multiple patterns)
                 title = None
-                for selector in ['.product-title', '.product-name', 'h2', 'h3', 'h4', '.title', '[class*="title"]']:
-                    title_elem = card.select_one(selector)
-                    if title_elem:
-                        title = title_elem.get_text(strip=True)
+                
+                # First try data attributes (common in Shopify)
+                for attr in ['data-product-title', 'data-title', 'data-name', 'data-product-name']:
+                    if card.get(attr):
+                        title = card[attr]
                         break
                 
+                # Then try selectors
                 if not title:
-                    # Fallback: use link text
-                    title = link_elem.get_text(strip=True)
+                    for selector in ['.product-title', '.product-name', 'h2', 'h3', 'h4', '.title', '[class*="title"]', '[class*="Title"]', '[class*="name"]']:
+                        title_elem = card.select_one(selector)
+                        if title_elem:
+                            title = title_elem.get_text(strip=True)
+                            if title:  # Make sure it's not empty
+                                break
+                
+                if not title and link_elem:
+                    # Fallback 1: Try aria-label on the link
+                    title = link_elem.get('aria-label', '')
                 
                 if not title:
+                    # Fallback 2: Try img alt text
+                    img = card.find('img')
+                    if img:
+                        title = img.get('alt', '')
+                
+                if not title and link_elem and hasattr(link_elem, 'get_text'):
+                    # Fallback 3: use link text
+                    title = link_elem.get_text(strip=True)
+                
+                # Reject useless titles (common button/link text that isn't the product name)
+                useless_titles = ['quick view', 'shop now', 'view', 'buy now', 'add to cart', 'learn more', 'details', 'see more', 'quick add']
+                if title and title.lower().strip() in useless_titles:
+                    title = None
+                
+                # Fallback 4: If we have a URL but no title, extract from URL
+                if not title and product_url:
+                    # Extract product slug from URL (e.g., /products/stormi-dress -> "stormi dress")
+                    url_parts = product_url.rstrip('/').split('/')
+                    if url_parts:
+                        slug = url_parts[-1]
+                        # Convert slug to title (replace - and _ with spaces, capitalize)
+                        title = slug.replace('-', ' ').replace('_', ' ').title()
+                
+                if not title:
+                    skipped_no_title += 1
+                    logger.debug(f"Skipped card (no title): URL={product_url}, has link_elem: {bool(link_elem)}")
                     continue
                 
                 # Extract price (try multiple patterns)
                 price = None
                 currency = "USD"
                 
-                for selector in ['.price', '.money', '[class*="price"]', '[class*="Price"]']:
-                    price_elem = card.select_one(selector)
-                    if price_elem:
-                        price_text = price_elem.get_text(strip=True)
-                        # Extract numeric price
-                        match = re.search(r'[\$£€]?\s*(\d+(?:[.,]\d{2})?)', price_text)
-                        if match:
-                            try:
-                                price = float(match.group(1).replace(',', ''))
-                                # Detect currency
-                                if '$' in price_text:
-                                    currency = "USD"
-                                elif '£' in price_text:
-                                    currency = "GBP"
-                                elif '€' in price_text:
-                                    currency = "EUR"
-                                break
-                            except ValueError:
-                                pass
+                # First try data attributes
+                for attr in ['data-price', 'data-product-price']:
+                    if card.get(attr):
+                        try:
+                            price = float(str(card[attr]).replace(',', '').replace('$', '').replace('£', '').replace('€', ''))
+                            break
+                        except ValueError:
+                            pass
+                
+                # Then try selectors
+                if price is None:
+                    for selector in ['.price', '.money', '[class*="price"]', '[class*="Price"]']:
+                        price_elem = card.select_one(selector)
+                        if price_elem:
+                            price_text = price_elem.get_text(strip=True)
+                            # Extract numeric price
+                            match = re.search(r'[\$£€]?\s*(\d+(?:[.,]\d{2})?)', price_text)
+                            if match:
+                                try:
+                                    price = float(match.group(1).replace(',', ''))
+                                    # Detect currency
+                                    if '$' in price_text:
+                                        currency = "USD"
+                                    elif '£' in price_text:
+                                        currency = "GBP"
+                                    elif '€' in price_text:
+                                        currency = "EUR"
+                                    break
+                                except ValueError:
+                                    pass
                 
                 # Extract image
                 image_url = None
@@ -601,6 +931,8 @@ def extract_products_from_html_grid(html: str, base_url: str, max_products: int 
         
         if products:
             logger.info(f"🎯 FAST PATH: Extracted {len(products)} products directly from HTML grid!")
+        else:
+            logger.debug(f"Grid scraping failed: skipped {skipped_no_link} (no link), {skipped_bad_url} (bad URL), {skipped_no_title} (no title)")
         
         return products
         
