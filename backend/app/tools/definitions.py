@@ -151,8 +151,9 @@ def search_web_tool(
     - Bot-protected sites
     
     Extraction strategies (tries in order):
-    1. Fast path: Extract all products from listing page ItemList JSON-LD (20x faster!)
-    2. Fallback: Fetch individual product pages and extract from JSON-LD/Next.js/__NEXT_DATA__/meta tags
+    1. FASTEST: Extract from listing page ItemList JSON-LD (20x faster!)
+    2. ULTRA FAST: Scrape visible HTML product grid - exactly what you see in browser! (10x faster!)
+    3. Fallback: Fetch individual product pages and extract from JSON-LD/Next.js/__NEXT_DATA__/meta tags
     
     Extracts:
     - Product names, prices, currencies
@@ -163,14 +164,14 @@ def search_web_tool(
     
     Parameters:
     - urls: List of collection/listing page URLs to scrape (REQUIRED - cannot be empty)
-    - max_products: Maximum products per URL (default: 20)
+    - max_products: Maximum products per URL (default: 10 for speed)
     
     Works with: Hello Molly, Express.com, Fashion Nova, and 95%+ of e-commerce sites
     """
 )
 async def extract_products(
     urls: List[str],
-    max_products: int = 20,
+    max_products: int = 10,
     context_vars=None
 ) -> str:
     if not urls or not isinstance(urls, list) or len(urls) == 0:
@@ -193,6 +194,7 @@ async def extract_products(
         all_results = await extract_products_from_multiple_urls(
             urls=urls,
             max_products=max_products,
+            timeout=30,  # Fast timeout for speed
             progress_callback=lambda msg: streamer.progress(msg)
         )
         

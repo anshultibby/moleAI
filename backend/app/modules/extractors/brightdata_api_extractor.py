@@ -25,6 +25,7 @@ from loguru import logger
 from .simple_extractor import (
     find_product_links,
     extract_products_from_listing_json_ld,
+    extract_products_from_html_grid,
     extract_product_json_ld_strategy,
     extract_product_nextjs_strategy,
     extract_product_meta_tags_strategy,
@@ -140,7 +141,7 @@ async def extract_products_brightdata_api(
     url: str,
     max_products: int = 20,
     context_vars=None,
-    timeout: int = 120
+    timeout: int = 30  # Fast timeout for blazing speed
 ) -> Dict[str, Any]:
     """
     Extract products using BrightData Web Unlocker API.
@@ -190,7 +191,7 @@ async def extract_products_brightdata_api(
         products_from_listing = extract_products_from_listing_json_ld(html, url)
         
         if products_from_listing:
-            logger.info(f"✨ Fast path: Extracted {len(products_from_listing)} products from listing page directly!")
+            logger.info(f"✨ Fast path 1: Extracted {len(products_from_listing)} products from listing JSON-LD!")
             
             # Limit if needed
             if len(products_from_listing) > max_products:
@@ -207,8 +208,27 @@ async def extract_products_brightdata_api(
                 }
             }
         
-        # Step 2: Fallback - Find product links (slower but more reliable)
-        logger.info("No products in listing JSON-LD, falling back to individual product fetching")
+        # Step 1.6: Try to extract products from HTML product grid (ULTRA FAST!)
+        # This scrapes the visible product cards - exactly what you see in the browser!
+        logger.info("No JSON-LD, trying HTML grid extraction...")
+        products_from_grid = extract_products_from_html_grid(html, url, max_products=max_products)
+        
+        if products_from_grid:
+            logger.info(f"🎯 Fast path 2: Extracted {len(products_from_grid)} products from HTML grid!")
+            
+            return {
+                "success": True,
+                "products": products_from_grid,
+                "meta": {
+                    "strategy": "brightdata_html_grid",
+                    "products_extracted": len(products_from_grid),
+                    "html_length": len(html),
+                    "fast_path": True
+                }
+            }
+        
+        # Step 2: Fallback - Find product links and fetch individually (slower but most reliable)
+        logger.info("No grid products found, falling back to individual product fetching")
         product_links = find_product_links(html, url)
         
         if not product_links:
@@ -227,8 +247,8 @@ async def extract_products_brightdata_api(
             logger.info(f"Limited to first {max_products} product links")
         
         # Step 3: Fetch each product page via BrightData API and extract data (parallelized)
-        # Use higher concurrency for faster extraction - BrightData can handle it
-        max_concurrent = 10 if len(product_links) > 10 else 5
+        # Use aggressive concurrency for blazing fast extraction
+        max_concurrent = 20 if len(product_links) > 15 else 15
         products = await extract_products_via_brightdata_api(
             product_links, 
             max_concurrent=max_concurrent,
@@ -261,7 +281,7 @@ async def extract_products_brightdata_api(
 async def extract_products_via_brightdata_api(
     product_links: List[str],
     max_concurrent: int = 5,
-    timeout: int = 120
+    timeout: int = 20  # Fast timeout for individual products
 ) -> List[Dict[str, Any]]:
     """
     Extract products from URLs using BrightData API.
@@ -269,7 +289,7 @@ async def extract_products_via_brightdata_api(
     Args:
         product_links: List of product URLs
         max_concurrent: Max concurrent requests (default: 5)
-        timeout: Timeout per request in seconds (default: 120)
+        timeout: Timeout per request in seconds (default: 20 for speed)
         
     Returns:
         List of extracted products
@@ -337,7 +357,7 @@ async def extract_products_via_brightdata_api(
 async def extract_products_from_multiple_urls(
     urls: List[str],
     max_products: int = 20,
-    timeout: int = 120,
+    timeout: int = 30,  # Fast timeout for blazing speed
     progress_callback: Optional[Callable[[str], None]] = None
 ) -> Dict[str, Dict[str, Any]]:
     """

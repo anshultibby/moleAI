@@ -411,15 +411,23 @@ def extract_products_from_listing_json_ld(html: str, url: str) -> List[Dict[str,
         for item in json_ld_data:
             item_type = item.get('@type', '')
             
-            # Handle ItemList
-            if item_type == 'ItemList' or item_type == 'CollectionPage':
+            # Handle both string and array @type values
+            is_item_list = item_type == 'ItemList' or (isinstance(item_type, list) and 'ItemList' in item_type)
+            is_collection_page = item_type == 'CollectionPage' or (isinstance(item_type, list) and 'CollectionPage' in item_type)
+            
+            # Handle ItemList or CollectionPage
+            if is_item_list or is_collection_page:
                 items = item.get('itemListElement', []) or item.get('mainEntity', {}).get('itemListElement', [])
                 
                 for list_item in items:
                     # Sometimes products are nested in 'item' key
                     product_data = list_item.get('item') if 'item' in list_item else list_item
                     
-                    if product_data and product_data.get('@type') == 'Product':
+                    # Check if this is a Product (handle both string and array @type)
+                    type_value = product_data.get('@type', '')
+                    is_product = type_value == 'Product' or (isinstance(type_value, list) and 'Product' in type_value)
+                    
+                    if product_data and is_product:
                         try:
                             product = Product.from_json_ld(product_data, url)
                             products.append(product.to_dict())
@@ -430,7 +438,11 @@ def extract_products_from_listing_json_ld(html: str, url: str) -> List[Dict[str,
             # Also check @graph for products
             if '@graph' in item:
                 for graph_item in item['@graph']:
-                    if graph_item.get('@type') == 'Product':
+                    # Check if this is a Product (handle both string and array @type)
+                    type_value = graph_item.get('@type', '')
+                    is_product = type_value == 'Product' or (isinstance(type_value, list) and 'Product' in type_value)
+                    
+                    if is_product:
                         try:
                             product = Product.from_json_ld(graph_item, url)
                             products.append(product.to_dict())
@@ -445,6 +457,155 @@ def extract_products_from_listing_json_ld(html: str, url: str) -> List[Dict[str,
         
     except Exception as e:
         logger.debug(f"Listing page JSON-LD extraction failed: {e}")
+        return []
+
+
+def extract_products_from_html_grid(html: str, base_url: str, max_products: int = 20) -> List[Dict[str, Any]]:
+    """
+    FASTEST STRATEGY: Extract products directly from HTML product grid/listing.
+    
+    This scrapes the visible product cards on collection pages - the exact products
+    you see when you visit the page in a browser. No need to visit individual pages!
+    
+    Common patterns:
+    - Product cards with class containing: product, item, card, grid-item
+    - Title in: h2, h3, a.title, .product-title, .product-name
+    - Price in: .price, .money, span with $ or price class
+    - Image in: img tags within product card
+    - Link in: a tags with href to /products/, /collections/, /p/
+    
+    Returns list of products extracted from the grid.
+    """
+    try:
+        from app.models.product import Product
+        from urllib.parse import urljoin
+        import re
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        products = []
+        
+        # Common product card selectors (ordered by specificity)
+        product_card_selectors = [
+            '.product-item',
+            '.product-card',
+            '.grid-item',
+            '.product-grid-item',
+            '[class*="product-item"]',
+            '[class*="ProductItem"]',
+            '[class*="product-card"]',
+            '[class*="ProductCard"]',
+            'article.product',
+            'li.product',
+            'div.product',
+            '[data-product-id]',
+            '[data-product]'
+        ]
+        
+        product_cards = []
+        for selector in product_card_selectors:
+            product_cards = soup.select(selector)
+            if len(product_cards) >= 3:  # Need at least 3 to consider it a valid grid
+                logger.info(f"Found {len(product_cards)} products using selector: {selector}")
+                break
+        
+        if not product_cards:
+            logger.debug("No product grid found in HTML")
+            return []
+        
+        for card in product_cards[:max_products]:
+            try:
+                # Extract product link
+                link_elem = card.find('a', href=True)
+                if not link_elem:
+                    continue
+                
+                product_url = urljoin(base_url, link_elem['href'])
+                
+                # Skip non-product links (cart, search, etc)
+                if any(x in product_url.lower() for x in ['cart', 'search', 'account', 'login', 'wishlist']):
+                    continue
+                
+                # Extract title (try multiple patterns)
+                title = None
+                for selector in ['.product-title', '.product-name', 'h2', 'h3', 'h4', '.title', '[class*="title"]']:
+                    title_elem = card.select_one(selector)
+                    if title_elem:
+                        title = title_elem.get_text(strip=True)
+                        break
+                
+                if not title:
+                    # Fallback: use link text
+                    title = link_elem.get_text(strip=True)
+                
+                if not title:
+                    continue
+                
+                # Extract price (try multiple patterns)
+                price = None
+                currency = "USD"
+                
+                for selector in ['.price', '.money', '[class*="price"]', '[class*="Price"]']:
+                    price_elem = card.select_one(selector)
+                    if price_elem:
+                        price_text = price_elem.get_text(strip=True)
+                        # Extract numeric price
+                        match = re.search(r'[\$£€]?\s*(\d+(?:[.,]\d{2})?)', price_text)
+                        if match:
+                            try:
+                                price = float(match.group(1).replace(',', ''))
+                                # Detect currency
+                                if '$' in price_text:
+                                    currency = "USD"
+                                elif '£' in price_text:
+                                    currency = "GBP"
+                                elif '€' in price_text:
+                                    currency = "EUR"
+                                break
+                            except ValueError:
+                                pass
+                
+                # Extract image
+                image_url = None
+                img_elem = card.find('img')
+                if img_elem:
+                    # Try different image attributes
+                    for attr in ['src', 'data-src', 'data-srcset', 'srcset']:
+                        if img_elem.get(attr):
+                            img_url = img_elem[attr]
+                            # Handle srcset (take first URL)
+                            if ' ' in img_url:
+                                img_url = img_url.split()[0]
+                            image_url = urljoin(base_url, img_url)
+                            break
+                
+                # Create product dict
+                if title:  # Minimum requirement
+                    product_dict = {
+                        "product_name": title,
+                        "url": product_url,
+                        "price": price,
+                        "currency": currency,
+                        "image_url": image_url,
+                        "description": "",
+                        "brand": "",
+                        "sku": "",
+                        "availability": "InStock"
+                    }
+                    
+                    products.append(product_dict)
+                    logger.debug(f"✓ Grid extraction: {title} - ${price}")
+                
+            except Exception as e:
+                logger.debug(f"Failed to parse product card: {e}")
+                continue
+        
+        if products:
+            logger.info(f"🎯 FAST PATH: Extracted {len(products)} products directly from HTML grid!")
+        
+        return products
+        
+    except Exception as e:
+        logger.debug(f"HTML grid extraction failed: {e}")
         return []
 
 
