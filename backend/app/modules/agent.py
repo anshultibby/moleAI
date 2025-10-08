@@ -540,8 +540,16 @@ class Agent:
                     
                     # Yield tool execution completion event with result
                     # Serialize result properly (JSON for dicts/lists, string for others)
-                    if isinstance(tool_result, (dict, list)):
-                        result_str = json.dumps(tool_result, ensure_ascii=False)
+                    # Check if result is multimodal content (list of VisionMultimodalContentItem)
+                    if isinstance(tool_result, list) and tool_result and isinstance(tool_result[0], VisionMultimodalContentItem):
+                        # Multimodal content - convert to summary string for display
+                        result_str = f"Multimodal content with {len(tool_result)} items"
+                    elif isinstance(tool_result, (dict, list)):
+                        try:
+                            result_str = json.dumps(tool_result, ensure_ascii=False)
+                        except TypeError as e:
+                            # Fallback if JSON serialization fails
+                            result_str = str(tool_result)
                     else:
                         result_str = str(tool_result)
                     

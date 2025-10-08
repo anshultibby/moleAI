@@ -16,7 +16,7 @@ import os
 import json
 import asyncio
 import aiohttp
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Callable
 from urllib.parse import urljoin, urlparse, quote
 from bs4 import BeautifulSoup
 from loguru import logger
@@ -202,8 +202,14 @@ async def extract_products_brightdata_api(
             product_links = product_links[:max_products]
             logger.info(f"Limited to first {max_products} product links")
         
-        # Step 3: Fetch each product page via BrightData API and extract data
-        products = await extract_products_via_brightdata_api(product_links, timeout=timeout)
+        # Step 3: Fetch each product page via BrightData API and extract data (parallelized)
+        # Use higher concurrency for faster extraction - BrightData can handle it
+        max_concurrent = 10 if len(product_links) > 10 else 5
+        products = await extract_products_via_brightdata_api(
+            product_links, 
+            max_concurrent=max_concurrent,
+            timeout=timeout
+        )
         
         logger.info(f"Successfully extracted {len(products)} products via BrightData API")
         
@@ -302,6 +308,62 @@ async def extract_products_via_brightdata_api(
             products.append(result)
     
     return products
+
+
+async def extract_products_from_multiple_urls(
+    urls: List[str],
+    max_products: int = 30,
+    timeout: int = 120,
+    progress_callback: Optional[Callable[[str], None]] = None
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Extract products from multiple URLs in parallel.
+    
+    Args:
+        urls: List of collection/listing page URLs
+        max_products: Max products per URL
+        timeout: Timeout per request in seconds
+        progress_callback: Optional callback for progress updates
+        
+    Returns:
+        Dict mapping URL to extraction result
+    """
+    import asyncio
+    
+    async def extract_single_url(url: str, index: int) -> tuple[str, Dict[str, Any]]:
+        """Extract from a single URL"""
+        try:
+            if progress_callback:
+                progress_callback(f"[{index+1}/{len(urls)}] 🌐 Fetching {url}...")
+            
+            result = await extract_products_brightdata_api(url, max_products=max_products, timeout=timeout)
+            
+            if result.get('success'):
+                domain = url.split('//')[-1].split('/')[0]
+                product_count = len(result.get('products', []))
+                if progress_callback:
+                    progress_callback(f"[{index+1}/{len(urls)}] ✅ {domain}: {product_count} products")
+            else:
+                if progress_callback:
+                    progress_callback(f"[{index+1}/{len(urls)}] ❌ Failed: {result.get('error')}")
+            
+            return (url, result)
+            
+        except Exception as e:
+            logger.error(f"Error extracting from {url}: {e}")
+            if progress_callback:
+                progress_callback(f"[{index+1}/{len(urls)}] ❌ Error: {str(e)}")
+            return (url, {"success": False, "error": str(e), "products": []})
+    
+    # Process all URLs in parallel
+    if progress_callback:
+        progress_callback(f"⚡ Processing {len(urls)} URLs concurrently...")
+    
+    tasks = [extract_single_url(url, i) for i, url in enumerate(urls)]
+    results = await asyncio.gather(*tasks)
+    
+    # Convert to dict
+    return {url: result for url, result in results}
 
 
 # Convenience function

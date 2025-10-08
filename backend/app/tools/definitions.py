@@ -181,88 +181,63 @@ async def extract_products(
         # Start extraction
         streamer.progress(f"🔍 Extracting products from {len(urls)} URLs", total_urls=len(urls), max_products=max_products)
         
-        # Use the simple extractor
-        all_products = []
+        # Use the BrightData API extractor (handles parallelization internally)
+        from app.modules.extractors import extract_products_from_multiple_urls
+        from app.models.product import Product
         
-        # Process each URL
-        for i, url in enumerate(urls, 1):
-            try:
-                streamer.progress(f"Processing URL {i}/{len(urls)}: {url}", current=i, total=len(urls))
-                
-                # Use BrightData Web Unlocker API ($1.50/1K requests)
-                from app.modules.extractors import extract_products_brightdata_api
-                streamer.progress(f"🌐 Using BrightData Web Unlocker API...")
-                result = await extract_products_brightdata_api(url, max_products=max_products, context_vars=context_vars)
-                
-                if not result.get('success'):
-                    logger.warning(f"Failed to extract from {url}: {result.get('error')}")
-                    streamer.progress(f"❌ Failed to extract from {url}: {result.get('error')}", current=i, total=len(urls))
+        # Extract from all URLs (parallelized internally)
+        all_results = await extract_products_from_multiple_urls(
+            urls=urls,
+            max_products=max_products,
+            progress_callback=lambda msg: streamer.progress(msg)
+        )
+        
+        # Convert results to Product objects and store in resources
+        all_products = []
+        for url, result in all_results.items():
+            if not result.get('success'):
+                logger.warning(f"Failed to extract from {url}: {result.get('error')}")
+                streamer.progress(f"❌ Failed: {url}")
+                continue
+            
+            # Convert product dicts to Product model
+            url_products = []
+            for product_dict in result.get('products', []):
+                try:
+                    raw_price = product_dict.get('price', 0)
+                    
+                    core_product = Product(
+                        product_name=product_dict.get('title', ''),
+                        price=str(raw_price),
+                        price_value=raw_price,
+                        currency=product_dict.get('currency', 'USD'),
+                        store=product_dict.get('brand', ''),
+                        product_url=product_dict.get('product_url', ''),
+                        image_url=product_dict.get('image_url', ''),
+                        sku=product_dict.get('sku'),
+                        description=product_dict.get('description', '')
+                    )
+                    url_products.append(core_product)
+                except Exception as e:
+                    logger.warning(f"Failed to convert product: {e}")
                     continue
-                
-                # Convert product dicts to our core Product model
-                from app.models.product import Product
-                url_products = []
-                for product_dict in result.get('products', []):
-                    try:
-                        # Convert simple extractor format to Product
-                        # The Product model's validators will handle price parsing and SKU conversion
-                        raw_price = product_dict.get('price', 0)
-                        
-                        core_product = Product(
-                            product_name=product_dict.get('title', ''),
-                            price=str(raw_price),
-                            price_value=raw_price,  # Validator will parse this automatically
-                            currency=product_dict.get('currency', 'USD'),
-                            store=product_dict.get('brand', ''),
-                            product_url=product_dict.get('product_url', ''),
-                            image_url=product_dict.get('image_url', ''),
-                            sku=product_dict.get('sku'),  # Validator will convert to string
-                            description=product_dict.get('description', '')
-                        )
-                        url_products.append(core_product)
-                    except Exception as e:
-                        logger.warning(f"Failed to convert product: {e}")
-                        continue
-                
-                # Enhance products with better images from their product pages
-                if url_products:
-                    try:
-                        streamer.progress(f"🖼️ Enhancing {len(url_products)} products with better images...")
-                        
-                        # Get agent from context to use image enhancement
-                        agent = context_vars.get('agent')
-                        if agent and hasattr(agent, 'enhance_products_with_images'):
-                            enhanced_products = await agent.enhance_products_with_images(url_products, max_concurrent=3)
-                            url_products = enhanced_products
-                            streamer.progress(f"✅ Enhanced product images")
-                        else:
-                            logger.warning("Agent not available for image enhancement")
-                    except Exception as e:
-                        logger.warning(f"Failed to enhance product images: {e}")
-                        # Continue with original products if enhancement fails
-                
+            
+            if url_products:
                 all_products.extend(url_products)
                 
-                # Store products for this URL as a ProductCollection resource
-                domain = url.split('//')[-1].split('/')[0]  # Extract domain
+                # Store as resource
+                domain = url.split('//')[-1].split('/')[0]
                 resource_name = f"products_from_{domain}"
                 
-                # Create ProductCollection for this URL
                 collection = ProductCollection(
                     source_name=resource_name,
                     source_url=url,
                     products=url_products,
-                    extraction_method="json_ld_schema_org"
+                    extraction_method="brightdata_api"
                 )
                 resources[resource_name] = collection
                 
-                streamer.progress(f"✅ Found {len(url_products)} products from {domain}", 
-                                current=i, total=len(urls), products_found=len(url_products))
-                
-            except Exception as e:
-                logger.error(f"Failed to extract from {url}: {e}")
-                streamer.progress(f"❌ Failed to extract from {url}: {e}", current=i, total=len(urls))
-                continue
+                streamer.progress(f"✅ {domain}: {len(url_products)} products")
         
         # Store all products combined as a ProductCollection
         if all_products:
